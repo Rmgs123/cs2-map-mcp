@@ -1,0 +1,494 @@
+{
+  "schema": 1,
+  "kit": "harbor",
+  "title": "Harbor",
+  "style": [
+    "harbor",
+    "street"
+  ],
+  "parts": [
+    {
+      "key": "dock",
+      "model": "models/props/de_train/hr_t/dock_a/dock_a.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -70.2428,
+          -8.1953,
+          -20.2
+        ],
+        [
+          71.0419,
+          8.6622,
+          20.2
+        ]
+      ],
+      "size": [
+        141.2847,
+        16.8575,
+        40.4
+      ],
+      "tags": [
+        "dock",
+        "edge",
+        "wood"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "dock_bollard",
+      "model": "models/props/dust_massive/docks/dock_bollard001.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -24.05,
+          -24.05,
+          -0.05
+        ],
+        [
+          24.05,
+          33.7784,
+          52.0162
+        ]
+      ],
+      "size": [
+        48.1,
+        57.8284,
+        52.0662
+      ],
+      "tags": [
+        "bollard",
+        "dock"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "dock_rope",
+      "model": "models/props/de_venice/dock_ropes/dock_rope_1.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -4.4482,
+          -43.4803,
+          -4.9871
+        ],
+        [
+          4.4169,
+          43.4803,
+          4.9871
+        ]
+      ],
+      "size": [
+        8.8651,
+        86.9606,
+        9.9742
+      ],
+      "tags": [
+        "rope",
+        "dock"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "large_crate",
+      "model": "models/props/de_nuke/crate_large.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -48.0523,
+          -48.0493,
+          -0.1597
+        ],
+        [
+          48.0532,
+          48.0562,
+          96.0429
+        ]
+      ],
+      "size": [
+        96.1055,
+        96.1055,
+        96.2026
+      ],
+      "tags": [
+        "crate",
+        "cargo"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "crate_small",
+      "model": "models/props/de_nuke/crate_small.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -33.1515,
+          -33.1249,
+          -0.0415
+        ],
+        [
+          33.184,
+          33.223,
+          65.3457
+        ]
+      ],
+      "size": [
+        66.3355,
+        66.3479,
+        65.3872
+      ],
+      "tags": [
+        "crate",
+        "cargo"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "barrel",
+      "model": "models/props/de_dust/dust_rusty_barrel.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -14.84,
+          -14.84,
+          -0.05
+        ],
+        [
+          14.84,
+          14.84,
+          45.05
+        ]
+      ],
+      "size": [
+        29.68,
+        29.68,
+        45.1
+      ],
+      "tags": [
+        "barrel",
+        "cargo"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "barrel_pallet",
+      "model": "models/props/de_train/pallet_barrels.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -30.132,
+          -31.2526,
+          -0.05
+        ],
+        [
+          29.1902,
+          31.4872,
+          51.3065
+        ]
+      ],
+      "size": [
+        59.3222,
+        62.7398,
+        51.3565
+      ],
+      "tags": [
+        "barrel",
+        "pallet"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "pallet",
+      "model": "models/props/de_dust/pallet01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -44.5052,
+          -70.2927,
+          0.2467
+        ],
+        [
+          44.5052,
+          70.2927,
+          40.9401
+        ]
+      ],
+      "size": [
+        89.0104,
+        140.5854,
+        40.6934
+      ],
+      "tags": [
+        "pallet",
+        "wood"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "anchor",
+      "model": "models/de_inferno/metal_props_small_kit_01/inferno_anchor_01a.vmdl",
+      "category": "prop",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -9.8802,
+          -7.5592,
+          -0.05
+        ],
+        [
+          9.9313,
+          7.5634,
+          7.2382
+        ]
+      ],
+      "size": [
+        19.8115,
+        15.1226,
+        7.2882
+      ],
+      "tags": [
+        "anchor",
+        "metal"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "cargo_crate",
+      "model": "models/props_junk/plasticcrate01a.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -9.1703,
+          -13.0509,
+          -7.5202
+        ],
+        [
+          9.1703,
+          13.0509,
+          7.5202
+        ]
+      ],
+      "size": [
+        18.3406,
+        26.1018,
+        15.0404
+      ],
+      "tags": [
+        "crate",
+        "plastic",
+        "cargo"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "anchor_plate",
+      "model": "models/props/de_inferno/hr_i/anchor_plate/anchor_plate.vmdl",
+      "category": "prop",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -9.8883,
+          -7.4644,
+          -0.05
+        ],
+        [
+          9.9167,
+          7.418,
+          7.2382
+        ]
+      ],
+      "size": [
+        19.805,
+        14.8824,
+        7.2882
+      ],
+      "tags": [
+        "anchor",
+        "plate",
+        "metal"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "fish_01",
+      "model": "models/cs_italy/italy_food_fish/italy_food_fish_01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -3.0715,
+          -7.7334,
+          -0.0599
+        ],
+        [
+          3.1374,
+          7.7025,
+          1.8795
+        ]
+      ],
+      "size": [
+        6.2089,
+        15.4359,
+        1.9394
+      ],
+      "tags": [
+        "fish",
+        "food"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "fish_02",
+      "model": "models/cs_italy/italy_food_fish/italy_food_fish_02.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.8098,
+          -10.9612,
+          -0.0567
+        ],
+        [
+          4.2478,
+          10.9639,
+          2.754
+        ]
+      ],
+      "size": [
+        10.0576,
+        21.9251,
+        2.8107
+      ],
+      "tags": [
+        "fish",
+        "food"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "basket",
+      "model": "models/props/de_dust/grainbasket01b.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -19.4724,
+          -19.4628,
+          -0.2029
+        ],
+        [
+          19.4724,
+          19.4819,
+          40.0515
+        ]
+      ],
+      "size": [
+        38.9448,
+        38.9447,
+        40.2544
+      ],
+      "tags": [
+        "basket",
+        "rope"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "inflatable",
+      "model": "models/props/coop_cementplant/coop_inflatable_boat/coop_inflatable_boat.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -56.3052,
+          -115.8,
+          -14.0745
+        ],
+        [
+          56.3052,
+          126.0834,
+          35.1125
+        ]
+      ],
+      "size": [
+        112.6104,
+        241.8834,
+        49.187
+      ],
+      "tags": [
+        "boat",
+        "water"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "gaspipes",
+      "model": "models/props_c17/gaspipes006a.vmdl",
+      "category": "prop",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.9121,
+          -1.4587,
+          -26.4423
+        ],
+        [
+          5.9121,
+          1.4587,
+          26.4423
+        ]
+      ],
+      "size": [
+        11.8242,
+        2.9174,
+        52.8846
+      ],
+      "tags": [
+        "pipe",
+        "metal"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    }
+  ]
+}

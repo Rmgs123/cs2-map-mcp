@@ -1,0 +1,4 @@
+<root><styles><include src="file://{resources}/styles/custom_game/HUDNAME.css" /></styles>
+<Panel class="MinigameRoot"><Panel id="HUDNAME_panel" class="Hidden" hittest="false">
+<Label id="HUDNAME_title" class="Title" text="HUDTITLE" hittest="false"/><Label id="HUDNAME_status" class="Status" text="{s:HUDNAME_status}" hittest="false"/>
+</Panel></Panel></root>

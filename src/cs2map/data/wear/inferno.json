@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "style": "inferno",
+  "notes": "32 stock candidates exported and inspected in .local/scratch/W/candidate_sheet.jpg. Reject opaque plaster, uncropped atlas sheets, round dirt02 and non-Italian posters. Per-role density scales candidate acceptance at density=2. Integrator 04.10: plaster_loss uses Inferno's own infer_plaster_damaged strips (the hpe patch read as a pale blob on light plaster). leak/eave_grime use inferno_trim_decal_leakage_01 (85 uses in the shipped map).",
+  "roles": {
+    "base_dirt": {
+      "materials": [
+        "materials/decals/infer_dirt.vmat"
+      ],
+      "size": [
+        72,
+        18
+      ],
+      "jitter": 0.24,
+      "density": 1.45,
+      "alpha": 0.48,
+      "orientation": "wall: top +Z, grime at bottom",
+      "mirror": true
+    },
+    "leak": {
+      "materials": [
+        "materials/de_inferno/decals/inferno_trim_decal_leakage_01.vmat"
+      ],
+      "uv": [
+        0,
+        0.31,
+        1,
+        1
+      ],
+      "size": [
+        26,
+        64
+      ],
+      "jitter": 0.25,
+      "density": 0.65,
+      "alpha": 0.6,
+      "orientation": "wall: lower 69% of de_inferno's leakage atlas, streaks toward -Z",
+      "mirror": true
+    },
+    "eave_grime": {
+      "materials": [
+        "materials/de_inferno/decals/inferno_trim_decal_leakage_01.vmat"
+      ],
+      "uv": [
+        0,
+        0,
+        1,
+        0.3
+      ],
+      "size": [
+        110,
+        28
+      ],
+      "jitter": 0.25,
+      "density": 1.3,
+      "alpha": 0.75,
+      "orientation": "wall: top 30% of the leakage atlas, a drip band just under the cornice",
+      "mirror": true
+    },
+    "crack": {
+      "materials": [
+        "materials/models/sprays/concrete_crack.vmat"
+      ],
+      "size": [
+        42,
+        20
+      ],
+      "jitter": 0.28,
+      "density": 0.65,
+      "alpha": 0.55,
+      "orientation": "wall: top +Z",
+      "mirror": true
+    },
+    "plaster_loss": {
+      "materials": [
+        "materials/decals/infer_plaster_damaged.vmat",
+        "materials/decals/infer_plaster_damaged_02.vmat",
+        "materials/decals/infer_plaster_damaged_03.vmat"
+      ],
+      "size": [
+        104,
+        26
+      ],
+      "jitter": 0.25,
+      "density": 0.9,
+      "alpha": 0.95,
+      "orientation": "wall: broken plaster edge on top, bricks toward -Z; low, just above the plinth",
+      "mirror": true
+    },
+    "poster": {
+      "materials": [
+        "materials/decals/italy_poster2.vmat",
+        "materials/decals/italy_poster3.vmat"
+      ],
+      "size": [
+        40,
+        40
+      ],
+      "jitter": 0.15,
+      "density": 0.55,
+      "alpha": 0.9,
+      "orientation": "wall: text upright +Z; no mirror"
+    },
+    "graffiti": {
+      "materials": [
+        "materials/decals/graffiti_venice_01.vmat"
+      ],
+      "size": [
+        42,
+        32
+      ],
+      "jitter": 0.18,
+      "density": 0.14,
+      "alpha": 0.72,
+      "orientation": "wall: text upright +Z; no mirror"
+    },
+    "ground_stain": {
+      "materials": [
+        "materials/decals/stain008.vmat"
+      ],
+      "size": [
+        58,
+        24
+      ],
+      "jitter": 0.28,
+      "density": 1.1,
+      "alpha": 0.6,
+      "orientation": "normal +Z; quarter-turn UV variation",
+      "mirror": true
+    },
+    "ground_dirt": {
+      "materials": [
+        "materials/decals/dirt/dirt3.vmat"
+      ],
+      "size": [
+        44,
+        22
+      ],
+      "jitter": 0.32,
+      "density": 0.65,
+      "alpha": 0.38,
+      "orientation": "normal +Z; elongated irregular patch, quarter-turn UV",
+      "mirror": true
+    }
+  }
+}

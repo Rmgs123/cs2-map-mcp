@@ -1,0 +1,491 @@
+{
+  "schema": 1,
+  "kit": "vehicles",
+  "title": "Vehicles",
+  "style": [
+    "street",
+    "vehicles"
+  ],
+  "parts": [
+    {
+      "key": "car_004",
+      "model": "models/props_vehicles/car004b.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -122.6004,
+          -49.839,
+          -22.9788
+        ],
+        [
+          84.2856,
+          45.9657,
+          36.5227
+        ]
+      ],
+      "size": [
+        206.886,
+        95.8047,
+        59.5015
+      ],
+      "tags": [
+        "car",
+        "sedan"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "car_hatchback",
+      "model": "models/props_vehicles/cara_82hatchback.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -84.457,
+          -38.8638,
+          -0.1321
+        ],
+        [
+          86.9599,
+          39.4183,
+          59.9719
+        ]
+      ],
+      "size": [
+        171.4169,
+        78.2821,
+        60.104
+      ],
+      "tags": [
+        "car",
+        "hatchback"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "van",
+      "model": "models/props_vehicles/van.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -48.9191,
+          -116.2589,
+          -0.813
+        ],
+        [
+          48.9316,
+          116.3334,
+          89.7897
+        ]
+      ],
+      "size": [
+        97.8507,
+        232.5923,
+        90.6027
+      ],
+      "tags": [
+        "van",
+        "utility"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "van_001",
+      "model": "models/props_vehicles/van001a.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -127.5649,
+          -62.9125,
+          -34.3917
+        ],
+        [
+          98.7649,
+          48.5125,
+          48.7917
+        ]
+      ],
+      "size": [
+        226.3298,
+        111.425,
+        83.1834
+      ],
+      "tags": [
+        "van",
+        "utility"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "truck_tides",
+      "model": "models/props/de_tides/truck.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -119.6869,
+          -45.4892,
+          -7.433
+        ],
+        [
+          122.2989,
+          46.9449,
+          94.5281
+        ]
+      ],
+      "size": [
+        241.9858,
+        92.4341,
+        101.9611
+      ],
+      "tags": [
+        "truck",
+        "cargo"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "truck_nuke",
+      "model": "models/props/de_nuke/truck_nuke.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -56.7671,
+          -167.7503,
+          -0.8649
+        ],
+        [
+          57.2934,
+          159.4216,
+          156.1957
+        ]
+      ],
+      "size": [
+        114.0605,
+        327.1719,
+        157.0606
+      ],
+      "tags": [
+        "truck",
+        "cargo"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "utility_truck",
+      "model": "models/props/de_train/utility_truck.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -104.4215,
+          -51.3498,
+          -1.4345
+        ],
+        [
+          104.4209,
+          51.3498,
+          69.0185
+        ]
+      ],
+      "size": [
+        208.8424,
+        102.6996,
+        70.453
+      ],
+      "tags": [
+        "truck",
+        "utility"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "flatnose_wreck",
+      "model": "models/props_vehicles/flatnose_truck_wrecked.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -163.5695,
+          -125.3375,
+          -77.5577
+        ],
+        [
+          147.9501,
+          64.6945,
+          76.637
+        ]
+      ],
+      "size": [
+        311.5196,
+        190.032,
+        154.1947
+      ],
+      "tags": [
+        "truck",
+        "wreck"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "boat_anubis",
+      "model": "models/anubis/vehicles/boat01.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -40.1482,
+          -171.0622,
+          -7.9519
+        ],
+        [
+          40.1482,
+          182.8311,
+          56.9412
+        ]
+      ],
+      "size": [
+        80.2964,
+        353.8933,
+        64.8931
+      ],
+      "tags": [
+        "boat",
+        "river"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "boat_venice",
+      "model": "models/props/de_venice/venice_boat_2/venice_boat_2.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -45.6393,
+          -98.9871,
+          -10.4483
+        ],
+        [
+          45.6393,
+          114.5338,
+          47.1634
+        ]
+      ],
+      "size": [
+        91.2786,
+        213.5209,
+        57.6117
+      ],
+      "tags": [
+        "boat",
+        "canal"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "boat_inflatable",
+      "model": "models/props/coop_cementplant/coop_inflatable_boat/coop_inflatable_boat.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -56.3052,
+          -115.8,
+          -14.0745
+        ],
+        [
+          56.3052,
+          126.0834,
+          35.1125
+        ]
+      ],
+      "size": [
+        112.6104,
+        241.8834,
+        49.187
+      ],
+      "tags": [
+        "boat",
+        "inflatable"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "truck_modern_02",
+      "model": "models/props/de_nuke/hr_nuke/nuke_cars/nuke_truck_02.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          69.3643,
+          -55.5623,
+          -0.0341
+        ],
+        [
+          149.6207,
+          55.5624,
+          101.4686
+        ]
+      ],
+      "size": [
+        80.2564,
+        111.1247,
+        101.5027
+      ],
+      "tags": [
+        "truck",
+        "cargo"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "car_inferno",
+      "model": "models/props/de_inferno/hr_i/car_a/car_a.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -96.3871,
+          -37.1951,
+          -19.3033
+        ],
+        [
+          97.1381,
+          41.8339,
+          42.1769
+        ]
+      ],
+      "size": [
+        193.5252,
+        79.029,
+        61.4802
+      ],
+      "tags": [
+        "car",
+        "italy"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "truck_modern",
+      "model": "models/props/de_nuke/hr_nuke/nuke_cars/nuke_truck_01.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          30.23,
+          -60.3005,
+          -0.0329
+        ],
+        [
+          151.0362,
+          60.3005,
+          110.1378
+        ]
+      ],
+      "size": [
+        120.8062,
+        120.601,
+        110.1707
+      ],
+      "tags": [
+        "truck",
+        "cargo"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "tire",
+      "model": "models/cs_italy/car_tire/car_tire.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.05,
+          -20.05,
+          -20.05
+        ],
+        [
+          5.05,
+          20.05,
+          20.05
+        ]
+      ],
+      "size": [
+        10.1,
+        40.1,
+        40.1
+      ],
+      "tags": [
+        "tire",
+        "car"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "hand_truck",
+      "model": "models/props/de_train/hr_t/hand_truck/hand_truck.vmdl",
+      "category": "vehicle",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -52.7634,
+          -22.1534,
+          -0.1844
+        ],
+        [
+          27.7363,
+          22.1534,
+          63.9301
+        ]
+      ],
+      "size": [
+        80.4997,
+        44.3068,
+        64.1145
+      ],
+      "tags": [
+        "cart",
+        "warehouse"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    }
+  ]
+}

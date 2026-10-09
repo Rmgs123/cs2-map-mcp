@@ -1,0 +1,42 @@
+[
+ {"op":"add_layout","name":"check","wall":16,"rooms":[{"id":"yard","origin":[0,0,0],"size":[2400,1600,640],"ceiling":false},
+   {"id":"shed","from":"yard","side":"+y","size":[320,256,224],"align":"start"}],
+  "openings":[{"between":["yard","shed"],"width":128,"height":112,"door":{"targetname":"sc_gate","stay_open":true}}],
+  "materials":{"floor":"materials/de_inferno/ground/inferno_stone_floor_08.vmat","walls":"materials/de_inferno/stone/inferno_stone_wall_09.vmat"}},
+ {"op":"add_entity","classname":"info_player_terrorist","origin":[200,800,8],"angles":[0,0,0]},
+ {"op":"add_entity","classname":"info_player_counterterrorist","origin":[2250,1450,8],"angles":[0,180,0]},
+ {"op":"add_entity","classname":"point_nav_walkable","origin":[1200,800,8]},
+ {"op":"lighting_preset","preset":"day"},
+ {"op":"set_ui_theme","theme":"night","animation":"fade"},
+
+ {"op":"add_mesh","ref":"pillar","shape":{"shape":"box","mins":[380,1180,0],"maxs":[440,1240,160]},"material":"materials/dev/reflectivity_30.vmat"},
+ {"op":"edit_mesh","id":"@pillar","ref":"pillar","steps":[{"do":"bevel","edges":"top","width":3,"segments":2}]},
+
+ {"op":"add_button","targetname":"sc_switch","mins":[900,1576,40],"maxs":[940,1600,72],"targets":[{"name":"sc_gate","input":"Open"}]},
+ {"op":"add_story","name":"sc_story","settings":{"respawn":true,"round_minutes":30,"bots":0,"resume":false},
+  "stages":[
+   {"id":"wake","objective":"Press the switch","until":{"button":"sc_switch"}},
+   {"id":"gate","objective":"Walk to the gate","until":{"zone":{"mins":[880,1250,0],"maxs":[1000,1400,128]}},
+    "then":[{"end_text":"Self-check story complete"}]}]},
+
+ {"op":"add_mesh","shape":{"shape":"box","mins":[494,270,0],"maxs":[546,330,40]},"material":"materials/wood/milbeams003.vmat"},
+ {"op":"add_controllable","name":"drone1","origin":[700,300,2],"controller":{"at":[520,300,40]},
+  "bounds":{"mins":[0,0,0],"maxs":[2400,1600,700]},"health":50,"respawn":10},
+ {"op":"add_controllable","name":"jeep","kind":"car","origin":[1200,250,12],"yaw":0,"health":300,"respawn":8},
+ {"op":"add_controllable","name":"gun1","kind":"turret","origin":[1900,1100,0],"yaw":180,
+  "limits":{"yaw":[-75,75],"pitch":[-30,20]},"turn_rate":120,"health":200,
+  "fire":{"rate":0.1,"damage":18,"spread":1.5},"heat":{"gain":0.06,"cool":0.35}},
+ {"op":"add_minigame","name":"range","kind":"gallery","origin":[600,1350,0],
+  "targets":[[1300,1250,0],[1300,1420,0],[1150,1330,0]],"time":30,"popup":[1,2.5]},
+
+ {"op":"add_mesh","shape":{"shape":"box","mins":[274,530,0],"maxs":[326,590,40]},"material":"materials/wood/milbeams003.vmat"},
+ {"op":"add_weapon","name":"rail","base":"awp","title":"RAILGUN","origin":[300,560,44],"angles":[0,90,90],
+  "model":"models/mcp_w/railgun/railgun.vmdl",
+  "fire":{"charge":0.6,"cooldown":1,"magazine":4,"damage":300,"penetration":8,"thickness":64,
+   "recoil":{"kick":5,"side":0.6,"return":0.6},"shake":{"amplitude":0.3},"flash":{"life":0.14},
+   "sound":["mcp.w9_rail_crack","mcp.w9_rail_body","mcp.w9_rail_tail"],"charge_sound":"mcp.w9_rail_charge",
+   "beam":{"color":[50,160,255],"width":4,"life":0.2,"fade":1}}},
+
+ {"op":"add_ability","name":"zone","abilities":{"double_jump":{}},
+  "source":{"zone":{"mins":[2000,100,0],"maxs":[2350,450,400]}},"hud":{"title":"DOUBLE JUMP"}}
+]

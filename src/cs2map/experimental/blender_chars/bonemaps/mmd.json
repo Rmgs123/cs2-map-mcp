@@ -1,0 +1,11 @@
+{
+  "name": "mmd",
+  "description": "MikuMikuDance rigs; use overrides for model-specific Japanese names",
+  "roles": {
+    "pelvis": "センター", "spine_0": "上半身", "spine_1": "上半身2", "neck": "首", "head": "頭",
+    "upper_arm_l": "左腕", "upper_arm_r": "右腕", "lower_arm_l": "左ひじ", "lower_arm_r": "右ひじ",
+    "hand_l": "左手首", "hand_r": "右手首", "thigh_l": "左足", "thigh_r": "右足",
+    "calf_l": "左ひざ", "calf_r": "右ひざ", "foot_l": "左足首", "foot_r": "右足首"
+  },
+  "aliases": {}
+}

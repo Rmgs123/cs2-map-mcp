@@ -1,0 +1,8 @@
+<root>
+  <styles><include src="file://{resources}/styles/custom_game/mcp_x_custom.css" /></styles>
+  <Panel class="Root" hittest="false">
+    <Panel id="weapon" class="Hidden" hittest="false">
+      <Label text="{s:status}" hittest="false" />
+    </Panel>
+  </Panel>
+</root>

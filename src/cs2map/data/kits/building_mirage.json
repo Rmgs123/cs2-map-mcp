@@ -1,0 +1,950 @@
+{
+  "schema": 1,
+  "kit": "building_mirage",
+  "title": "building_mirage",
+  "style": [
+    "middle_east"
+  ],
+  "parts": [
+    {
+      "key": "window_88x56",
+      "model": "models/props/de_dust/du_window_88x56.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.694795000000001,
+          -28.049998000000002,
+          -60.050008
+        ],
+        [
+          2.8442771999999996,
+          28.050008000000002,
+          44.050022999999996
+        ]
+      ],
+      "size": [
+        13.539,
+        56.1,
+        104.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        50.1,
+        50
+      ],
+      "opening_bottom": -57.050008
+    },
+    {
+      "key": "window_88x80",
+      "model": "models/props/de_dust/du_window_88x80.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -6.7695362999999995,
+          -40.05,
+          -60.05
+        ],
+        [
+          6.7695387,
+          40.05,
+          44.050014999999995
+        ]
+      ],
+      "size": [
+        13.539,
+        80.1,
+        104.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        74.1,
+        74
+      ],
+      "opening_bottom": -57.05
+    },
+    {
+      "key": "window_arch_2x6",
+      "model": "models/props/de_dust/du_window_2x6_arch.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -7.0292466,
+          -8.109172000000001,
+          -32.05
+        ],
+        [
+          0.28134936,
+          8.109172000000001,
+          16.05
+        ]
+      ],
+      "size": [
+        7.311,
+        16.218,
+        48.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        10.22,
+        42.1
+      ],
+      "opening_bottom": -29.05
+    },
+    {
+      "key": "window_arch_4x6",
+      "model": "models/props/de_dust/du_window_4x6_arch.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -7.0292466,
+          -16.168343,
+          -32.05
+        ],
+        [
+          0.76165174,
+          16.168343,
+          16.05
+        ]
+      ],
+      "size": [
+        7.791,
+        32.337,
+        48.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        26.34,
+        42.1
+      ],
+      "opening_bottom": -29.05
+    },
+    {
+      "key": "window_arch_4x8",
+      "model": "models/props/de_dust/du_window_4x8_arch.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -7.0292466,
+          -16.168343,
+          -32.05
+        ],
+        [
+          0.76165174,
+          16.168343,
+          32.05
+        ]
+      ],
+      "size": [
+        7.791,
+        32.337,
+        64.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        26.34,
+        58.1
+      ],
+      "opening_bottom": -29.05
+    },
+    {
+      "key": "window_square_4x6",
+      "model": "models/props/de_dust/du_window_4x6_square.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.252934000000002,
+          -16.05,
+          -16.05
+        ],
+        [
+          0.050001699382200004,
+          16.05,
+          32.05
+        ]
+      ],
+      "size": [
+        10.303,
+        32.1,
+        48.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        26.1,
+        42.1
+      ],
+      "opening_bottom": -13.05
+    },
+    {
+      "key": "window_square_4x8",
+      "model": "models/props/de_dust/du_window_4x8_square.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.252934000000002,
+          -16.05,
+          -32.05
+        ],
+        [
+          0.050001699382200004,
+          16.05,
+          32.05
+        ]
+      ],
+      "size": [
+        10.303,
+        32.1,
+        64.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        26.1,
+        58.1
+      ],
+      "opening_bottom": -29.05
+    },
+    {
+      "key": "window_palace",
+      "model": "models/props/de_dust/du_window_palace.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -15.595084,
+          -97.7727,
+          -57.08483
+        ],
+        [
+          1.7943873000000001,
+          97.775784,
+          40.383289999999995
+        ]
+      ],
+      "size": [
+        17.389,
+        195.548,
+        97.468
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": false,
+      "verified": "bounds",
+      "opening": [
+        48,
+        88
+      ],
+      "opening_bottom": -54.08483
+    },
+    {
+      "key": "window_mirage",
+      "model": "models/props/de_mirage/window_a.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -43.555974,
+          -0.3258039,
+          -161.51399
+        ],
+        [
+          0.050006922835,
+          70.44731999999999,
+          0.05
+        ]
+      ],
+      "size": [
+        43.606,
+        70.773,
+        161.564
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        40,
+        64
+      ],
+      "opening_bottom": -158.51399
+    },
+    {
+      "key": "shutter_left",
+      "model": "models/props/de_mirage/shutter_window_l_dama.vmdl",
+      "category": "shutter",
+      "mount": "wall",
+      "front": "+y",
+      "bounds": [
+        [
+          -0.049992370605500006,
+          -1.915966,
+          -6.614994
+        ],
+        [
+          27.770913,
+          4.575168,
+          47.02111
+        ]
+      ],
+      "size": [
+        27.821,
+        6.491,
+        53.636
+      ],
+      "tags": [
+        "shutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "shutter_right",
+      "model": "models/props/de_mirage/shutter_window_r_dama.vmdl",
+      "category": "shutter",
+      "mount": "wall",
+      "front": "+y",
+      "bounds": [
+        [
+          -32.050008,
+          -3.6007019999999996,
+          0.53616
+        ],
+        [
+          0.049980926514000004,
+          1.84637,
+          54.343213
+        ]
+      ],
+      "size": [
+        32.1,
+        5.447,
+        53.807
+      ],
+      "tags": [
+        "shutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "shutter_left_b",
+      "model": "models/props/de_mirage/shutter_window_l_damb.vmdl",
+      "category": "shutter",
+      "mount": "wall",
+      "front": "+y",
+      "bounds": [
+        [
+          -0.049990463257000003,
+          -3.2280179999999996,
+          -42.26208
+        ],
+        [
+          32.049996,
+          2.8811829999999996,
+          28.041402
+        ]
+      ],
+      "size": [
+        32.1,
+        6.109,
+        70.303
+      ],
+      "tags": [
+        "shutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "shutter_right_b",
+      "model": "models/props/de_mirage/shutter_window_r_damb.vmdl",
+      "category": "shutter",
+      "mount": "wall",
+      "front": "+y",
+      "bounds": [
+        [
+          -32.050003999999994,
+          -2.388858,
+          -42.281518
+        ],
+        [
+          0.049992370605500006,
+          5.668591999999999,
+          19.275061
+        ]
+      ],
+      "size": [
+        32.1,
+        8.057,
+        61.557
+      ],
+      "tags": [
+        "shutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "door_wood",
+      "model": "models/props/de_mirage/small_door_b.vmdl",
+      "category": "door",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.188261,
+          -34.784499999999994,
+          -0.36319999999999997
+        ],
+        [
+          5.108639999999999,
+          34.784499999999994,
+          118.1724
+        ]
+      ],
+      "size": [
+        10.297,
+        69.569,
+        118.536
+      ],
+      "tags": [
+        "door"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        56,
+        108
+      ],
+      "opening_bottom": 2.6368
+    },
+    {
+      "key": "door_large",
+      "model": "models/props/de_mirage/large_door_a.vmdl",
+      "category": "door",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -18.023629,
+          -190.29533,
+          -148.60860000000002
+        ],
+        [
+          30.147782,
+          190.29527000000002,
+          239.49025
+        ]
+      ],
+      "size": [
+        48.171,
+        380.591,
+        388.099
+      ],
+      "tags": [
+        "door"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        88,
+        120
+      ],
+      "opening_bottom": -145.6086
+    },
+    {
+      "key": "balcony_128",
+      "model": "models/props/de_dust/dust_balcony02.vmdl",
+      "category": "balcony",
+      "mount": "wall",
+      "front": "+y",
+      "bounds": [
+        [
+          -120.109875,
+          -0.0500052479836,
+          -0.9587600000000001
+        ],
+        [
+          118.25037999999999,
+          95.73486,
+          55.833745
+        ]
+      ],
+      "size": [
+        238.36,
+        95.785,
+        56.793
+      ],
+      "tags": [
+        "balcony"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "balcony_03",
+      "model": "models/props/de_dust/dust_balcony03.vmdl",
+      "category": "balcony",
+      "mount": "wall",
+      "front": "+y",
+      "bounds": [
+        [
+          -120.109875,
+          -0.0500052479836,
+          -2.6555169999999997
+        ],
+        [
+          118.25037999999999,
+          79.31868,
+          56.924355
+        ]
+      ],
+      "size": [
+        238.36,
+        79.369,
+        59.58
+      ],
+      "tags": [
+        "balcony"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "awning_01",
+      "model": "models/props/de_dust/awning01.vmdl",
+      "category": "awning",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.9360068300000001,
+          -32.672489999999996,
+          20.478679
+        ],
+        [
+          50.155766,
+          48.074839999999995,
+          78.147595
+        ]
+      ],
+      "size": [
+        51.092,
+        80.747,
+        57.669
+      ],
+      "tags": [
+        "awning"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "awning_02",
+      "model": "models/props/de_dust/awning02.vmdl",
+      "category": "awning",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.93600653,
+          -38.923519999999996,
+          12.814765
+        ],
+        [
+          50.15577,
+          38.92351,
+          79.41400999999999
+        ]
+      ],
+      "size": [
+        51.092,
+        77.847,
+        66.599
+      ],
+      "tags": [
+        "awning"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "awning_door",
+      "model": "models/props/de_dust/awning_smalldoor.vmdl",
+      "category": "awning",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -95.880894,
+          -110.55908,
+          -7.003482
+        ],
+        [
+          13.400781,
+          131.26317,
+          60.187813999999996
+        ]
+      ],
+      "size": [
+        109.282,
+        241.822,
+        67.191
+      ],
+      "tags": [
+        "awning"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "sill_6x8",
+      "model": "models/props/de_dust/du_window_6x8_sill.vmdl",
+      "category": "trim",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -14.138943000000001,
+          -35.97031,
+          -36.187839999999994
+        ],
+        [
+          7.2640455,
+          35.97031,
+          32.05
+        ]
+      ],
+      "size": [
+        21.403,
+        71.941,
+        68.238
+      ],
+      "tags": [
+        "trim"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "window_shutters",
+      "model": "models/props/de_dust/du_window_6x8_shutters_flat.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.052494021,
+          -23.410947,
+          -30.921845
+        ],
+        [
+          3.4913149999999997,
+          23.410947,
+          30.921845
+        ]
+      ],
+      "size": [
+        3.544,
+        46.822,
+        61.844
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        40.82,
+        55.84
+      ],
+      "opening_bottom": -27.921845
+    },
+    {
+      "key": "sign_street",
+      "model": "models/props/de_inferno/hr_i/inferno_sign_street_01/inferno_sign_street_01.vmdl",
+      "category": "sign",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -3.3372317,
+          -8.699973,
+          -0.051298724700000006
+        ],
+        [
+          13.464339,
+          15.177856,
+          1.4986368
+        ]
+      ],
+      "size": [
+        16.802,
+        23.878,
+        1.55
+      ],
+      "tags": [
+        "sign"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "lamp_ornate",
+      "model": "models/props/de_inferno/hr_i/ornate_lamp/ornate_lamp.vmdl",
+      "category": "lamp",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -6.9138386999999994,
+          -0.061358640000000006,
+          -17.734319
+        ],
+        [
+          6.9138377,
+          17.699761000000002,
+          17.734319
+        ]
+      ],
+      "size": [
+        13.828,
+        17.761,
+        35.469
+      ],
+      "tags": [
+        "lamp"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "gutter_128",
+      "model": "models/generic/gutter_kit_01/gk01_gutter_01_128_a.vmdl",
+      "category": "gutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -1.7459486,
+          -0.05,
+          -6.392984
+        ],
+        [
+          9.354059000000001,
+          128.05006,
+          1.5005672
+        ]
+      ],
+      "size": [
+        11.1,
+        128.1,
+        7.894
+      ],
+      "tags": [
+        "gutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "gutter_64",
+      "model": "models/generic/gutter_kit_01/gk01_gutter_01_64_a.vmdl",
+      "category": "gutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -1.7459486,
+          -0.05,
+          -6.3929728
+        ],
+        [
+          9.354059000000001,
+          64.05002999999999,
+          1.5005785
+        ]
+      ],
+      "size": [
+        11.1,
+        64.1,
+        7.894
+      ],
+      "tags": [
+        "gutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "downpipe_128",
+      "model": "models/generic/gutter_kit_01/gk01_pipe_01_128_a.vmdl",
+      "category": "gutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -2.5499945,
+          -2.549914,
+          -0.050026975338000004
+        ],
+        [
+          2.5500072,
+          2.5501047,
+          128.04996
+        ]
+      ],
+      "size": [
+        5.1,
+        5.1,
+        128.1
+      ],
+      "tags": [
+        "gutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "pipe_end",
+      "model": "models/generic/gutter_kit_01/gk01_pipe_01_end_01_a.vmdl",
+      "category": "gutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.0500105,
+          -2.7057385999999997,
+          -17.66969
+        ],
+        [
+          2.7057092999999997,
+          2.705691,
+          1.039019
+        ]
+      ],
+      "size": [
+        12.756,
+        5.411,
+        18.709
+      ],
+      "tags": [
+        "gutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "chimney_01",
+      "model": "models/generic/chimney_kit_01/chimney_01a.vmdl",
+      "category": "chimney",
+      "mount": "roof",
+      "front": "+x",
+      "bounds": [
+        [
+          -15.899602000000002,
+          -15.899600000000001,
+          -0.050002372454
+        ],
+        [
+          15.899601,
+          15.899600000000001,
+          46.280739999999994
+        ]
+      ],
+      "size": [
+        31.799,
+        31.799,
+        46.331
+      ],
+      "tags": [
+        "chimney"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "chimney_03",
+      "model": "models/generic/chimney_kit_01/chimney_03_a.vmdl",
+      "category": "chimney",
+      "mount": "roof",
+      "front": "+x",
+      "bounds": [
+        [
+          -6.278843,
+          -6.2788113,
+          -0.0499967711644
+        ],
+        [
+          6.278829,
+          6.2788113,
+          39.915924999999994
+        ]
+      ],
+      "size": [
+        12.558,
+        12.558,
+        39.966
+      ],
+      "tags": [
+        "chimney"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    }
+  ],
+  "materials": {
+    "walls": "materials/de_dust/hr_dust/hr_dust_plaster_03.vmat",
+    "plinth": "materials/brick/brick_ext_04.vmat",
+    "trim": "materials/concrete/hr_c/hr_concrete_wall_004.vmat",
+    "roof": "materials/cs_italy/tileroof01.vmat",
+    "floor": "materials/concrete/concrete_floor_04.vmat",
+    "inner": "materials/dev/reflectivity_10.vmat",
+    "stone": "materials/cs_italy/stone/stone_tile_ground_1.vmat",
+    "stucco": "materials/shared_base/stucco/stucco_003.vmat"
+  }
+}

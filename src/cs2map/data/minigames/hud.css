@@ -1,0 +1,5 @@
+.MinigameRoot { width: 100%; height: 100%; }
+#HUDNAME_panel { width: 650px; horizontal-align: center; vertical-align: top; margin-top: 140px; background-color: #071b2be8; padding: 14px; flow-children: down; }
+#HUDNAME_panel.Hidden { visibility: collapse; }
+.Title { color: #8bd5ff; font-size: 25px; text-shadow: 1px 1px 2px #000; }
+.Status { color: #fff4bd; font-size: 20px; margin-top: 5px; text-shadow: 1px 1px 2px #000; }

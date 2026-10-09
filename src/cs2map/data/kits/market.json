@@ -1,0 +1,491 @@
+{
+  "schema": 1,
+  "kit": "market",
+  "title": "Market",
+  "style": [
+    "market",
+    "italy"
+  ],
+  "parts": [
+    {
+      "key": "market_table",
+      "model": "models/props/cs_italy/market_table01.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -22.3365,
+          -53.2501,
+          -0.0476
+        ],
+        [
+          22.3365,
+          53.2501,
+          34.9411
+        ]
+      ],
+      "size": [
+        44.673,
+        106.5002,
+        34.9887
+      ],
+      "tags": [
+        "market",
+        "table"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "market_veg_table",
+      "model": "models/props/cs_italy/it_mkt_table1.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -24.05,
+          -48.05,
+          -0.05
+        ],
+        [
+          26.05,
+          48.05,
+          40.05
+        ]
+      ],
+      "size": [
+        50.1,
+        96.1,
+        40.1
+      ],
+      "tags": [
+        "market",
+        "table"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "market_shelf",
+      "model": "models/props/cs_italy/it_mkt_shelf1.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.05,
+          -36.05,
+          -0.05
+        ],
+        [
+          10.05,
+          36.05,
+          64.05
+        ]
+      ],
+      "size": [
+        20.1,
+        72.1,
+        64.1
+      ],
+      "tags": [
+        "market",
+        "shelf"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "market_vegcrate",
+      "model": "models/props/cs_italy/market_vegcrate01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -16.5814,
+          -10.02,
+          0.1109
+        ],
+        [
+          16.5814,
+          10.02,
+          6.8576
+        ]
+      ],
+      "size": [
+        33.1628,
+        20.04,
+        6.7467
+      ],
+      "tags": [
+        "market",
+        "crate"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "market_vegbin",
+      "model": "models/props/cs_italy/market_vegbin01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -9.2868,
+          -10.5633,
+          -0.0335
+        ],
+        [
+          9.2868,
+          10.5633,
+          14.9621
+        ]
+      ],
+      "size": [
+        18.5736,
+        21.1266,
+        14.9956
+      ],
+      "tags": [
+        "market",
+        "bin"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "wooden_cage",
+      "model": "models/anubis/market/wooden_cage01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -13.122,
+          -16.8754,
+          -0.0517
+        ],
+        [
+          13.2611,
+          17.0335,
+          20.105
+        ]
+      ],
+      "size": [
+        26.3831,
+        33.9089,
+        20.1567
+      ],
+      "tags": [
+        "market",
+        "cage"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "wooden_cage_02",
+      "model": "models/anubis/market/wooden_cage02.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -15.0539,
+          -18.3365,
+          -0.0723
+        ],
+        [
+          13.2611,
+          18.4004,
+          21.2293
+        ]
+      ],
+      "size": [
+        28.315,
+        36.7369,
+        21.3016
+      ],
+      "tags": [
+        "market",
+        "cage"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "market_bag",
+      "model": "models/anubis/market/market_bag01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -21.5228,
+          -16.2332,
+          -0.0263
+        ],
+        [
+          16.5356,
+          18.2832,
+          21.9171
+        ]
+      ],
+      "size": [
+        38.0584,
+        34.5164,
+        21.9434
+      ],
+      "tags": [
+        "market",
+        "bag"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "market_bag_02",
+      "model": "models/anubis/market/market_bag02.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -12.955,
+          -14.7532,
+          -0.0694
+        ],
+        [
+          12.8298,
+          14.3119,
+          14.0826
+        ]
+      ],
+      "size": [
+        25.7848,
+        29.0651,
+        14.152
+      ],
+      "tags": [
+        "market",
+        "bag"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "hay_pile",
+      "model": "models/de_anubis/market/hay_pile_01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -47.8707,
+          -52.5093,
+          -0.05
+        ],
+        [
+          56.2242,
+          44.3652,
+          11.9101
+        ]
+      ],
+      "size": [
+        104.0949,
+        96.8745,
+        11.9601
+      ],
+      "tags": [
+        "market",
+        "hay"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "grain_basket",
+      "model": "models/props/de_dust/grainbasket01a.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -19.4724,
+          -19.4628,
+          -0.2029
+        ],
+        [
+          19.4724,
+          19.4819,
+          42.3472
+        ]
+      ],
+      "size": [
+        38.9448,
+        38.9447,
+        42.5501
+      ],
+      "tags": [
+        "basket",
+        "grain"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "fish_01",
+      "model": "models/cs_italy/italy_food_fish/italy_food_fish_01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -3.0715,
+          -7.7334,
+          -0.0599
+        ],
+        [
+          3.1374,
+          7.7025,
+          1.8795
+        ]
+      ],
+      "size": [
+        6.2089,
+        15.4359,
+        1.9394
+      ],
+      "tags": [
+        "fish",
+        "food"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "fish_02",
+      "model": "models/cs_italy/italy_food_fish/italy_food_fish_02.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.8098,
+          -10.9612,
+          -0.0567
+        ],
+        [
+          4.2478,
+          10.9639,
+          2.754
+        ]
+      ],
+      "size": [
+        10.0576,
+        21.9251,
+        2.8107
+      ],
+      "tags": [
+        "fish",
+        "food"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "cabbage",
+      "model": "models/food/vegetables/cabbage01a.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -4.2466,
+          -3.9772,
+          -3.5393
+        ],
+        [
+          4.1787,
+          4.0489,
+          3.6747
+        ]
+      ],
+      "size": [
+        8.4253,
+        8.0261,
+        7.214
+      ],
+      "tags": [
+        "vegetable",
+        "food"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "onion",
+      "model": "models/cs_italy/italy_food_onion/italy_food_onion_01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -3.2365,
+          -3.3609,
+          -3.5554
+        ],
+        [
+          3.2596,
+          3.3247,
+          3.586
+        ]
+      ],
+      "size": [
+        6.4961,
+        6.6856,
+        7.1414
+      ],
+      "tags": [
+        "vegetable",
+        "food"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "pepper",
+      "model": "models/cs_italy/italy_food_pepper/italy_food_pepper_01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -3.4138,
+          -3.3461,
+          -3.4506
+        ],
+        [
+          3.4138,
+          3.3461,
+          3.4506
+        ]
+      ],
+      "size": [
+        6.8276,
+        6.6922,
+        6.9012
+      ],
+      "tags": [
+        "vegetable",
+        "food"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    }
+  ]
+}

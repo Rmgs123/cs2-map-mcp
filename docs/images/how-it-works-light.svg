@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="330" viewBox="0 0 800 330" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-label="How CS2 Map MCP works: the AI client calls the cs2map server over MCP, the server writes map files into a CS2 addon, Valve's resourcecompiler builds them, CS2 loads the map, and screenshots and test results go back to the AI">
+<defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#59636e"/></marker></defs>
+<rect width="800" height="330" rx="12" fill="#ffffff"/>
+<rect x="24" y="40" width="186" height="74" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+<text x="117.0" y="73.0" text-anchor="middle" font-size="16" font-weight="600" fill="#1f2328">AI client</text>
+<text x="117.0" y="93.0" text-anchor="middle" font-size="12.5" fill="#59636e">Claude Code · Codex · any</text>
+<rect x="318" y="40" width="174" height="74" rx="10" fill="#ddf4ff" stroke="#54aeff" stroke-width="1.5"/>
+<text x="405.0" y="73.0" text-anchor="middle" font-size="16" font-weight="600" fill="#1f2328">cs2map server</text>
+<text x="405.0" y="93.0" text-anchor="middle" font-size="12.5" fill="#59636e">MCP · 49 tools</text>
+<rect x="590" y="40" width="186" height="74" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+<text x="683.0" y="73.0" text-anchor="middle" font-size="16" font-weight="600" fill="#1f2328">Map files</text>
+<text x="683.0" y="93.0" text-anchor="middle" font-size="12.5" fill="#59636e">.vmap · .vmat · .vmdl · scripts</text>
+<rect x="590" y="222" width="186" height="74" rx="10" fill="#f6f8fa" stroke="#d0d7de" stroke-width="1.5"/>
+<text x="683.0" y="255.0" text-anchor="middle" font-size="16" font-weight="600" fill="#1f2328">resourcecompiler</text>
+<text x="683.0" y="275.0" text-anchor="middle" font-size="12.5" fill="#59636e">Valve's map compiler</text>
+<rect x="318" y="222" width="174" height="74" rx="10" fill="#fff8c5" stroke="#d4a72c" stroke-width="1.5"/>
+<text x="405.0" y="255.0" text-anchor="middle" font-size="16" font-weight="600" fill="#1f2328">Counter-Strike 2</text>
+<text x="405.0" y="275.0" text-anchor="middle" font-size="12.5" fill="#59636e">Workshop Tools</text>
+<path d="M 214 66 L 312 66" fill="none" stroke="#59636e" stroke-width="1.8" marker-end="url(#head)"/>
+<text x="264.0" y="58" text-anchor="middle" font-size="13" fill="#59636e">tool calls</text>
+<path d="M 314 92 L 216 92" fill="none" stroke="#59636e" stroke-width="1.8" marker-end="url(#head)"/>
+<text x="264.0" y="112" text-anchor="middle" font-size="13" fill="#59636e">results, frames</text>
+<path d="M 496 77.0 L 584 77.0" fill="none" stroke="#59636e" stroke-width="1.8" marker-end="url(#head)"/>
+<text x="541.0" y="68.0" text-anchor="middle" font-size="13" fill="#59636e">writes</text>
+<path d="M 683.0 118 L 683.0 216" fill="none" stroke="#59636e" stroke-width="1.8" marker-end="url(#head)"/>
+<text x="695.0" y="173.0" text-anchor="start" font-size="13" fill="#59636e">compile</text>
+<path d="M 586 259.0 L 498 259.0" fill="none" stroke="#59636e" stroke-width="1.8" marker-end="url(#head)"/>
+<text x="541.0" y="250.0" text-anchor="middle" font-size="13" fill="#59636e">loads .vpk</text>
+<path d="M 405.0 218 L 405.0 120" fill="none" stroke="#59636e" stroke-width="1.8" marker-end="url(#head)"/>
+<text x="393.0" y="156.0" text-anchor="end" font-size="13" fill="#59636e">screenshots, console,</text>
+<text x="393.0" y="174.0" text-anchor="end" font-size="13" fill="#59636e">real-input and bot tests</text>
+<text x="400.0" y="316" text-anchor="middle" font-size="13" fill="#59636e">The AI builds, compiles, plays and looks at the map, fixes what is wrong and builds again.</text>
+</svg>

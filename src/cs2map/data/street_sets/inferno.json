@@ -1,0 +1,267 @@
+{
+ "schema": 1,
+ "style": "inferno",
+ "title": "Inferno street life",
+ "roles": {
+  "door_plant": {
+   "models": [
+    "models/props/de_inferno/potted_plant1_p1.vmdl",
+    "models/props/de_inferno/potted_plant2_p1.vmdl",
+    "models/generic/planter_kit_01/pk01_planter_08.vmdl"
+   ],
+   "front": "none",
+   "mount": "floor",
+   "wall_offset": 44,
+   "needs_passage": true,
+   "surfaces": [
+    "street",
+    "alley",
+    "plaza",
+    "courtyard"
+   ],
+   "base_model": "models/generic/planter_kit_01/pk01_planter_08.vmdl",
+   "base_share": 0.7,
+   "fill_models": [
+    "models/generic/plants/spindle_bush_kit/spindle_10_a.vmdl",
+    "models/generic/plants/spindle_bush_kit/spindle_08_a.vmdl"
+   ],
+   "fill_sink": 3
+  },
+  "wall_clutter": {
+   "models": [
+    "models/cs_italy/crate/italy_wood_box_1.vmdl",
+    "models/generic/barrel_kit_01/barrel_03_a.vmdl",
+    "models/de_inferno/wood_pallet_01/inferno_pallet_wood_01.vmdl",
+    "models/props_junk/dumpster_2.vmdl",
+    "models/de_inferno/wood_barrel_01/inferno_crate_wood_03.vmdl"
+   ],
+   "front": "none",
+   "mount": "floor",
+   "wall_offset": 46,
+   "needs_passage": true,
+   "surfaces": [
+    "street",
+    "alley",
+    "courtyard"
+   ]
+  },
+  "bike": {
+   "models": [
+    "models/props/de_inferno/hr_i/inferno_bike/inferno_bike_02.vmdl",
+    "models/props/de_inferno/hr_i/inferno_bike/inferno_bike_03.vmdl",
+    "models/de_overpass/overpass_bike/bike_01.vmdl",
+    "models/de_overpass/overpass_bike/bike_02.vmdl",
+    "models/de_overpass/overpass_bike/bike_03.vmdl",
+    "models/props/de_inferno/hr_i/inferno_vespa/inferno_vespa.vmdl"
+   ],
+   "front": "+x",
+   "mount": "floor",
+   "wall_offset": 42,
+   "needs_passage": true,
+   "surfaces": [
+    "street",
+    "alley",
+    "plaza"
+   ]
+  },
+  "bench": {
+   "models": [
+    "models/props/de_inferno/bench_wood.vmdl",
+    "models/props/de_inferno/stone_bench.vmdl",
+    "models/de_overpass/street/street_bench_1/street_bench_1.vmdl"
+   ],
+   "front": "none",
+   "mount": "floor",
+   "wall_offset": 52,
+   "needs_passage": true,
+   "surfaces": [
+    "plaza",
+    "courtyard"
+   ]
+  },
+  "bin": {
+   "models": [
+    "models/props_street/trashbin01.vmdl",
+    "models/props/cs_italy/market_vegbin01.vmdl"
+   ],
+   "front": "+x",
+   "mount": "floor",
+   "wall_offset": 42,
+   "needs_passage": true,
+   "surfaces": [
+    "street",
+    "alley",
+    "plaza",
+    "courtyard"
+   ]
+  },
+  "cafe": {
+   "models": [
+    "models/generic/terrace_set_01/terrace_tablecloth_01.vmdl",
+    "models/generic/terrace_set_01/terrace_table_01.vmdl",
+    "models/generic/terrace_set_01/terrace_table_02.vmdl",
+    "models/generic/terrace_set_01/terrace_chair_01.vmdl",
+    "models/props/de_inferno/hr_i/inferno_chair/inferno_chair.vmdl",
+    "models/generic/terrace_set_01/terrace_chair_02.vmdl",
+    "models/generic/terrace_set_01/parasol_stand_01.vmdl",
+    "models/generic/terrace_set_01/parasol_vintage_01_open.vmdl"
+   ],
+   "front": "none",
+   "mount": "floor",
+   "wall_offset": 128,
+   "needs_passage": true,
+   "surfaces": [
+    "plaza",
+    "courtyard"
+   ],
+   "table_models": [
+    "models/generic/terrace_set_01/terrace_tablecloth_01.vmdl",
+    "models/generic/terrace_set_01/terrace_table_01.vmdl",
+    "models/generic/terrace_set_01/terrace_table_02.vmdl"
+   ],
+   "chair_models": [
+    "models/generic/terrace_set_01/terrace_chair_01.vmdl",
+    "models/props/de_inferno/hr_i/inferno_chair/inferno_chair.vmdl",
+    "models/generic/terrace_set_01/terrace_chair_02.vmdl"
+   ],
+   "stand_model": "models/generic/terrace_set_01/parasol_stand_01.vmdl",
+   "canopy_models": [
+    "models/generic/terrace_set_01/parasol_vintage_01_open.vmdl"
+   ],
+   "tables_per_shop": 2
+  },
+  "market": {
+   "models": [
+    "models/props/cs_italy/market_vegbin01.vmdl",
+    "models/props/de_dust/grainbasket01a.vmdl",
+    "models/cs_italy/crate/italy_wood_box_1.vmdl"
+   ],
+   "front": "none",
+   "mount": "floor",
+   "wall_offset": 108,
+   "needs_passage": true,
+   "surfaces": [
+    "plaza"
+   ]
+  },
+  "lamp_post": {
+   "models": [
+    "models/props/de_inferno/light_streetlight.vmdl"
+   ],
+   "front": "+x",
+   "mount": "floor",
+   "wall_offset": 78,
+   "needs_passage": true,
+   "surfaces": [
+    "plaza",
+    "courtyard"
+   ]
+  },
+  "wall_lamp": {
+   "models": [
+    "models/props/de_mirage/lamp_ver1.vmdl",
+    "models/props/cs_italy/it_lantern1.vmdl",
+    "models/props/cs_italy/it_lantern2.vmdl",
+    "models/props/cs_italy/it_lampholder1.vmdl"
+   ],
+   "front": "+x",
+   "mount": "wall",
+   "wall_offset": 2,
+   "needs_passage": true,
+   "surfaces": [
+    "street",
+    "alley",
+    "plaza",
+    "courtyard"
+   ]
+  },
+  "street_sign": {
+   "models": [
+    "models/props/cs_italy/streetsign01.vmdl",
+    "models/props/cs_italy/streetsign02.vmdl",
+    "models/props/cs_italy/streetsign03.vmdl",
+    "models/cs_italy/props/signs/italy_street_sign_dne.vmdl",
+    "models/cs_italy/props/signs/italy_street_sign_dnp.vmdl"
+   ],
+   "front": "+x",
+   "mount": "wall",
+   "wall_offset": 2,
+   "needs_passage": true,
+   "surfaces": [
+    "street",
+    "alley",
+    "plaza"
+   ]
+  },
+  "drain": {
+   "models": [
+    "models/de_overpass/grate/street_drain_1.vmdl",
+    "models/generic/manholecoverkit_01/manholecover_02.vmdl"
+   ],
+   "front": "none",
+   "mount": "floor",
+   "wall_offset": 24,
+   "needs_passage": false,
+   "surfaces": [
+    "street",
+    "alley"
+   ]
+  },
+  "laundry": {
+   "models": [
+    "models/props/de_inferno/hr_i/clothes_a/clothes_b.vmdl",
+    "models/props/cs_italy/clothesline.vmdl"
+   ],
+   "front": "+x",
+   "mount": "hang",
+   "wall_offset": 16,
+   "needs_passage": false,
+   "surfaces": [
+    "street",
+    "alley"
+   ],
+   "collision": false
+  },
+  "wires": {
+   "models": [
+    "models/props/de_inferno/hr_i/electric_wires/electric_cond_a.vmdl",
+    "models/props/de_inferno/hr_i/electric_wires/electric_cond_b.vmdl",
+    "models/props/de_inferno/hr_i/electric_wires/electric_cond_c.vmdl"
+   ],
+   "front": "none",
+   "mount": "hang",
+   "wall_offset": 2,
+   "needs_passage": false,
+   "surfaces": [
+    "street",
+    "alley"
+   ],
+   "collision": false
+  },
+  "planter": {
+   "models": [
+    "models/generic/planter_kit_01/pk01_planter_08.vmdl",
+    "models/props/de_inferno/hr_i/flower_pots/barrel_planter_wood_full.vmdl",
+    "models/props/de_inferno/hr_i/flower_pots/flower_planter_c.vmdl"
+   ],
+   "front": "none",
+   "mount": "floor",
+   "wall_offset": 72,
+   "needs_passage": true,
+   "surfaces": [
+    "plaza",
+    "courtyard"
+   ],
+   "base_model": "models/generic/planter_kit_01/pk01_planter_08.vmdl",
+   "collision": true,
+   "base_share": 1.0,
+   "fill_models": [
+    "models/generic/plants/spindle_bush_kit/spindle_07_a.vmdl",
+    "models/generic/plants/spindle_bush_kit/spindle_08_a.vmdl",
+    "models/generic/plants/spindle_bush_kit/spindle_06_a.vmdl"
+   ],
+   "fill_sink": 3
+  }
+ },
+ "notes": "Integrator 04.10: cafe and pots follow what de_inferno actually uses (terrace_set_01, planter_kit_01 + spindle_bush trees), read from the extracted map."
+}

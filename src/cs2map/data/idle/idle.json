@@ -1,0 +1,1079 @@
+[
+ {
+  "op": "set_map_type",
+  "type": "sandbox"
+ },
+ {
+  "op": "lighting_preset",
+  "preset": "sunset"
+ },
+ {
+  "op": "add_mesh",
+  "ref": "house",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -360,
+    -264,
+    -640
+   ],
+   "maxs": [
+    360,
+    264,
+    0
+   ],
+   "materials": {
+    "top": "materials/de_inferno/ground/inferno_tile_floor_03.vmat",
+    "sides": "materials/de_inferno/plaster/inferno_plaster_facade_01_dirty.vmat",
+    "bottom": "materials/de_inferno/plaster/inferno_plaster_facade_01_dirty.vmat"
+   }
+  },
+  "material": "materials/de_inferno/plaster/inferno_plaster_facade_01_dirty.vmat",
+  "options": {
+   "tintColor": [
+    236,
+    206,
+    160,
+    255
+   ]
+  }
+ },
+ {
+  "op": "add_mesh",
+  "ref": "wall_n",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -360,
+    248,
+    0
+   ],
+   "maxs": [
+    360,
+    264,
+    36
+   ]
+  },
+  "material": "materials/de_inferno/stone/inferno_stone_wall_09.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "ref": "wall_s",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -360,
+    -264,
+    0
+   ],
+   "maxs": [
+    360,
+    -248,
+    36
+   ]
+  },
+  "material": "materials/de_inferno/stone/inferno_stone_wall_09.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "ref": "wall_w",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -360,
+    -248,
+    0
+   ],
+   "maxs": [
+    -344,
+    248,
+    36
+   ]
+  },
+  "material": "materials/de_inferno/stone/inferno_stone_wall_09.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "ref": "wall_e",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    344,
+    -248,
+    0
+   ],
+   "maxs": [
+    360,
+    248,
+    36
+   ]
+  },
+  "material": "materials/de_inferno/stone/inferno_stone_wall_09.vmat"
+ },
+ {
+  "op": "edit_mesh",
+  "id": "@wall_n",
+  "ref": "wall_n",
+  "steps": [
+   {
+    "do": "bevel",
+    "edges": "top",
+    "width": 2.5,
+    "segments": 2
+   }
+  ]
+ },
+ {
+  "op": "edit_mesh",
+  "id": "@wall_s",
+  "ref": "wall_s",
+  "steps": [
+   {
+    "do": "bevel",
+    "edges": "top",
+    "width": 2.5,
+    "segments": 2
+   }
+  ]
+ },
+ {
+  "op": "edit_mesh",
+  "id": "@wall_w",
+  "ref": "wall_w",
+  "steps": [
+   {
+    "do": "bevel",
+    "edges": "top",
+    "width": 2.5,
+    "segments": 2
+   }
+  ]
+ },
+ {
+  "op": "edit_mesh",
+  "id": "@wall_e",
+  "ref": "wall_e",
+  "steps": [
+   {
+    "do": "bevel",
+    "edges": "top",
+    "width": 2.5,
+    "segments": 2
+   }
+  ]
+ },
+ {
+  "op": "add_mesh",
+  "ref": "hut",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -344,
+    -120,
+    0
+   ],
+   "maxs": [
+    -248,
+    40,
+    112
+   ]
+  },
+  "material": "materials/de_inferno/plaster/inferno_plaster_facade_01_dirty.vmat",
+  "options": {
+   "tintColor": [
+    226,
+    190,
+    140,
+    255
+   ]
+  }
+ },
+ {
+  "op": "add_mesh",
+  "ref": "hut_roof",
+  "shape": {
+   "shape": "prism",
+   "polygon": [
+    [
+     -128,
+     112
+    ],
+    [
+     48,
+     112
+    ],
+    [
+     -40,
+     140
+    ]
+   ],
+   "z0": -352,
+   "z1": -240,
+   "axis": "x"
+  },
+  "material": "models/de_inferno/roof/roof_shingles_01/roofkit01_shingles_01.vmat"
+ },
+ {
+  "op": "add_model",
+  "model": "models/cs_italy/doors/italy_wood_door_1.vmdl",
+  "origin": [
+   -276,
+   -122.5,
+   0
+  ],
+  "angles": [
+   0,
+   90,
+   0
+  ]
+ },
+ {
+  "op": "add_world_text",
+  "text": "CS2 MAP MCP",
+  "origin": [
+   -246,
+   -40,
+   78
+  ],
+  "angles": [
+   0,
+   90,
+   90
+  ],
+  "size": 15,
+  "color": "#ffe7b0",
+  "targetname": "idle_title"
+ },
+ {
+  "op": "add_world_text",
+  "text": "Tell your AI what to build.",
+  "origin": [
+   -246,
+   -40,
+   58
+  ],
+  "angles": [
+   0,
+   90,
+   90
+  ],
+  "size": 7,
+  "color": "#ffffff",
+  "targetname": "idle_line"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -204,
+    -204,
+    0
+   ],
+   "maxs": [
+    -196,
+    -196,
+    120
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -204,
+    36,
+    0
+   ],
+   "maxs": [
+    -196,
+    44,
+    120
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    196,
+    -204,
+    0
+   ],
+   "maxs": [
+    204,
+    -196,
+    120
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    196,
+    36,
+    0
+   ],
+   "maxs": [
+    204,
+    44,
+    120
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -216,
+    -204,
+    120
+   ],
+   "maxs": [
+    216,
+    -196,
+    128
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -216,
+    36,
+    120
+   ],
+   "maxs": [
+    216,
+    44,
+    128
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -203,
+    -212,
+    128
+   ],
+   "maxs": [
+    -197,
+    52,
+    134
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -123,
+    -212,
+    128
+   ],
+   "maxs": [
+    -117,
+    52,
+    134
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -43,
+    -212,
+    128
+   ],
+   "maxs": [
+    -37,
+    52,
+    134
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    37,
+    -212,
+    128
+   ],
+   "maxs": [
+    43,
+    52,
+    134
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    117,
+    -212,
+    128
+   ],
+   "maxs": [
+    123,
+    52,
+    134
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    197,
+    -212,
+    128
+   ],
+   "maxs": [
+    203,
+    52,
+    134
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_light",
+  "kind": "wall",
+  "origin": [
+   -204,
+   -200,
+   96
+  ],
+  "temperature": 2200,
+  "brightness": "dim",
+  "range": 420,
+  "model": "models/props/cs_italy/it_lantern1.vmdl",
+  "name": "idle_lantern_0"
+ },
+ {
+  "op": "add_light",
+  "kind": "wall",
+  "origin": [
+   204,
+   -200,
+   96
+  ],
+  "temperature": 2200,
+  "brightness": "dim",
+  "range": 420,
+  "model": "models/props/cs_italy/it_lantern1.vmdl",
+  "name": "idle_lantern_1"
+ },
+ {
+  "op": "add_light",
+  "kind": "wall",
+  "origin": [
+   -204,
+   40,
+   96
+  ],
+  "temperature": 2200,
+  "brightness": "dim",
+  "range": 420,
+  "model": "models/props/cs_italy/it_lantern1.vmdl",
+  "name": "idle_lantern_2"
+ },
+ {
+  "op": "add_light",
+  "kind": "wall",
+  "origin": [
+   204,
+   40,
+   96
+  ],
+  "temperature": 2200,
+  "brightness": "dim",
+  "range": 420,
+  "model": "models/props/cs_italy/it_lantern1.vmdl",
+  "name": "idle_lantern_3"
+ },
+ {
+  "op": "add_model",
+  "model": "models/generic/terrace_set_01/terrace_table_01.vmdl",
+  "origin": [
+   0,
+   -80,
+   0
+  ]
+ },
+ {
+  "op": "add_model",
+  "model": "models/generic/terrace_set_01/terrace_chair_02.vmdl",
+  "origin": [
+   -44,
+   -80,
+   0
+  ],
+  "angles": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "op": "add_model",
+  "model": "models/generic/terrace_set_01/terrace_chair_02.vmdl",
+  "origin": [
+   44,
+   -80,
+   0
+  ],
+  "angles": [
+   0,
+   180,
+   0
+  ]
+ },
+ {
+  "op": "add_model",
+  "model": "models/props/de_inferno/bench_wood.vmdl",
+  "origin": [
+   120,
+   222,
+   0
+  ],
+  "angles": [
+   0,
+   270,
+   0
+  ]
+ },
+ {
+  "op": "add_model",
+  "model": "models/generic/plants/spindle_bush_kit/spindle_08_a.vmdl",
+  "origin": [
+   300,
+   200,
+   0
+  ]
+ },
+ {
+  "op": "add_model",
+  "model": "models/generic/plants/spindle_bush_kit/spindle_08_a.vmdl",
+  "origin": [
+   -150,
+   200,
+   0
+  ],
+  "angles": [
+   0,
+   60,
+   0
+  ]
+ },
+ {
+  "op": "add_model",
+  "model": "models/props/de_inferno/potted_plant2_p1.vmdl",
+  "origin": [
+   310,
+   -100,
+   0
+  ]
+ },
+ {
+  "op": "add_model",
+  "model": "models/props/de_inferno/potted_plant1_p1.vmdl",
+  "origin": [
+   310,
+   -20,
+   0
+  ]
+ },
+ {
+  "op": "add_model",
+  "model": "models/props/de_inferno/potted_plant3_simple.vmdl",
+  "origin": [
+   -300,
+   100,
+   0
+  ]
+ },
+ {
+  "op": "add_model",
+  "model": "models/props/cs_italy/clothesline.vmdl",
+  "origin": [
+   180,
+   150,
+   65
+  ],
+  "angles": [
+   0,
+   0,
+   0
+  ]
+ },
+ {
+  "op": "add_district",
+  "name": "north",
+  "area": {
+   "mins": [
+    -3200,
+    520
+   ],
+   "maxs": [
+    3200,
+    3600
+   ]
+  },
+  "z": -640,
+  "floors": [
+   3,
+   5
+  ],
+  "seed": 7,
+  "collision": false
+ },
+ {
+  "op": "add_district",
+  "name": "south",
+  "area": {
+   "mins": [
+    -3200,
+    -3600
+   ],
+   "maxs": [
+    3200,
+    -520
+   ]
+  },
+  "z": -640,
+  "floors": [
+   3,
+   5
+  ],
+  "seed": 11,
+  "collision": false
+ },
+ {
+  "op": "add_district",
+  "name": "west",
+  "area": {
+   "mins": [
+    -3200,
+    -520
+   ],
+   "maxs": [
+    -520,
+    520
+   ]
+  },
+  "z": -640,
+  "floors": [
+   3,
+   5
+  ],
+  "seed": 13,
+  "collision": false
+ },
+ {
+  "op": "add_district",
+  "name": "east",
+  "area": {
+   "mins": [
+    520,
+    -520
+   ],
+   "maxs": [
+    3200,
+    520
+   ]
+  },
+  "z": -640,
+  "floors": [
+   3,
+   5
+  ],
+  "seed": 17,
+  "collision": false
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -420,
+    -320,
+    -24
+   ],
+   "maxs": [
+    420,
+    320,
+    220
+   ]
+  },
+  "material": "materials/tools/toolslightmapres.vmat"
+ },
+ {
+  "op": "add_entity",
+  "classname": "env_combined_light_probe_volume",
+  "origin": [
+   0,
+   0,
+   80
+  ],
+  "keyvalues": {
+   "box_mins": "-440 -340 -120",
+   "box_maxs": "440 340 180"
+  }
+ },
+ {
+  "op": "add_entity",
+  "classname": "info_player_terrorist",
+  "origin": [
+   0,
+   -170,
+   8
+  ],
+  "angles": [
+   0,
+   90,
+   0
+  ]
+ },
+ {
+  "op": "add_entity",
+  "classname": "info_player_counterterrorist",
+  "origin": [
+   90,
+   -170,
+   8
+  ],
+  "angles": [
+   0,
+   90,
+   0
+  ]
+ },
+ {
+  "op": "add_cables",
+  "start": [
+   -196,
+   -150,
+   118
+  ],
+  "end": [
+   196,
+   -150,
+   118
+  ],
+  "sag": 12,
+  "radius": 0.35,
+  "segments": 16,
+  "theme": "warehouse"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   -147.0,
+   -150,
+   110.2
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_0"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   -98.0,
+   -150,
+   106.5
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_1"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   -49.0,
+   -150,
+   104.2
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_2"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   0.0,
+   -150,
+   103.5
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_3"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   49.0,
+   -150,
+   104.2
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_4"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   98.0,
+   -150,
+   106.5
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_5"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   147.0,
+   -150,
+   110.2
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_6"
+ },
+ {
+  "op": "add_cables",
+  "start": [
+   -196,
+   -10,
+   118
+  ],
+  "end": [
+   196,
+   -10,
+   118
+  ],
+  "sag": 12,
+  "radius": 0.35,
+  "segments": 16,
+  "theme": "warehouse"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   -147.0,
+   -10,
+   110.2
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_7"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    42,
+    146,
+    0
+   ],
+   "maxs": [
+    48,
+    154,
+    112
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    312,
+    146,
+    0
+   ],
+   "maxs": [
+    318,
+    154,
+    112
+   ]
+  },
+  "material": "materials/de_inferno/wood/inferno_wood_floor_01.vmat"
+ },
+ {
+  "op": "add_mesh",
+  "shape": {
+   "shape": "box",
+   "mins": [
+    -540,
+    -540,
+    -680
+   ],
+   "maxs": [
+    540,
+    540,
+    -641
+   ]
+  },
+  "material": "materials/de_inferno/ground/inferno_stone_floor_08.vmat",
+  "options": {
+   "physicsType": "none"
+  }
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   -98.0,
+   -10,
+   106.5
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_8"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   -49.0,
+   -10,
+   104.2
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_9"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   0.0,
+   -10,
+   103.5
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_10"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   49.0,
+   -10,
+   104.2
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_11"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   98.0,
+   -10,
+   106.5
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_12"
+ },
+ {
+  "op": "add_light",
+  "kind": "ceiling",
+  "origin": [
+   147.0,
+   -10,
+   110.2
+  ],
+  "temperature": 2300,
+  "brightness": 70,
+  "range": 300,
+  "size": 1.6,
+  "shadows": false,
+  "name": "idle_bulb_13"
+ }
+]

@@ -1,0 +1,3741 @@
+{
+  "schema_version": 1,
+  "source": "agents/models/ctm_sas/ctm_sas.vmdl_c",
+  "extraction": "local resourceinfo DATA and bundled ValveResourceFormat 20 ModelExtract",
+  "bones": [
+    {
+      "name": "root_motion",
+      "parent": null,
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_xyzw": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scale": 0.9999999
+    },
+    {
+      "name": "pelvis",
+      "parent": "root_motion",
+      "position": [
+        0.0,
+        42.824802,
+        -2.853549
+      ],
+      "rotation_xyzw": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scale": 0.99999964
+    },
+    {
+      "name": "spine_0",
+      "parent": "pelvis",
+      "position": [
+        0.9341812,
+        0.090507746,
+        -1.1368681e-13
+      ],
+      "rotation_xyzw": [
+        2.3080403e-08,
+        2.3080396e-08,
+        0.057702497,
+        0.9983338
+      ],
+      "scale": 0.9999995
+    },
+    {
+      "name": "spine_1",
+      "parent": "spine_0",
+      "position": [
+        4.066353,
+        3.8146973e-06,
+        1.7656566e-07
+      ],
+      "rotation_xyzw": [
+        -1.8866204e-07,
+        -1.706068e-07,
+        -0.0586111,
+        0.9982809
+      ],
+      "scale": 0.9999996
+    },
+    {
+      "name": "spine_2",
+      "parent": "spine_1",
+      "position": [
+        4.744076,
+        -4.7683716e-07,
+        -1.4892357e-06
+      ],
+      "rotation_xyzw": [
+        -2.8430027e-14,
+        2.873291e-08,
+        -0.09153039,
+        0.9958023
+      ],
+      "scale": 0.9999998
+    },
+    {
+      "name": "spine_3",
+      "parent": "spine_2",
+      "position": [
+        6.34787,
+        1.4305115e-05,
+        -1.9586432e-06
+      ],
+      "rotation_xyzw": [
+        1.6623092e-07,
+        1.6199364e-07,
+        0.121878,
+        0.9925451
+      ],
+      "scale": 0.99999875
+    },
+    {
+      "name": "neck_0",
+      "parent": "spine_3",
+      "position": [
+        6.515259,
+        -2.4318695e-05,
+        2.8430122e-07
+      ],
+      "rotation_xyzw": [
+        -7.348829e-14,
+        5.321503e-09,
+        0.12174308,
+        0.99256164
+      ],
+      "scale": 1.0000006
+    },
+    {
+      "name": "head_0",
+      "parent": "neck_0",
+      "position": [
+        5.7622757,
+        -3.0517578e-05,
+        2.403881e-07
+      ],
+      "rotation_xyzw": [
+        -6.3119025e-14,
+        -6.603896e-09,
+        -0.15107809,
+        0.9885218
+      ],
+      "scale": 1.0000011
+    },
+    {
+      "name": "clavicle_L",
+      "parent": "spine_3",
+      "position": [
+        4.3116226,
+        3.0052943,
+        1.2704926
+      ],
+      "rotation_xyzw": [
+        0.1611374,
+        -0.7600683,
+        -0.16678964,
+        0.60705197
+      ],
+      "scale": 1.0000008
+    },
+    {
+      "name": "arm_upper_L",
+      "parent": "clavicle_L",
+      "position": [
+        6.7999053,
+        -8.583069e-06,
+        -0.00011444092
+      ],
+      "rotation_xyzw": [
+        0.16468304,
+        -0.2985955,
+        0.20159724,
+        0.9181932
+      ],
+      "scale": 0.9999996
+    },
+    {
+      "name": "arm_lower_L",
+      "parent": "arm_upper_L",
+      "position": [
+        11.78685,
+        -6.2942505e-05,
+        -0.00017547607
+      ],
+      "rotation_xyzw": [
+        -1.4447546e-07,
+        -2.0079239e-07,
+        0.19986212,
+        0.97982407
+      ],
+      "scale": 1.0000035
+    },
+    {
+      "name": "hand_L",
+      "parent": "arm_lower_L",
+      "position": [
+        11.082754,
+        -2.9683113e-05,
+        4.5776367e-05
+      ],
+      "rotation_xyzw": [
+        0.6942865,
+        -0.05153915,
+        0.009466721,
+        0.7177885
+      ],
+      "scale": 1.0000039
+    },
+    {
+      "name": "clavicle_R",
+      "parent": "spine_3",
+      "position": [
+        4.311653,
+        3.005292,
+        -1.2704926
+      ],
+      "rotation_xyzw": [
+        0.76006836,
+        0.1611376,
+        0.6070519,
+        0.16678943
+      ],
+      "scale": 1.000001
+    },
+    {
+      "name": "arm_upper_R",
+      "parent": "clavicle_R",
+      "position": [
+        -6.7999096,
+        1.1920929e-05,
+        0.00011444092
+      ],
+      "rotation_xyzw": [
+        0.16468291,
+        -0.2985954,
+        0.20159735,
+        0.9181933
+      ],
+      "scale": 0.9999999
+    },
+    {
+      "name": "arm_lower_R",
+      "parent": "arm_upper_R",
+      "position": [
+        -11.786829,
+        7.8201294e-05,
+        0.00020980835
+      ],
+      "rotation_xyzw": [
+        -1.482774e-07,
+        -2.2336646e-08,
+        0.19986218,
+        0.979824
+      ],
+      "scale": 1.000004
+    },
+    {
+      "name": "hand_R",
+      "parent": "arm_lower_R",
+      "position": [
+        -11.082752,
+        2.5868416e-05,
+        -3.8146973e-05
+      ],
+      "rotation_xyzw": [
+        0.6942861,
+        -0.05153929,
+        0.0094666565,
+        0.7177889
+      ],
+      "scale": 1.0000056
+    },
+    {
+      "name": "jiggle_primary",
+      "parent": "spine_3",
+      "position": [
+        -6.1149216,
+        -4.8689494,
+        -6.78481
+      ],
+      "rotation_xyzw": [
+        0.104203396,
+        0.9472958,
+        0.30206528,
+        -0.022999125
+      ],
+      "scale": 1.0000004
+    },
+    {
+      "name": "leg_upper_L",
+      "parent": "pelvis",
+      "position": [
+        -3.7713966,
+        0.913481,
+        3.6942263
+      ],
+      "rotation_xyzw": [
+        0.018703464,
+        -0.13071413,
+        0.9911956,
+        0.0097611295
+      ],
+      "scale": 0.9999996
+    },
+    {
+      "name": "leg_lower_L",
+      "parent": "leg_upper_L",
+      "position": [
+        17.90294,
+        -2.3841858e-07,
+        -4.7683716e-06
+      ],
+      "rotation_xyzw": [
+        -1.23189e-07,
+        2.1639735e-08,
+        0.064233,
+        0.99793494
+      ],
+      "scale": 0.99999976
+    },
+    {
+      "name": "ankle_L",
+      "parent": "leg_lower_L",
+      "position": [
+        16.937233,
+        3.0994415e-06,
+        4.7683716e-07
+      ],
+      "rotation_xyzw": [
+        0.8320592,
+        -0.55432993,
+        -0.017847817,
+        -0.008788439
+      ],
+      "scale": 1.0000004
+    },
+    {
+      "name": "leg_upper_R",
+      "parent": "pelvis",
+      "position": [
+        -3.771431,
+        0.9134803,
+        -3.6942286
+      ],
+      "rotation_xyzw": [
+        -0.1307144,
+        -0.01870347,
+        -0.009761095,
+        0.9911956
+      ],
+      "scale": 0.99999976
+    },
+    {
+      "name": "leg_lower_R",
+      "parent": "leg_upper_R",
+      "position": [
+        -17.902927,
+        2.3841858e-07,
+        4.7683716e-07
+      ],
+      "rotation_xyzw": [
+        4.1062986e-08,
+        -1.5165307e-09,
+        0.064233,
+        0.99793494
+      ],
+      "scale": 1.0000002
+    },
+    {
+      "name": "ankle_R",
+      "parent": "leg_lower_R",
+      "position": [
+        -16.937202,
+        -1.1205673e-05,
+        4.7683716e-07
+      ],
+      "rotation_xyzw": [
+        0.8320592,
+        -0.55432993,
+        -0.017847914,
+        -0.008788503
+      ],
+      "scale": 1.0000008
+    },
+    {
+      "name": "wpnPivot",
+      "parent": "root_motion",
+      "position": [
+        -1.661062e-15,
+        58.781662,
+        -3.4716892
+      ],
+      "rotation_xyzw": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": 0.99999976
+    },
+    {
+      "name": "wpn",
+      "parent": "wpnPivot",
+      "position": [
+        1.6610624e-15,
+        -58.781677,
+        3.4716902
+      ],
+      "rotation_xyzw": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "scale": 0.99999976
+    },
+    {
+      "name": "eyeball_l",
+      "parent": "head_0",
+      "position": [
+        1.7863617,
+        3.1616263,
+        1.2665021
+      ],
+      "rotation_xyzw": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scale": 1.0000013
+    },
+    {
+      "name": "eyeball_r",
+      "parent": "head_0",
+      "position": [
+        1.7863693,
+        3.1616254,
+        -1.2665021
+      ],
+      "rotation_xyzw": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scale": 1.0000013
+    },
+    {
+      "name": "eye_target",
+      "parent": "head_0",
+      "position": [
+        9.1552734e-05,
+        100.00027,
+        -1.4779289e-11
+      ],
+      "rotation_xyzw": [
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scale": 1.0000013
+    },
+    {
+      "name": "jiggle_hood",
+      "parent": "neck_0",
+      "position": [
+        1.0224724,
+        -3.8445358,
+        -0.01068459
+      ],
+      "rotation_xyzw": [
+        -0.58335775,
+        -0.36789533,
+        0.6015381,
+        -0.40311128
+      ],
+      "scale": 1.0000011
+    },
+    {
+      "name": "finger_middle_meta_L",
+      "parent": "hand_L",
+      "position": [
+        1.2971153,
+        -0.13625336,
+        -0.26938343
+      ],
+      "rotation_xyzw": [
+        0.02528492,
+        0.0029459493,
+        -0.037282545,
+        0.99898046
+      ],
+      "scale": 1.0000066
+    },
+    {
+      "name": "finger_middle_0_L",
+      "parent": "finger_middle_meta_L",
+      "position": [
+        2.8062897,
+        -0.0004119873,
+        2.69413e-05
+      ],
+      "rotation_xyzw": [
+        -0.005613299,
+        -0.0027720376,
+        0.19174635,
+        0.98142457
+      ],
+      "scale": 1.0000085
+    },
+    {
+      "name": "finger_middle_1_L",
+      "parent": "finger_middle_0_L",
+      "position": [
+        1.9176388,
+        -0.00038528442,
+        3.2424927e-05
+      ],
+      "rotation_xyzw": [
+        0.0015561555,
+        0.0021749178,
+        0.18064176,
+        0.9835453
+      ],
+      "scale": 1.0000108
+    },
+    {
+      "name": "finger_middle_2_L",
+      "parent": "finger_middle_1_L",
+      "position": [
+        1.5175819,
+        -0.0002861023,
+        3.886223e-05
+      ],
+      "rotation_xyzw": [
+        0.0056843376,
+        -0.0031873893,
+        0.09561212,
+        0.9953973
+      ],
+      "scale": 1.0000135
+    },
+    {
+      "name": "finger_pinky_meta_L",
+      "parent": "hand_L",
+      "position": [
+        1.2810955,
+        0.26138306,
+        0.9984046
+      ],
+      "rotation_xyzw": [
+        -0.14666502,
+        -0.15807556,
+        -0.0004512872,
+        0.9764739
+      ],
+      "scale": 1.0000063
+    },
+    {
+      "name": "finger_pinky_0_L",
+      "parent": "finger_pinky_meta_L",
+      "position": [
+        2.1700058,
+        -0.00036239624,
+        -1.692772e-05
+      ],
+      "rotation_xyzw": [
+        -0.04472725,
+        -0.01363563,
+        0.12741117,
+        0.99074715
+      ],
+      "scale": 1.000008
+    },
+    {
+      "name": "finger_pinky_1_L",
+      "parent": "finger_pinky_0_L",
+      "position": [
+        1.6738644,
+        -0.00036621094,
+        -4.9591064e-05
+      ],
+      "rotation_xyzw": [
+        -0.0007622574,
+        0.0045341314,
+        0.15405692,
+        0.9880513
+      ],
+      "scale": 1.0000099
+    },
+    {
+      "name": "finger_pinky_2_L",
+      "parent": "finger_pinky_1_L",
+      "position": [
+        0.8258896,
+        -0.00028419495,
+        -6.1035156e-05
+      ],
+      "rotation_xyzw": [
+        0.022723038,
+        -0.0087204715,
+        0.037433784,
+        0.9990027
+      ],
+      "scale": 1.0000119
+    },
+    {
+      "name": "finger_index_meta_L",
+      "parent": "hand_L",
+      "position": [
+        1.1934242,
+        -0.08232498,
+        -0.9668081
+      ],
+      "rotation_xyzw": [
+        0.13026175,
+        0.09413666,
+        -0.050009854,
+        0.9857328
+      ],
+      "scale": 1.0000064
+    },
+    {
+      "name": "finger_index_0_L",
+      "parent": "finger_index_meta_L",
+      "position": [
+        2.8662624,
+        -0.00037765503,
+        5.7697296e-05
+      ],
+      "rotation_xyzw": [
+        -0.0601159,
+        -0.028897885,
+        0.21363823,
+        0.9746331
+      ],
+      "scale": 1.0000081
+    },
+    {
+      "name": "finger_index_1_L",
+      "parent": "finger_index_0_L",
+      "position": [
+        1.9068909,
+        -0.00035476685,
+        3.9100647e-05
+      ],
+      "rotation_xyzw": [
+        0.00015705447,
+        0.00034047643,
+        0.18394727,
+        0.982936
+      ],
+      "scale": 1.00001
+    },
+    {
+      "name": "finger_index_2_L",
+      "parent": "finger_index_1_L",
+      "position": [
+        1.3009987,
+        -0.00024223328,
+        5.054474e-05
+      ],
+      "rotation_xyzw": [
+        0.0012658344,
+        -0.00058706215,
+        0.055864144,
+        0.9984374
+      ],
+      "scale": 1.0000125
+    },
+    {
+      "name": "finger_thumb_0_L",
+      "parent": "hand_L",
+      "position": [
+        1.2568893,
+        0.6249199,
+        -1.2968777
+      ],
+      "rotation_xyzw": [
+        0.62870455,
+        0.3559661,
+        -0.06206096,
+        0.6885979
+      ],
+      "scale": 1.0000067
+    },
+    {
+      "name": "finger_thumb_1_L",
+      "parent": "finger_thumb_0_L",
+      "position": [
+        1.8556023,
+        -0.00022315979,
+        0.0002861023
+      ],
+      "rotation_xyzw": [
+        -0.0022366107,
+        -0.003727797,
+        0.21286613,
+        0.97707176
+      ],
+      "scale": 1.000009
+    },
+    {
+      "name": "finger_thumb_2_L",
+      "parent": "finger_thumb_1_L",
+      "position": [
+        1.4767342,
+        -8.6307526e-05,
+        0.0003528595
+      ],
+      "rotation_xyzw": [
+        -0.0058693043,
+        0.00488558,
+        0.1421473,
+        0.98981607
+      ],
+      "scale": 1.0000116
+    },
+    {
+      "name": "finger_ring_meta_L",
+      "parent": "hand_L",
+      "position": [
+        1.2810898,
+        -0.028621674,
+        0.35087204
+      ],
+      "rotation_xyzw": [
+        -0.0003047066,
+        -0.07205371,
+        -0.013036687,
+        0.9973155
+      ],
+      "scale": 1.0000067
+    },
+    {
+      "name": "finger_ring_0_L",
+      "parent": "finger_ring_meta_L",
+      "position": [
+        2.543476,
+        -0.0004081726,
+        5.054474e-05
+      ],
+      "rotation_xyzw": [
+        -0.04368281,
+        -0.019677272,
+        0.18208404,
+        0.9821151
+      ],
+      "scale": 1.000009
+    },
+    {
+      "name": "finger_ring_1_L",
+      "parent": "finger_ring_0_L",
+      "position": [
+        1.8802757,
+        -0.0004081726,
+        3.71933e-05
+      ],
+      "rotation_xyzw": [
+        -8.787946e-05,
+        -0.0001692951,
+        0.20423225,
+        0.9789225
+      ],
+      "scale": 1.0000113
+    },
+    {
+      "name": "finger_ring_2_L",
+      "parent": "finger_ring_1_L",
+      "position": [
+        1.3219223,
+        -0.00024604797,
+        4.529953e-05
+      ],
+      "rotation_xyzw": [
+        -0.00074418855,
+        0.00031396418,
+        0.020441378,
+        0.9997907
+      ],
+      "scale": 1.0000138
+    },
+    {
+      "name": "arm_lower_L_TWIST",
+      "parent": "arm_lower_L",
+      "position": [
+        3.6943169,
+        -3.170967e-05,
+        3.0517578e-05
+      ],
+      "rotation_xyzw": [
+        0.012197838,
+        -1.695126e-07,
+        -1.4902207e-08,
+        0.9999256
+      ],
+      "scale": 1.0000042
+    },
+    {
+      "name": "arm_lower_L_TWIST1",
+      "parent": "arm_lower_L",
+      "position": [
+        7.388529,
+        -3.027916e-05,
+        3.4332275e-05
+      ],
+      "rotation_xyzw": [
+        0.012197838,
+        -1.695126e-07,
+        -1.4902207e-08,
+        0.9999256
+      ],
+      "scale": 1.0000042
+    },
+    {
+      "name": "arm_upper_L_TWIST",
+      "parent": "arm_upper_L",
+      "position": [
+        3.9288177,
+        -6.866455e-05,
+        -0.00019454956
+      ],
+      "rotation_xyzw": [
+        -0.02951665,
+        -1.5489931e-07,
+        -4.2859355e-08,
+        0.9995643
+      ],
+      "scale": 1.0000037
+    },
+    {
+      "name": "arm_upper_L_TWIST1",
+      "parent": "arm_upper_L",
+      "position": [
+        7.8578415,
+        -6.866455e-05,
+        -0.00019454956
+      ],
+      "rotation_xyzw": [
+        -0.014759976,
+        -1.578758e-07,
+        -3.911967e-08,
+        0.9998911
+      ],
+      "scale": 1.0000036
+    },
+    {
+      "name": "scapula_L",
+      "parent": "clavicle_L",
+      "position": [
+        5.998311,
+        -0.40946817,
+        -1.968956
+      ],
+      "rotation_xyzw": [
+        0.7180079,
+        -0.31768733,
+        0.5960753,
+        0.16802846
+      ],
+      "scale": 0.99999964
+    },
+    {
+      "name": "finger_middle_meta_R",
+      "parent": "hand_R",
+      "position": [
+        -1.2971115,
+        0.13634491,
+        0.2693851
+      ],
+      "rotation_xyzw": [
+        0.025285127,
+        0.0029459535,
+        -0.037282515,
+        0.99898046
+      ],
+      "scale": 1.0000076
+    },
+    {
+      "name": "finger_middle_0_R",
+      "parent": "finger_middle_meta_R",
+      "position": [
+        -2.8063068,
+        0.000415802,
+        -2.5987625e-05
+      ],
+      "rotation_xyzw": [
+        -0.0056132837,
+        -0.0027720751,
+        0.19174638,
+        0.98142457
+      ],
+      "scale": 1.0000099
+    },
+    {
+      "name": "finger_middle_1_R",
+      "parent": "finger_middle_0_R",
+      "position": [
+        -1.9175358,
+        0.00045776367,
+        -2.7656555e-05
+      ],
+      "rotation_xyzw": [
+        0.0015559592,
+        0.0021748343,
+        0.18064183,
+        0.9835453
+      ],
+      "scale": 1.0000131
+    },
+    {
+      "name": "finger_middle_2_R",
+      "parent": "finger_middle_1_R",
+      "position": [
+        -1.5174026,
+        0.0003490448,
+        -4.3153763e-05
+      ],
+      "rotation_xyzw": [
+        0.005684566,
+        -0.0031874303,
+        0.09561218,
+        0.9953973
+      ],
+      "scale": 1.0000168
+    },
+    {
+      "name": "finger_pinky_meta_R",
+      "parent": "hand_R",
+      "position": [
+        -1.2810535,
+        -0.26136017,
+        -0.9983852
+      ],
+      "rotation_xyzw": [
+        -0.14666468,
+        -0.15807556,
+        -0.00045130722,
+        0.9764739
+      ],
+      "scale": 1.0000076
+    },
+    {
+      "name": "finger_pinky_0_R",
+      "parent": "finger_pinky_meta_R",
+      "position": [
+        -2.1699295,
+        0.00045776367,
+        2.1576881e-05
+      ],
+      "rotation_xyzw": [
+        -0.044727307,
+        -0.013635534,
+        0.12741122,
+        0.99074715
+      ],
+      "scale": 1.0000098
+    },
+    {
+      "name": "finger_pinky_1_R",
+      "parent": "finger_pinky_0_R",
+      "position": [
+        -1.6738415,
+        0.00050735474,
+        8.2969666e-05
+      ],
+      "rotation_xyzw": [
+        -0.0007621612,
+        0.0045341603,
+        0.154057,
+        0.9880513
+      ],
+      "scale": 1.0000124
+    },
+    {
+      "name": "finger_pinky_2_R",
+      "parent": "finger_pinky_1_R",
+      "position": [
+        -0.8257103,
+        0.00029945374,
+        6.1035156e-05
+      ],
+      "rotation_xyzw": [
+        0.022723157,
+        -0.008720446,
+        0.037433848,
+        0.9990027
+      ],
+      "scale": 1.0000153
+    },
+    {
+      "name": "finger_index_meta_R",
+      "parent": "hand_R",
+      "position": [
+        -1.1933613,
+        0.08236694,
+        0.96682787
+      ],
+      "rotation_xyzw": [
+        0.13026178,
+        0.09413669,
+        -0.050009802,
+        0.9857328
+      ],
+      "scale": 1.0000077
+    },
+    {
+      "name": "finger_index_0_R",
+      "parent": "finger_index_meta_R",
+      "position": [
+        -2.8662434,
+        0.0005569458,
+        -0.000111579895
+      ],
+      "rotation_xyzw": [
+        -0.060115665,
+        -0.028897952,
+        0.21363835,
+        0.97463316
+      ],
+      "scale": 1.0000106
+    },
+    {
+      "name": "finger_index_1_R",
+      "parent": "finger_index_0_R",
+      "position": [
+        -1.9068031,
+        0.00042152405,
+        -4.5776367e-05
+      ],
+      "rotation_xyzw": [
+        0.00015671285,
+        0.00034040882,
+        0.1839474,
+        0.982936
+      ],
+      "scale": 1.0000137
+    },
+    {
+      "name": "finger_index_2_R",
+      "parent": "finger_index_1_R",
+      "position": [
+        -1.3007774,
+        0.00033187866,
+        -7.915497e-05
+      ],
+      "rotation_xyzw": [
+        0.0012662167,
+        -0.0005870709,
+        0.0558643,
+        0.99843746
+      ],
+      "scale": 1.0000169
+    },
+    {
+      "name": "finger_thumb_0_R",
+      "parent": "hand_R",
+      "position": [
+        -1.2568836,
+        -0.62488174,
+        1.2968838
+      ],
+      "rotation_xyzw": [
+        0.62870467,
+        0.3559662,
+        -0.062060762,
+        0.6885978
+      ],
+      "scale": 1.0000077
+    },
+    {
+      "name": "finger_thumb_1_R",
+      "parent": "finger_thumb_0_R",
+      "position": [
+        -1.8555946,
+        0.00023651123,
+        -0.00029182434
+      ],
+      "rotation_xyzw": [
+        -0.0022366536,
+        -0.0037277415,
+        0.21286613,
+        0.97707176
+      ],
+      "scale": 1.0000105
+    },
+    {
+      "name": "finger_thumb_2_R",
+      "parent": "finger_thumb_1_R",
+      "position": [
+        -1.4766197,
+        0.0001039505,
+        -0.0004348755
+      ],
+      "rotation_xyzw": [
+        -0.005869276,
+        0.0048855767,
+        0.14214732,
+        0.98981607
+      ],
+      "scale": 1.0000138
+    },
+    {
+      "name": "finger_ring_meta_R",
+      "parent": "hand_R",
+      "position": [
+        -1.2811127,
+        0.028633118,
+        -0.3508656
+      ],
+      "rotation_xyzw": [
+        -0.0003046912,
+        -0.072053745,
+        -0.013036681,
+        0.9973155
+      ],
+      "scale": 1.0000076
+    },
+    {
+      "name": "finger_ring_0_R",
+      "parent": "finger_ring_meta_R",
+      "position": [
+        -2.5434017,
+        0.00048446655,
+        -5.531311e-05
+      ],
+      "rotation_xyzw": [
+        -0.043682825,
+        -0.019677397,
+        0.18208405,
+        0.9821151
+      ],
+      "scale": 1.0000101
+    },
+    {
+      "name": "finger_ring_1_R",
+      "parent": "finger_ring_0_R",
+      "position": [
+        -1.88023,
+        0.00037002563,
+        -3.5762787e-05
+      ],
+      "rotation_xyzw": [
+        -8.770813e-05,
+        -0.00016938406,
+        0.20423232,
+        0.9789224
+      ],
+      "scale": 1.0000126
+    },
+    {
+      "name": "finger_ring_2_R",
+      "parent": "finger_ring_1_R",
+      "position": [
+        -1.321907,
+        0.00023460388,
+        -5.054474e-05
+      ],
+      "rotation_xyzw": [
+        -0.0007441618,
+        0.00031394884,
+        0.020441504,
+        0.9997907
+      ],
+      "scale": 1.0000153
+    },
+    {
+      "name": "arm_lower_R_TWIST",
+      "parent": "arm_lower_R",
+      "position": [
+        -3.6943188,
+        3.0040741e-05,
+        -4.196167e-05
+      ],
+      "rotation_xyzw": [
+        0.006099065,
+        -2.39353e-07,
+        -7.4506765e-09,
+        0.9999814
+      ],
+      "scale": 1.0000058
+    },
+    {
+      "name": "arm_lower_R_TWIST1",
+      "parent": "arm_lower_R",
+      "position": [
+        -7.3885384,
+        3.027916e-05,
+        -3.4332275e-05
+      ],
+      "rotation_xyzw": [
+        0.012197919,
+        -2.0117949e-07,
+        -6.705983e-08,
+        0.9999256
+      ],
+      "scale": 1.0000057
+    },
+    {
+      "name": "arm_upper_R_TWIST",
+      "parent": "arm_upper_R",
+      "position": [
+        -3.9287834,
+        7.343292e-05,
+        0.00022125244
+      ],
+      "rotation_xyzw": [
+        -0.029516593,
+        -1.04120225e-07,
+        1.4907597e-08,
+        0.9995643
+      ],
+      "scale": 1.0000043
+    },
+    {
+      "name": "arm_upper_R_TWIST1",
+      "parent": "arm_upper_R",
+      "position": [
+        -7.857811,
+        7.8201294e-05,
+        0.00022888184
+      ],
+      "rotation_xyzw": [
+        -0.018224834,
+        -8.895571e-08,
+        1.3040629e-08,
+        0.99983394
+      ],
+      "scale": 1.0000043
+    },
+    {
+      "name": "scapula_R",
+      "parent": "clavicle_R",
+      "position": [
+        -5.9983277,
+        0.40947294,
+        1.9689217
+      ],
+      "rotation_xyzw": [
+        0.7180219,
+        -0.31767258,
+        0.5960632,
+        0.16803962
+      ],
+      "scale": 0.9999999
+    },
+    {
+      "name": "jiggle_front_micropouches",
+      "parent": "spine_2",
+      "position": [
+        -0.86979294,
+        5.186767,
+        5.650944
+      ],
+      "rotation_xyzw": [
+        -0.281906,
+        -0.36669573,
+        -0.606197,
+        0.64698416
+      ],
+      "scale": 1.0000002
+    },
+    {
+      "name": "jiggle_radio",
+      "parent": "spine_2",
+      "position": [
+        -0.7978287,
+        -6.914185,
+        3.6271482
+      ],
+      "rotation_xyzw": [
+        -0.46936315,
+        -0.5089718,
+        -0.45988798,
+        0.5560116
+      ],
+      "scale": 1.0000001
+    },
+    {
+      "name": "jiggle_front_pouch_01",
+      "parent": "spine_2",
+      "position": [
+        -1.0579147,
+        3.8890033,
+        -8.370527
+      ],
+      "rotation_xyzw": [
+        0.6319179,
+        0.72015357,
+        0.21823266,
+        -0.18556185
+      ],
+      "scale": 1.0000001
+    },
+    {
+      "name": "jiggle_front_pouch_02",
+      "parent": "spine_2",
+      "position": [
+        -1.4559555,
+        6.942207,
+        -4.286182
+      ],
+      "rotation_xyzw": [
+        0.5678292,
+        0.61063564,
+        0.39002034,
+        -0.39061278
+      ],
+      "scale": 1.0
+    },
+    {
+      "name": "ball_L",
+      "parent": "ankle_L",
+      "position": [
+        6.3296404,
+        8.34465e-06,
+        -1.0967255e-05
+      ],
+      "rotation_xyzw": [
+        -1.2934925e-07,
+        3.460528e-08,
+        0.2476212,
+        0.96885693
+      ],
+      "scale": 1.0000015
+    },
+    {
+      "name": "leg_upper_L_TWIST",
+      "parent": "leg_upper_L",
+      "position": [
+        5.967659,
+        1.7881393e-06,
+        -1.9073486e-06
+      ],
+      "rotation_xyzw": [
+        0.0,
+        -1.9208533e-09,
+        -4.6566145e-10,
+        1.0
+      ],
+      "scale": 0.99999976
+    },
+    {
+      "name": "leg_upper_L_TWIST1",
+      "parent": "leg_upper_L",
+      "position": [
+        11.935291,
+        1.7881393e-06,
+        -3.33786e-06
+      ],
+      "rotation_xyzw": [
+        0.0,
+        -1.9208533e-09,
+        -4.6566145e-10,
+        1.0
+      ],
+      "scale": 0.99999976
+    },
+    {
+      "name": "jiggle_climbinggear_01",
+      "parent": "leg_upper_L",
+      "position": [
+        -3.5443459,
+        -4.3971634,
+        2.8084793
+      ],
+      "rotation_xyzw": [
+        -0.5757964,
+        0.6835698,
+        -0.3297555,
+        -0.30405948
+      ],
+      "scale": 0.99999994
+    },
+    {
+      "name": "jiggle_climbinggear_02",
+      "parent": "jiggle_climbinggear_01",
+      "position": [
+        0.32258224,
+        -2.8609276,
+        0.039170384
+      ],
+      "rotation_xyzw": [
+        -6.332989e-08,
+        8.940691e-08,
+        4.656612e-09,
+        1.0
+      ],
+      "scale": 1.0000007
+    },
+    {
+      "name": "ball_R",
+      "parent": "ankle_R",
+      "position": [
+        -6.3296456,
+        -5.9604645e-06,
+        1.04904175e-05
+      ],
+      "rotation_xyzw": [
+        -1.9901046e-08,
+        9.61258e-08,
+        0.24762116,
+        0.96885693
+      ],
+      "scale": 1.0000013
+    },
+    {
+      "name": "leg_upper_R_TWIST",
+      "parent": "leg_upper_R",
+      "position": [
+        -5.9676285,
+        2.3841858e-07,
+        -3.8146973e-06
+      ],
+      "rotation_xyzw": [
+        0.0,
+        1.8044368e-09,
+        9.3132224e-10,
+        1.0
+      ],
+      "scale": 1.0000005
+    },
+    {
+      "name": "leg_upper_R_TWIST1",
+      "parent": "leg_upper_R",
+      "position": [
+        -11.935274,
+        3.5762787e-07,
+        -4.7683716e-06
+      ],
+      "rotation_xyzw": [
+        0.0,
+        1.8044368e-09,
+        9.3132224e-10,
+        1.0
+      ],
+      "scale": 1.0000005
+    },
+    {
+      "name": "jiggle_holster",
+      "parent": "leg_upper_R",
+      "position": [
+        -4.5883713,
+        0.88428056,
+        -4.9842243
+      ],
+      "rotation_xyzw": [
+        0.70425355,
+        0.6892621,
+        0.04995067,
+        -0.16263331
+      ],
+      "scale": 1.0000002
+    },
+    {
+      "name": "head_0_TWIST",
+      "parent": "neck_0",
+      "position": [
+        2.8811722,
+        -2.2888184e-05,
+        1.2019882e-07
+      ],
+      "rotation_xyzw": [
+        -7.549509e-14,
+        -4.2632523e-14,
+        -1.4901147e-08,
+        1.0
+      ],
+      "scale": 1.000001
+    },
+    {
+      "name": "scap_AIMUP",
+      "parent": "spine_3",
+      "position": [
+        7.2737274,
+        -3.0452046,
+        -4.007411e-07
+      ],
+      "rotation_xyzw": [
+        0.5145849,
+        0.48497653,
+        0.5145851,
+        -0.4849767
+      ],
+      "scale": 1.0000007
+    },
+    {
+      "name": "scap_R_AIMAT",
+      "parent": "spine_2",
+      "position": [
+        4.066181,
+        -2.5309029,
+        -4.7424417
+      ],
+      "rotation_xyzw": [
+        -0.45164093,
+        -0.5440775,
+        -0.4516411,
+        0.5440777
+      ],
+      "scale": 0.99999875
+    },
+    {
+      "name": "scap_L_AIMAT",
+      "parent": "spine_2",
+      "position": [
+        4.066181,
+        -2.5309038,
+        4.741992
+      ],
+      "rotation_xyzw": [
+        -0.45164093,
+        -0.5440775,
+        -0.4516411,
+        0.5440777
+      ],
+      "scale": 0.99999875
+    }
+  ],
+  "modeldoc_nodes": [
+    {
+      "_class": "BoneMarkupList",
+      "children": [],
+      "bone_cull_type": "None"
+    },
+    {
+      "_class": "AttachmentList",
+      "children": [
+        {
+          "_class": "Attachment",
+          "name": "pistol",
+          "ignore_rotation": false,
+          "parent_bone": "leg_upper_r",
+          "relative_origin": [
+            -2.172352,
+            1.002271,
+            -6.447712
+          ],
+          "relative_angles": [
+            -9.218496,
+            178.445999,
+            84.760529
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "knife",
+          "ignore_rotation": false,
+          "parent_bone": "leg_upper_l",
+          "relative_origin": [
+            12.236874,
+            -1.768778,
+            4.157894
+          ],
+          "relative_angles": [
+            -8.844265,
+            148.863434,
+            75.009361
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "eholster",
+          "ignore_rotation": false,
+          "parent_bone": "pelvis",
+          "relative_origin": [
+            -2.55542,
+            -0.474524,
+            8.748114
+          ],
+          "relative_angles": [
+            -1.235593,
+            -178.636078,
+            70.644867
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "grenade0",
+          "ignore_rotation": false,
+          "parent_bone": "spine_0",
+          "relative_origin": [
+            -0.935169,
+            -3.114181,
+            -7.750176
+          ],
+          "relative_angles": [
+            84.804344,
+            -7.99625,
+            0.003668
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "grenade1",
+          "ignore_rotation": false,
+          "parent_bone": "spine_0",
+          "relative_origin": [
+            -0.505054,
+            1.703059,
+            -9.33189
+          ],
+          "relative_angles": [
+            85.839737,
+            -7.999295,
+            0.000583
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "grenade2",
+          "ignore_rotation": false,
+          "parent_bone": "spine_0",
+          "relative_origin": [
+            -0.267025,
+            4.054361,
+            -8.967611
+          ],
+          "relative_angles": [
+            88.478439,
+            23.99696,
+            28.476662
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "grenade3",
+          "ignore_rotation": false,
+          "parent_bone": "spine_0",
+          "relative_origin": [
+            -0.326271,
+            5.901669,
+            -7.562188
+          ],
+          "relative_angles": [
+            82.600113,
+            21.620598,
+            31.120459
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "grenade4",
+          "ignore_rotation": false,
+          "parent_bone": "spine_0",
+          "relative_origin": [
+            -0.254982,
+            7.373029,
+            -5.62379
+          ],
+          "relative_angles": [
+            87.859673,
+            148.459747,
+            159.37706
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "defusekit",
+          "ignore_rotation": false,
+          "parent_bone": "spine_0",
+          "relative_origin": [
+            -1.600002,
+            -6.0,
+            0.0
+          ],
+          "relative_angles": [
+            -2.0,
+            75.0,
+            91.999985
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "c4",
+          "ignore_rotation": false,
+          "parent_bone": "spine_3",
+          "relative_origin": [
+            -2.364758,
+            -9.845432,
+            0.65404
+          ],
+          "relative_angles": [
+            0.069495,
+            -2.765421,
+            95.133942
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "primary_smg",
+          "ignore_rotation": false,
+          "parent_bone": "spine_3",
+          "relative_origin": [
+            0.0,
+            10.259813,
+            4.900898
+          ],
+          "relative_angles": [
+            -26.228258,
+            175.739044,
+            -13.060024
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "primary",
+          "ignore_rotation": false,
+          "parent_bone": "jiggle_primary",
+          "relative_origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "relative_angles": [
+            -0.0,
+            0.0,
+            0.0
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "clip_limit",
+          "ignore_rotation": false,
+          "parent_bone": "head_0",
+          "relative_origin": [
+            7.0,
+            6.0,
+            0.0
+          ],
+          "relative_angles": [
+            -0.0,
+            0.0,
+            0.0
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "weapon",
+          "ignore_rotation": false,
+          "parent_bone": "wpn",
+          "relative_origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "relative_angles": [
+            -0.0,
+            0.0,
+            0.0
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "weapon_hand_r",
+          "ignore_rotation": false,
+          "parent_bone": "hand_R",
+          "relative_origin": [
+            -2.6,
+            -1.4,
+            0.0
+          ],
+          "relative_angles": [
+            -0.0,
+            -179.999985,
+            0.0
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "weapon_hand_l",
+          "ignore_rotation": false,
+          "parent_bone": "hand_L",
+          "relative_origin": [
+            2.6,
+            1.4,
+            0.0
+          ],
+          "relative_angles": [
+            0.0,
+            0.0,
+            179.999985
+          ],
+          "weight": 1.0
+        },
+        {
+          "_class": "Attachment",
+          "name": "weapon_center",
+          "ignore_rotation": false,
+          "parent_bone": "",
+          "relative_origin": [
+            0.0,
+            0.0,
+            40.0
+          ],
+          "relative_angles": [
+            -0.0,
+            0.0,
+            0.0
+          ],
+          "weight": 1.0
+        }
+      ]
+    },
+    {
+      "_class": "NmSkeletonList",
+      "children": [
+        {
+          "_class": "NmSkeletonReference",
+          "filename": "animation/skeletons/characters/worldmodel.vnmskel"
+        },
+        {
+          "_class": "NmSkeletonReference",
+          "filename": "animation/skeletons/characters/viewmodel.vnmskel"
+        }
+      ]
+    },
+    {
+      "_class": "AnimGraph2List",
+      "children": [
+        {
+          "_class": "DefaultAnimGraph2",
+          "filename": "animation/graphs/worldmodel/worldmodel.vnmgraph"
+        },
+        {
+          "_class": "AnimGraph2",
+          "name": "uimodel",
+          "filename": "animation/graphs/ui/uimodel.vnmgraph"
+        },
+        {
+          "_class": "AnimGraph2",
+          "name": "hudmodel",
+          "filename": "animation/graphs/viewmodel/viewmodel.vnmgraph"
+        },
+        {
+          "_class": "AnimGraph2",
+          "name": "worldmodel",
+          "filename": "animation/graphs/worldmodel/worldmodel.vnmgraph"
+        }
+      ]
+    },
+    {
+      "_class": "HitboxSetList",
+      "children": [
+        {
+          "_class": "HitboxSet",
+          "name": "cstrike",
+          "children": [
+            {
+              "_class": "HitboxCapsule",
+              "radius": 4.3,
+              "point0": [
+                -1.0,
+                1.8,
+                0.0
+              ],
+              "point1": [
+                3.5,
+                0.2,
+                0.0
+              ],
+              "name": "head_0",
+              "parent_bone": "head_0",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 1
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 3.5,
+              "point0": [
+                0.0,
+                -0.4,
+                0.0
+              ],
+              "point1": [
+                1.4,
+                -0.2,
+                0.0
+              ],
+              "name": "neck_0",
+              "parent_bone": "neck_0",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 8
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 6.0,
+              "point0": [
+                -2.7,
+                1.1,
+                -3.2
+              ],
+              "point1": [
+                -2.7,
+                1.1,
+                3.2
+              ],
+              "name": "pelvis",
+              "parent_bone": "pelvis",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 3
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 6.0,
+              "point0": [
+                1.4,
+                0.8,
+                3.1
+              ],
+              "point1": [
+                1.4,
+                0.8,
+                -3.1
+              ],
+              "name": "spine_0",
+              "parent_bone": "spine_0",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 3
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 6.5,
+              "point0": [
+                3.8,
+                0.8,
+                -2.4
+              ],
+              "point1": [
+                3.8,
+                0.4,
+                2.4
+              ],
+              "name": "spine_1",
+              "parent_bone": "spine_1",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 2
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 6.2,
+              "point0": [
+                4.8,
+                0.15,
+                -4.1
+              ],
+              "point1": [
+                4.8,
+                0.15,
+                4.1
+              ],
+              "name": "spine_2",
+              "parent_bone": "spine_2",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 2
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 5.0,
+              "point0": [
+                2.5,
+                -0.6,
+                -6.0
+              ],
+              "point1": [
+                2.5,
+                -0.6,
+                6.0
+              ],
+              "name": "spine_3",
+              "parent_bone": "spine_3",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 2
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 5.0,
+              "point0": [
+                1.3,
+                -0.2,
+                0.0
+              ],
+              "point1": [
+                16.5,
+                -0.7,
+                0.0
+              ],
+              "name": "leg_upper_l",
+              "parent_bone": "leg_upper_l",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 6
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 5.0,
+              "point0": [
+                -1.3,
+                0.0,
+                -0.6
+              ],
+              "point1": [
+                -16.5,
+                0.0,
+                -0.7
+              ],
+              "name": "leg_upper_r",
+              "parent_bone": "leg_upper_r",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 7
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 4.0,
+              "point0": [
+                0.1,
+                -0.4,
+                0.2
+              ],
+              "point1": [
+                17.0,
+                -0.4,
+                0.7
+              ],
+              "name": "leg_lower_l",
+              "parent_bone": "leg_lower_l",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 6
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 4.0,
+              "point0": [
+                -0.1,
+                0.0,
+                -0.2
+              ],
+              "point1": [
+                -17.0,
+                0.4,
+                -0.7
+              ],
+              "name": "leg_lower_r",
+              "parent_bone": "leg_lower_r",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 7
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 2.6,
+              "point0": [
+                -0.0,
+                -3.43,
+                -0.52
+              ],
+              "point1": [
+                8.0,
+                0.74,
+                0.33
+              ],
+              "name": "ankle_l",
+              "parent_bone": "ankle_l",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 6
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 2.6,
+              "point0": [
+                -7.98,
+                -0.75,
+                -0.27
+              ],
+              "point1": [
+                -0.02,
+                3.44,
+                0.58
+              ],
+              "name": "ankle_r",
+              "parent_bone": "ankle_r",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 7
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 2.3,
+              "point0": [
+                0.0,
+                0.3,
+                0.0
+              ],
+              "point1": [
+                3.59,
+                1.15,
+                0.11
+              ],
+              "name": "hand_l",
+              "parent_bone": "hand_l",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 4
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 2.3,
+              "point0": [
+                0.0,
+                -0.3,
+                0.02
+              ],
+              "point1": [
+                -3.44,
+                -1.17,
+                -0.09
+              ],
+              "name": "hand_r",
+              "parent_bone": "hand_r",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 5
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 3.3,
+              "point0": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "point1": [
+                11.2,
+                0.0,
+                0.0
+              ],
+              "name": "arm_upper_l",
+              "parent_bone": "arm_upper_l",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 4
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 3.0,
+              "point0": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "point1": [
+                10.0,
+                0.0,
+                0.0
+              ],
+              "name": "arm_lower_l",
+              "parent_bone": "arm_lower_l",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 4
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 3.3,
+              "point0": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "point1": [
+                -11.2,
+                0.0,
+                0.0
+              ],
+              "name": "arm_upper_r",
+              "parent_bone": "arm_upper_r",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 5
+            },
+            {
+              "_class": "HitboxCapsule",
+              "radius": 3.0,
+              "point0": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "point1": [
+                -10.0,
+                0.0,
+                -0.5
+              ],
+              "name": "arm_lower_r",
+              "parent_bone": "arm_lower_r",
+              "surface_property": "playerflesh",
+              "translation_only": false,
+              "group_id": 5
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "_class": "Skeleton",
+      "children": [
+        {
+          "_class": "Bone",
+          "name": "root_motion",
+          "origin": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "angles": [
+            -0.0,
+            90.0,
+            90.0
+          ],
+          "do_not_discard": true,
+          "children": [
+            {
+              "_class": "Bone",
+              "name": "pelvis",
+              "origin": [
+                0.0,
+                42.824802,
+                -2.853549
+              ],
+              "angles": [
+                -0.0,
+                90.0,
+                90.0
+              ],
+              "do_not_discard": true,
+              "children": [
+                {
+                  "_class": "Bone",
+                  "name": "spine_0",
+                  "origin": [
+                    0.934181,
+                    0.090508,
+                    -0.0
+                  ],
+                  "angles": [
+                    2e-06,
+                    6.615893,
+                    3e-06
+                  ],
+                  "do_not_discard": true,
+                  "children": [
+                    {
+                      "_class": "Bone",
+                      "name": "spine_1",
+                      "origin": [
+                        4.066353,
+                        4e-06,
+                        0.0
+                      ],
+                      "angles": [
+                        -2.1e-05,
+                        -6.720188,
+                        -2e-05
+                      ],
+                      "do_not_discard": true,
+                      "children": [
+                        {
+                          "_class": "Bone",
+                          "name": "spine_2",
+                          "origin": [
+                            4.744076,
+                            -0.0,
+                            -1e-06
+                          ],
+                          "angles": [
+                            3e-06,
+                            -10.50331,
+                            -0.0
+                          ],
+                          "do_not_discard": true,
+                          "children": [
+                            {
+                              "_class": "Bone",
+                              "name": "spine_3",
+                              "origin": [
+                                6.34787,
+                                1.4e-05,
+                                -2e-06
+                              ],
+                              "angles": [
+                                1.6e-05,
+                                14.000999,
+                                2.1e-05
+                              ],
+                              "do_not_discard": true,
+                              "children": [
+                                {
+                                  "_class": "Bone",
+                                  "name": "neck_0",
+                                  "origin": [
+                                    6.515259,
+                                    -2.4e-05,
+                                    0.0
+                                  ],
+                                  "angles": [
+                                    1e-06,
+                                    13.985423,
+                                    0.0
+                                  ],
+                                  "do_not_discard": true,
+                                  "children": [
+                                    {
+                                      "_class": "Bone",
+                                      "name": "head_0",
+                                      "origin": [
+                                        5.762276,
+                                        -3.1e-05,
+                                        0.0
+                                      ],
+                                      "angles": [
+                                        -1e-06,
+                                        -17.378817,
+                                        0.0
+                                      ],
+                                      "do_not_discard": true,
+                                      "children": [
+                                        {
+                                          "_class": "Bone",
+                                          "name": "eyeball_l",
+                                          "origin": [
+                                            1.786362,
+                                            3.161626,
+                                            1.266502
+                                          ],
+                                          "angles": [
+                                            -0.0,
+                                            90.0,
+                                            90.0
+                                          ],
+                                          "do_not_discard": true
+                                        },
+                                        {
+                                          "_class": "Bone",
+                                          "name": "eyeball_r",
+                                          "origin": [
+                                            1.786369,
+                                            3.161625,
+                                            -1.266502
+                                          ],
+                                          "angles": [
+                                            -0.0,
+                                            90.0,
+                                            90.0
+                                          ],
+                                          "do_not_discard": true
+                                        },
+                                        {
+                                          "_class": "Bone",
+                                          "name": "eye_target",
+                                          "origin": [
+                                            9.2e-05,
+                                            100.000267,
+                                            -0.0
+                                          ],
+                                          "angles": [
+                                            -0.0,
+                                            90.0,
+                                            90.0
+                                          ],
+                                          "do_not_discard": true
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "_class": "Bone",
+                                      "name": "jiggle_hood",
+                                      "origin": [
+                                        1.022472,
+                                        -3.844536,
+                                        -0.010685
+                                      ],
+                                      "angles": [
+                                        86.788261,
+                                        -84.25341,
+                                        29.642895
+                                      ],
+                                      "do_not_discard": true
+                                    },
+                                    {
+                                      "_class": "Bone",
+                                      "name": "head_0_TWIST",
+                                      "origin": [
+                                        2.881172,
+                                        -2.3e-05,
+                                        0.0
+                                      ],
+                                      "angles": [
+                                        -0.0,
+                                        -2e-06,
+                                        -0.0
+                                      ],
+                                      "do_not_discard": true
+                                    }
+                                  ]
+                                },
+                                {
+                                  "_class": "Bone",
+                                  "name": "clavicle_L",
+                                  "origin": [
+                                    4.311623,
+                                    3.005294,
+                                    1.270493
+                                  ],
+                                  "angles": [
+                                    -60.348408,
+                                    -115.251434,
+                                    114.777679
+                                  ],
+                                  "do_not_discard": true,
+                                  "children": [
+                                    {
+                                      "_class": "Bone",
+                                      "name": "arm_upper_L",
+                                      "origin": [
+                                        6.799905,
+                                        -9e-06,
+                                        -0.000114
+                                      ],
+                                      "angles": [
+                                        -37.932739,
+                                        20.162476,
+                                        13.343436
+                                      ],
+                                      "do_not_discard": true,
+                                      "children": [
+                                        {
+                                          "_class": "Bone",
+                                          "name": "arm_lower_L",
+                                          "origin": [
+                                            11.78685,
+                                            -6.3e-05,
+                                            -0.000175
+                                          ],
+                                          "angles": [
+                                            -1.9e-05,
+                                            23.057793,
+                                            -2.1e-05
+                                          ],
+                                          "do_not_discard": true,
+                                          "children": [
+                                            {
+                                              "_class": "Bone",
+                                              "name": "hand_L",
+                                              "origin": [
+                                                11.082754,
+                                                -3e-05,
+                                                4.6e-05
+                                              ],
+                                              "angles": [
+                                                -4.998729,
+                                                -3.336328,
+                                                88.238632
+                                              ],
+                                              "do_not_discard": true,
+                                              "children": [
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_middle_meta_L",
+                                                  "origin": [
+                                                    1.297115,
+                                                    -0.136253,
+                                                    -0.269383
+                                                  ],
+                                                  "angles": [
+                                                    0.445265,
+                                                    -4.263435,
+                                                    2.883202
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_middle_0_L",
+                                                      "origin": [
+                                                        2.80629,
+                                                        -0.000412,
+                                                        2.7e-05
+                                                      ],
+                                                      "angles": [
+                                                        -0.188414,
+                                                        22.111012,
+                                                        -0.692217
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_middle_1_L",
+                                                          "origin": [
+                                                            1.917639,
+                                                            -0.000385,
+                                                            3.2e-05
+                                                          ],
+                                                          "angles": [
+                                                            0.212914,
+                                                            20.814766,
+                                                            0.220411
+                                                          ],
+                                                          "do_not_discard": true,
+                                                          "children": [
+                                                            {
+                                                              "_class": "Bone",
+                                                              "name": "finger_middle_2_L",
+                                                              "origin": [
+                                                                1.517582,
+                                                                -0.000286,
+                                                                3.9e-05
+                                                              ],
+                                                              "angles": [
+                                                                -0.42585,
+                                                                10.971059,
+                                                                0.613486
+                                                              ],
+                                                              "do_not_discard": true
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_pinky_meta_L",
+                                                  "origin": [
+                                                    1.281096,
+                                                    0.261383,
+                                                    0.998405
+                                                  ],
+                                                  "angles": [
+                                                    -17.989679,
+                                                    2.741218,
+                                                    -17.517784
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_pinky_0_L",
+                                                      "origin": [
+                                                        2.170006,
+                                                        -0.000362,
+                                                        -1.7e-05
+                                                      ],
+                                                      "angles": [
+                                                        -0.895078,
+                                                        14.697471,
+                                                        -5.28516
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_pinky_1_L",
+                                                          "origin": [
+                                                            1.673864,
+                                                            -0.000366,
+                                                            -5e-05
+                                                          ],
+                                                          "angles": [
+                                                            0.526829,
+                                                            17.724369,
+                                                            -0.006261
+                                                          ],
+                                                          "do_not_discard": true,
+                                                          "children": [
+                                                            {
+                                                              "_class": "Bone",
+                                                              "name": "finger_pinky_2_L",
+                                                              "origin": [
+                                                                0.82589,
+                                                                -0.000284,
+                                                                -6.1e-05
+                                                              ],
+                                                              "angles": [
+                                                                -1.095835,
+                                                                4.267335,
+                                                                2.56519
+                                                              ],
+                                                              "do_not_discard": true
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_index_meta_L",
+                                                  "origin": [
+                                                    1.193424,
+                                                    -0.082325,
+                                                    -0.966808
+                                                  ],
+                                                  "angles": [
+                                                    11.456035,
+                                                    -4.334175,
+                                                    14.620753
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_index_0_L",
+                                                      "origin": [
+                                                        2.866262,
+                                                        -0.000378,
+                                                        5.8e-05
+                                                      ],
+                                                      "angles": [
+                                                        -1.756022,
+                                                        24.841501,
+                                                        -7.445909
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_index_1_L",
+                                                          "origin": [
+                                                            1.906891,
+                                                            -0.000355,
+                                                            3.9e-05
+                                                          ],
+                                                          "angles": [
+                                                            0.035039,
+                                                            21.199535,
+                                                            0.024867
+                                                          ],
+                                                          "do_not_discard": true,
+                                                          "children": [
+                                                            {
+                                                              "_class": "Bone",
+                                                              "name": "finger_index_2_L",
+                                                              "origin": [
+                                                                1.300999,
+                                                                -0.000242,
+                                                                5.1e-05
+                                                              ],
+                                                              "angles": [
+                                                                -0.075271,
+                                                                6.404807,
+                                                                0.141069
+                                                              ],
+                                                              "do_not_discard": true
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_thumb_0_L",
+                                                  "origin": [
+                                                    1.256889,
+                                                    0.62492,
+                                                    -1.296878
+                                                  ],
+                                                  "angles": [
+                                                    34.629749,
+                                                    26.109673,
+                                                    93.062637
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_thumb_1_L",
+                                                      "origin": [
+                                                        1.855602,
+                                                        -0.000223,
+                                                        0.000286
+                                                      ],
+                                                      "angles": [
+                                                        -0.362825,
+                                                        24.58205,
+                                                        -0.34136
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_thumb_2_L",
+                                                          "origin": [
+                                                            1.476734,
+                                                            -8.6e-05,
+                                                            0.000353
+                                                          ],
+                                                          "angles": [
+                                                            0.649763,
+                                                            16.341398,
+                                                            -0.586191
+                                                          ],
+                                                          "do_not_discard": true
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_ring_meta_L",
+                                                  "origin": [
+                                                    1.28109,
+                                                    -0.028622,
+                                                    0.350872
+                                                  ],
+                                                  "angles": [
+                                                    -8.263657,
+                                                    -1.503146,
+                                                    0.073582
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_ring_0_L",
+                                                      "origin": [
+                                                        2.543476,
+                                                        -0.000408,
+                                                        5.1e-05
+                                                      ],
+                                                      "angles": [
+                                                        -1.303179,
+                                                        21.067469,
+                                                        -5.335814
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_ring_1_L",
+                                                          "origin": [
+                                                            1.880276,
+                                                            -0.000408,
+                                                            3.7e-05
+                                                          ],
+                                                          "angles": [
+                                                            -0.016934,
+                                                            23.56912,
+                                                            -0.01382
+                                                          ],
+                                                          "do_not_discard": true,
+                                                          "children": [
+                                                            {
+                                                              "_class": "Bone",
+                                                              "name": "finger_ring_2_L",
+                                                              "origin": [
+                                                                1.321922,
+                                                                -0.000246,
+                                                                4.5e-05
+                                                              ],
+                                                              "angles": [
+                                                                0.037713,
+                                                                2.342545,
+                                                                -0.084524
+                                                              ],
+                                                              "do_not_discard": true
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "_class": "Bone",
+                                              "name": "arm_lower_L_TWIST",
+                                              "origin": [
+                                                3.694317,
+                                                -3.2e-05,
+                                                3.1e-05
+                                              ],
+                                              "angles": [
+                                                -1.9e-05,
+                                                -2e-06,
+                                                1.397804
+                                              ],
+                                              "do_not_discard": true
+                                            },
+                                            {
+                                              "_class": "Bone",
+                                              "name": "arm_lower_L_TWIST1",
+                                              "origin": [
+                                                7.388529,
+                                                -3e-05,
+                                                3.4e-05
+                                              ],
+                                              "angles": [
+                                                -1.9e-05,
+                                                -2e-06,
+                                                1.397804
+                                              ],
+                                              "do_not_discard": true
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "_class": "Bone",
+                                          "name": "arm_upper_L_TWIST",
+                                          "origin": [
+                                            3.928818,
+                                            -6.9e-05,
+                                            -0.000195
+                                          ],
+                                          "angles": [
+                                            -1.8e-05,
+                                            -4e-06,
+                                            -3.38285
+                                          ],
+                                          "do_not_discard": true
+                                        },
+                                        {
+                                          "_class": "Bone",
+                                          "name": "arm_upper_L_TWIST1",
+                                          "origin": [
+                                            7.857841,
+                                            -6.9e-05,
+                                            -0.000195
+                                          ],
+                                          "angles": [
+                                            -1.8e-05,
+                                            -4e-06,
+                                            -1.69143
+                                          ],
+                                          "do_not_discard": true
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "_class": "Bone",
+                                      "name": "scapula_L",
+                                      "origin": [
+                                        5.998311,
+                                        -0.409468,
+                                        -1.968956
+                                      ],
+                                      "angles": [
+                                        -74.309082,
+                                        -71.114494,
+                                        -149.456467
+                                      ],
+                                      "do_not_discard": true
+                                    }
+                                  ]
+                                },
+                                {
+                                  "_class": "Bone",
+                                  "name": "clavicle_R",
+                                  "origin": [
+                                    4.311653,
+                                    3.005292,
+                                    -1.270493
+                                  ],
+                                  "angles": [
+                                    -60.348408,
+                                    64.748558,
+                                    114.777702
+                                  ],
+                                  "do_not_discard": true,
+                                  "children": [
+                                    {
+                                      "_class": "Bone",
+                                      "name": "arm_upper_R",
+                                      "origin": [
+                                        -6.79991,
+                                        1.2e-05,
+                                        0.000114
+                                      ],
+                                      "angles": [
+                                        -37.932728,
+                                        20.162497,
+                                        13.343413
+                                      ],
+                                      "do_not_discard": true,
+                                      "children": [
+                                        {
+                                          "_class": "Bone",
+                                          "name": "arm_lower_R",
+                                          "origin": [
+                                            -11.786829,
+                                            7.8e-05,
+                                            0.00021
+                                          ],
+                                          "angles": [
+                                            1e-06,
+                                            23.0578,
+                                            -1.7e-05
+                                          ],
+                                          "do_not_discard": true,
+                                          "children": [
+                                            {
+                                              "_class": "Bone",
+                                              "name": "hand_R",
+                                              "origin": [
+                                                -11.082752,
+                                                2.6e-05,
+                                                -3.8e-05
+                                              ],
+                                              "angles": [
+                                                -4.998737,
+                                                -3.336342,
+                                                88.238571
+                                              ],
+                                              "do_not_discard": true,
+                                              "children": [
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_middle_meta_R",
+                                                  "origin": [
+                                                    -1.297112,
+                                                    0.136345,
+                                                    0.269385
+                                                  ],
+                                                  "angles": [
+                                                    0.445266,
+                                                    -4.263432,
+                                                    2.883226
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_middle_0_R",
+                                                      "origin": [
+                                                        -2.806307,
+                                                        0.000416,
+                                                        -2.6e-05
+                                                      ],
+                                                      "angles": [
+                                                        -0.188418,
+                                                        22.111015,
+                                                        -0.692217
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_middle_1_R",
+                                                          "origin": [
+                                                            -1.917536,
+                                                            0.000458,
+                                                            -2.8e-05
+                                                          ],
+                                                          "angles": [
+                                                            0.212909,
+                                                            20.814777,
+                                                            0.220387
+                                                          ],
+                                                          "do_not_discard": true,
+                                                          "children": [
+                                                            {
+                                                              "_class": "Bone",
+                                                              "name": "finger_middle_2_R",
+                                                              "origin": [
+                                                                -1.517403,
+                                                                0.000349,
+                                                                -4.3e-05
+                                                              ],
+                                                              "angles": [
+                                                                -0.425857,
+                                                                10.971065,
+                                                                0.613511
+                                                              ],
+                                                              "do_not_discard": true
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_pinky_meta_R",
+                                                  "origin": [
+                                                    -1.281054,
+                                                    -0.26136,
+                                                    -0.998385
+                                                  ],
+                                                  "angles": [
+                                                    -17.989679,
+                                                    2.741209,
+                                                    -17.51774
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_pinky_0_R",
+                                                      "origin": [
+                                                        -2.16993,
+                                                        0.000458,
+                                                        2.2e-05
+                                                      ],
+                                                      "angles": [
+                                                        -0.895066,
+                                                        14.697474,
+                                                        -5.285165
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_pinky_1_R",
+                                                          "origin": [
+                                                            -1.673841,
+                                                            0.000507,
+                                                            8.3e-05
+                                                          ],
+                                                          "angles": [
+                                                            0.526831,
+                                                            17.724379,
+                                                            -0.00625
+                                                          ],
+                                                          "do_not_discard": true,
+                                                          "children": [
+                                                            {
+                                                              "_class": "Bone",
+                                                              "name": "finger_pinky_2_R",
+                                                              "origin": [
+                                                                -0.82571,
+                                                                0.000299,
+                                                                6.1e-05
+                                                              ],
+                                                              "angles": [
+                                                                -1.095833,
+                                                                4.267342,
+                                                                2.565204
+                                                              ],
+                                                              "do_not_discard": true
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_index_meta_R",
+                                                  "origin": [
+                                                    -1.193361,
+                                                    0.082367,
+                                                    0.966828
+                                                  ],
+                                                  "angles": [
+                                                    11.456038,
+                                                    -4.334168,
+                                                    14.620758
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_index_0_R",
+                                                      "origin": [
+                                                        -2.866243,
+                                                        0.000557,
+                                                        -0.000112
+                                                      ],
+                                                      "angles": [
+                                                        -1.756034,
+                                                        24.841518,
+                                                        -7.445885
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_index_1_R",
+                                                          "origin": [
+                                                            -1.906803,
+                                                            0.000422,
+                                                            -4.6e-05
+                                                          ],
+                                                          "angles": [
+                                                            0.035039,
+                                                            21.199549,
+                                                            0.024827
+                                                          ],
+                                                          "do_not_discard": true,
+                                                          "children": [
+                                                            {
+                                                              "_class": "Bone",
+                                                              "name": "finger_index_2_R",
+                                                              "origin": [
+                                                                -1.300777,
+                                                                0.000332,
+                                                                -7.9e-05
+                                                              ],
+                                                              "angles": [
+                                                                -0.075274,
+                                                                6.404826,
+                                                                0.141113
+                                                              ],
+                                                              "do_not_discard": true
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_thumb_0_R",
+                                                  "origin": [
+                                                    -1.256884,
+                                                    -0.624882,
+                                                    1.296884
+                                                  ],
+                                                  "angles": [
+                                                    34.629738,
+                                                    26.109709,
+                                                    93.062675
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_thumb_1_R",
+                                                      "origin": [
+                                                        -1.855595,
+                                                        0.000237,
+                                                        -0.000292
+                                                      ],
+                                                      "angles": [
+                                                        -0.362818,
+                                                        24.58205,
+                                                        -0.341363
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_thumb_2_R",
+                                                          "origin": [
+                                                            -1.47662,
+                                                            0.000104,
+                                                            -0.000435
+                                                          ],
+                                                          "angles": [
+                                                            0.649762,
+                                                            16.3414,
+                                                            -0.586187
+                                                          ],
+                                                          "do_not_discard": true
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                },
+                                                {
+                                                  "_class": "Bone",
+                                                  "name": "finger_ring_meta_R",
+                                                  "origin": [
+                                                    -1.281113,
+                                                    0.028633,
+                                                    -0.350866
+                                                  ],
+                                                  "angles": [
+                                                    -8.263661,
+                                                    -1.503145,
+                                                    0.073583
+                                                  ],
+                                                  "do_not_discard": true,
+                                                  "children": [
+                                                    {
+                                                      "_class": "Bone",
+                                                      "name": "finger_ring_0_R",
+                                                      "origin": [
+                                                        -2.543402,
+                                                        0.000484,
+                                                        -5.5e-05
+                                                      ],
+                                                      "angles": [
+                                                        -1.303193,
+                                                        21.067469,
+                                                        -5.335819
+                                                      ],
+                                                      "do_not_discard": true,
+                                                      "children": [
+                                                        {
+                                                          "_class": "Bone",
+                                                          "name": "finger_ring_1_R",
+                                                          "origin": [
+                                                            -1.88023,
+                                                            0.00037,
+                                                            -3.6e-05
+                                                          ],
+                                                          "angles": [
+                                                            -0.016948,
+                                                            23.56913,
+                                                            -0.013803
+                                                          ],
+                                                          "do_not_discard": true,
+                                                          "children": [
+                                                            {
+                                                              "_class": "Bone",
+                                                              "name": "finger_ring_2_R",
+                                                              "origin": [
+                                                                -1.321907,
+                                                                0.000235,
+                                                                -5.1e-05
+                                                              ],
+                                                              "angles": [
+                                                                0.037712,
+                                                                2.34256,
+                                                                -0.084521
+                                                              ],
+                                                              "do_not_discard": true
+                                                            }
+                                                          ]
+                                                        }
+                                                      ]
+                                                    }
+                                                  ]
+                                                }
+                                              ]
+                                            },
+                                            {
+                                              "_class": "Bone",
+                                              "name": "arm_lower_R_TWIST",
+                                              "origin": [
+                                                -3.694319,
+                                                3e-05,
+                                                -4.2e-05
+                                              ],
+                                              "angles": [
+                                                -2.7e-05,
+                                                -1e-06,
+                                                0.698906
+                                              ],
+                                              "do_not_discard": true
+                                            },
+                                            {
+                                              "_class": "Bone",
+                                              "name": "arm_lower_R_TWIST1",
+                                              "origin": [
+                                                -7.388538,
+                                                3e-05,
+                                                -3.4e-05
+                                              ],
+                                              "angles": [
+                                                -2.3e-05,
+                                                -8e-06,
+                                                1.397813
+                                              ],
+                                              "do_not_discard": true
+                                            }
+                                          ]
+                                        },
+                                        {
+                                          "_class": "Bone",
+                                          "name": "arm_upper_R_TWIST",
+                                          "origin": [
+                                            -3.928783,
+                                            7.3e-05,
+                                            0.000221
+                                          ],
+                                          "angles": [
+                                            -1.2e-05,
+                                            2e-06,
+                                            -3.382843
+                                          ],
+                                          "do_not_discard": true
+                                        },
+                                        {
+                                          "_class": "Bone",
+                                          "name": "arm_upper_R_TWIST1",
+                                          "origin": [
+                                            -7.857811,
+                                            7.8e-05,
+                                            0.000229
+                                          ],
+                                          "angles": [
+                                            -1e-05,
+                                            2e-06,
+                                            -2.088528
+                                          ],
+                                          "do_not_discard": true
+                                        }
+                                      ]
+                                    },
+                                    {
+                                      "_class": "Bone",
+                                      "name": "scapula_R",
+                                      "origin": [
+                                        -5.998328,
+                                        0.409473,
+                                        1.968922
+                                      ],
+                                      "angles": [
+                                        -74.30938,
+                                        -71.103485,
+                                        -149.467163
+                                      ],
+                                      "do_not_discard": true
+                                    }
+                                  ]
+                                },
+                                {
+                                  "_class": "Bone",
+                                  "name": "jiggle_primary",
+                                  "origin": [
+                                    -6.114922,
+                                    -4.868949,
+                                    -6.78481
+                                  ],
+                                  "angles": [
+                                    -6.115115,
+                                    169.363434,
+                                    145.19783
+                                  ],
+                                  "do_not_discard": true
+                                },
+                                {
+                                  "_class": "Bone",
+                                  "name": "scap_AIMUP",
+                                  "origin": [
+                                    7.273727,
+                                    -3.045205,
+                                    -0.0
+                                  ],
+                                  "angles": [
+                                    -89.999969,
+                                    -93.393372,
+                                    0.0
+                                  ],
+                                  "do_not_discard": true
+                                }
+                              ]
+                            },
+                            {
+                              "_class": "Bone",
+                              "name": "jiggle_front_micropouches",
+                              "origin": [
+                                -0.869793,
+                                5.186767,
+                                5.650944
+                              ],
+                              "angles": [
+                                -54.713501,
+                                -90.384949,
+                                7.940587
+                              ],
+                              "do_not_discard": true
+                            },
+                            {
+                              "_class": "Bone",
+                              "name": "jiggle_radio",
+                              "origin": [
+                                -0.797829,
+                                -6.914185,
+                                3.627148
+                              ],
+                              "angles": [
+                                -86.11113,
+                                -29.717669,
+                                -52.494923
+                              ],
+                              "do_not_discard": true
+                            },
+                            {
+                              "_class": "Bone",
+                              "name": "jiggle_front_pouch_01",
+                              "origin": [
+                                -1.057915,
+                                3.889003,
+                                -8.370527
+                              ],
+                              "angles": [
+                                -32.893299,
+                                99.078613,
+                                174.546463
+                              ],
+                              "do_not_discard": true
+                            },
+                            {
+                              "_class": "Bone",
+                              "name": "jiggle_front_pouch_02",
+                              "origin": [
+                                -1.455956,
+                                6.942207,
+                                -4.286182
+                              ],
+                              "angles": [
+                                -66.922272,
+                                97.326042,
+                                175.212021
+                              ],
+                              "do_not_discard": true
+                            },
+                            {
+                              "_class": "Bone",
+                              "name": "scap_R_AIMAT",
+                              "origin": [
+                                4.066181,
+                                -2.530903,
+                                -4.742442
+                              ],
+                              "angles": [
+                                -89.999977,
+                                -79.39241,
+                                0.0
+                              ],
+                              "do_not_discard": true
+                            },
+                            {
+                              "_class": "Bone",
+                              "name": "scap_L_AIMAT",
+                              "origin": [
+                                4.066181,
+                                -2.530904,
+                                4.741992
+                              ],
+                              "angles": [
+                                -89.999977,
+                                -79.39241,
+                                0.0
+                              ],
+                              "do_not_discard": true
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "_class": "Bone",
+                  "name": "leg_upper_L",
+                  "origin": [
+                    -3.771397,
+                    0.913481,
+                    3.694226
+                  ],
+                  "angles": [
+                    -2.271193,
+                    179.170776,
+                    -15.008648
+                  ],
+                  "do_not_discard": true,
+                  "children": [
+                    {
+                      "_class": "Bone",
+                      "name": "leg_lower_L",
+                      "origin": [
+                        17.902941,
+                        -0.0,
+                        -5e-06
+                      ],
+                      "angles": [
+                        3e-06,
+                        7.36563,
+                        -1.4e-05
+                      ],
+                      "do_not_discard": true,
+                      "children": [
+                        {
+                          "_class": "Bone",
+                          "name": "ankle_L",
+                          "origin": [
+                            16.937233,
+                            3e-06,
+                            0.0
+                          ],
+                          "angles": [
+                            2.260577,
+                            -67.350098,
+                            179.703995
+                          ],
+                          "do_not_discard": true,
+                          "children": [
+                            {
+                              "_class": "Bone",
+                              "name": "ball_L",
+                              "origin": [
+                                6.32964,
+                                8e-06,
+                                -1.1e-05
+                              ],
+                              "angles": [
+                                8e-06,
+                                28.67358,
+                                -1.3e-05
+                              ],
+                              "do_not_discard": true
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "_class": "Bone",
+                      "name": "leg_upper_L_TWIST",
+                      "origin": [
+                        5.967659,
+                        2e-06,
+                        -2e-06
+                      ],
+                      "angles": [
+                        -0.0,
+                        -0.0,
+                        0.0
+                      ],
+                      "do_not_discard": true
+                    },
+                    {
+                      "_class": "Bone",
+                      "name": "leg_upper_L_TWIST1",
+                      "origin": [
+                        11.935291,
+                        2e-06,
+                        -3e-06
+                      ],
+                      "angles": [
+                        -0.0,
+                        -0.0,
+                        0.0
+                      ],
+                      "do_not_discard": true
+                    },
+                    {
+                      "_class": "Bone",
+                      "name": "jiggle_climbinggear_01",
+                      "origin": [
+                        -3.544346,
+                        -4.397163,
+                        2.808479
+                      ],
+                      "angles": [
+                        -52.696434,
+                        -104.526649,
+                        -170.438248
+                      ],
+                      "do_not_discard": true,
+                      "children": [
+                        {
+                          "_class": "Bone",
+                          "name": "jiggle_climbinggear_02",
+                          "origin": [
+                            0.322582,
+                            -2.860928,
+                            0.03917
+                          ],
+                          "angles": [
+                            1e-05,
+                            1e-06,
+                            -7e-06
+                          ],
+                          "do_not_discard": true
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "_class": "Bone",
+                  "name": "leg_upper_R",
+                  "origin": [
+                    -3.771431,
+                    0.91348,
+                    -3.694229
+                  ],
+                  "angles": [
+                    -2.271194,
+                    -0.829216,
+                    -15.008679
+                  ],
+                  "do_not_discard": true,
+                  "children": [
+                    {
+                      "_class": "Bone",
+                      "name": "leg_lower_R",
+                      "origin": [
+                        -17.902927,
+                        0.0,
+                        0.0
+                      ],
+                      "angles": [
+                        -0.0,
+                        7.36563,
+                        5e-06
+                      ],
+                      "do_not_discard": true,
+                      "children": [
+                        {
+                          "_class": "Bone",
+                          "name": "ankle_R",
+                          "origin": [
+                            -16.937202,
+                            -1.1e-05,
+                            0.0
+                          ],
+                          "angles": [
+                            2.26059,
+                            -67.350098,
+                            179.703995
+                          ],
+                          "do_not_discard": true,
+                          "children": [
+                            {
+                              "_class": "Bone",
+                              "name": "ball_R",
+                              "origin": [
+                                -6.329646,
+                                -6e-06,
+                                1e-05
+                              ],
+                              "angles": [
+                                1.1e-05,
+                                28.67358,
+                                1e-06
+                              ],
+                              "do_not_discard": true
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "_class": "Bone",
+                      "name": "leg_upper_R_TWIST",
+                      "origin": [
+                        -5.967628,
+                        0.0,
+                        -4e-06
+                      ],
+                      "angles": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ],
+                      "do_not_discard": true
+                    },
+                    {
+                      "_class": "Bone",
+                      "name": "leg_upper_R_TWIST1",
+                      "origin": [
+                        -11.935274,
+                        0.0,
+                        -5e-06
+                      ],
+                      "angles": [
+                        0.0,
+                        0.0,
+                        0.0
+                      ],
+                      "do_not_discard": true
+                    },
+                    {
+                      "_class": "Bone",
+                      "name": "jiggle_holster",
+                      "origin": [
+                        -4.588371,
+                        0.884281,
+                        -4.984224
+                      ],
+                      "angles": [
+                        -17.130545,
+                        87.310265,
+                        -170.348801
+                      ],
+                      "do_not_discard": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "_class": "Bone",
+              "name": "wpnPivot",
+              "origin": [
+                -0.0,
+                58.781662,
+                -3.471689
+              ],
+              "angles": [
+                -0.0,
+                0.0,
+                0.0
+              ],
+              "do_not_discard": true,
+              "children": [
+                {
+                  "_class": "Bone",
+                  "name": "wpn",
+                  "origin": [
+                    0.0,
+                    -58.781677,
+                    3.47169
+                  ],
+                  "angles": [
+                    -0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "do_not_discard": true
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "animation_graph": "animation/graphs/worldmodel/worldmodel.vnmgraph"
+}

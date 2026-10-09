@@ -1,0 +1,1 @@
+"""Stock environment prop templates."""

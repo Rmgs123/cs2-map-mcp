@@ -1,0 +1,524 @@
+{
+  "schema": 1,
+  "kit": "vegetation_med",
+  "title": "Vegetation medium",
+  "style": [
+    "vegetation",
+    "mediterranean"
+  ],
+  "parts": [
+    {
+      "key": "tree_city",
+      "model": "models/props_foliage/tree_city01.vmdl",
+      "category": "tree",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -113.5385,
+          -131.8896,
+          -0.055
+        ],
+        [
+          125.0844,
+          128.1238,
+          495.6566
+        ]
+      ],
+      "size": [
+        238.6229,
+        260.0134,
+        495.7116
+      ],
+      "tags": [
+        "tree",
+        "urban"
+      ],
+      "solid": true,
+      "verified": "game",
+      "thumb": "screenshots/kits/vegetation_med/tree_city.png"
+    },
+    {
+      "key": "tree_inferno",
+      "model": "models/props/de_inferno/tree_large.vmdl",
+      "category": "tree",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -333.5143,
+          -242.9369,
+          -0.0556
+        ],
+        [
+          336.1247,
+          381.0508,
+          688.8197
+        ]
+      ],
+      "size": [
+        669.639,
+        623.9877,
+        688.8753
+      ],
+      "tags": [
+        "tree",
+        "italy"
+      ],
+      "solid": true,
+      "verified": "game",
+      "thumb": "screenshots/kits/vegetation_med/tree_inferno.png"
+    },
+    {
+      "key": "palm",
+      "model": "models/props_foliage/urban_palm01.vmdl",
+      "category": "tree",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -80.6987,
+          -95.0421,
+          -0.0587
+        ],
+        [
+          103.5772,
+          98.7295,
+          249.3639
+        ]
+      ],
+      "size": [
+        184.2759,
+        193.7716,
+        249.4226
+      ],
+      "tags": [
+        "tree",
+        "palm"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "palm_small",
+      "model": "models/props_foliage/urban_small_palm01.vmdl",
+      "category": "tree",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -26.501,
+          -34.2039,
+          -2.3172
+        ],
+        [
+          31.5096,
+          30.4618,
+          99.2989
+        ]
+      ],
+      "size": [
+        58.0106,
+        64.6657,
+        101.6161
+      ],
+      "tags": [
+        "tree",
+        "palm"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "olive",
+      "model": "models/props/de_dust/hr_dust/foliage/olive_tree_01.vmdl",
+      "category": "tree",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -88.9016,
+          -101.4617,
+          -4.7977
+        ],
+        [
+          113.9548,
+          124.7963,
+          224.4557
+        ]
+      ],
+      "size": [
+        202.8564,
+        226.258,
+        229.2534
+      ],
+      "tags": [
+        "tree",
+        "olive"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "olive_small",
+      "model": "models/props/de_dust/hr_dust/foliage/olive_tree_small_01.vmdl",
+      "category": "tree",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -56.895,
+          -89.3336,
+          -0.6525
+        ],
+        [
+          68.0791,
+          64.9208,
+          141.2647
+        ]
+      ],
+      "size": [
+        124.9741,
+        154.2544,
+        141.9172
+      ],
+      "tags": [
+        "tree",
+        "olive"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "cypress",
+      "model": "models/props/de_inferno/hr_i/cypress_a/cypress_a.vmdl",
+      "category": "tree",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -78.0723,
+          -79.813,
+          -324.965
+        ],
+        [
+          81.7561,
+          75.4107,
+          440.9262
+        ]
+      ],
+      "size": [
+        159.8284,
+        155.2237,
+        765.8912
+      ],
+      "tags": [
+        "tree",
+        "cypress"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "cypress_small",
+      "model": "models/foliage/trees/cypress_02/cypress02_small_a.vmdl",
+      "category": "tree",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -11.1226,
+          -11.8623,
+          -0.0787
+        ],
+        [
+          12.1128,
+          10.0391,
+          56.3334
+        ]
+      ],
+      "size": [
+        23.2354,
+        21.9014,
+        56.4121
+      ],
+      "tags": [
+        "tree",
+        "cypress"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "bush_green",
+      "model": "models/props/de_inferno/bushgreensmall.vmdl",
+      "category": "bush",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -24.4753,
+          -22.2914,
+          -0.8225
+        ],
+        [
+          23.3051,
+          26.0992,
+          35.5035
+        ]
+      ],
+      "size": [
+        47.7804,
+        48.3906,
+        36.326
+      ],
+      "tags": [
+        "bush",
+        "green"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "bush_large",
+      "model": "models/props/de_inferno/largebush03.vmdl",
+      "category": "bush",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -43.9785,
+          -65.0421,
+          -1.1326
+        ],
+        [
+          46.6673,
+          57.2497,
+          52.2482
+        ]
+      ],
+      "size": [
+        90.6458,
+        122.2918,
+        53.3808
+      ],
+      "tags": [
+        "bush",
+        "green"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "bush_urban",
+      "model": "models/props_foliage/urban_bush02.vmdl",
+      "category": "bush",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -65.8764,
+          -94.7849,
+          -4.5385
+        ],
+        [
+          50.3478,
+          89.9645,
+          79.6985
+        ]
+      ],
+      "size": [
+        116.2242,
+        184.7494,
+        84.237
+      ],
+      "tags": [
+        "bush",
+        "urban"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "ivy_wall",
+      "model": "models/ivy/ivy_wall_01.vmdl",
+      "category": "plant",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          0.5995,
+          -46.6889,
+          -27.5366
+        ],
+        [
+          10.2965,
+          47.2076,
+          47.5113
+        ]
+      ],
+      "size": [
+        9.697,
+        93.8965,
+        75.0479
+      ],
+      "tags": [
+        "ivy",
+        "wall"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "ivy_anubis",
+      "model": "models/anubis/foliage/ivy02a.vmdl",
+      "category": "plant",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.3767,
+          -61.1866,
+          -85.272
+        ],
+        [
+          8.6143,
+          60.7797,
+          9.0992
+        ]
+      ],
+      "size": [
+        13.991,
+        121.9663,
+        94.3712
+      ],
+      "tags": [
+        "ivy",
+        "flowers"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "vine",
+      "model": "models/props_foliage/urban_vine04.vmdl",
+      "category": "plant",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          1.3258,
+          -105.8353,
+          -3.4756
+        ],
+        [
+          5.2674,
+          89.4784,
+          184.5322
+        ]
+      ],
+      "size": [
+        3.9416,
+        195.3137,
+        188.0078
+      ],
+      "tags": [
+        "vine",
+        "wall"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "pot_clay",
+      "model": "models/props/de_inferno/claypot02.vmdl",
+      "category": "plant",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -21.007,
+          -16.0524,
+          0.1187
+        ],
+        [
+          16.0524,
+          16.0524,
+          53.915
+        ]
+      ],
+      "size": [
+        37.0594,
+        32.1048,
+        53.7963
+      ],
+      "tags": [
+        "pot",
+        "terracotta"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "fern",
+      "model": "models/cs_italy/foliage/fern/fern_plant_1.vmdl",
+      "category": "plant",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -25.8108,
+          -22.8492,
+          -9.1347
+        ],
+        [
+          21.2168,
+          22.1231,
+          17.375
+        ]
+      ],
+      "size": [
+        47.0276,
+        44.9723,
+        26.5097
+      ],
+      "tags": [
+        "plant",
+        "fern"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "planter_round",
+      "model": "models/props_foliage/mall_pot_large01.vmdl",
+      "category": "plant",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -24.3272,
+          -24.3174,
+          -0.0767
+        ],
+        [
+          24.3475,
+          24.3573,
+          28.7992
+        ]
+      ],
+      "size": [
+        48.6747,
+        48.6747,
+        28.8759
+      ],
+      "solid": true,
+      "tags": [
+        "planter",
+        "pot",
+        "empty"
+      ],
+      "verified": "bounds"
+    }
+  ]
+}

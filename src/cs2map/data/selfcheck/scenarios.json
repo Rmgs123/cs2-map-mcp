@@ -1,0 +1,32 @@
+{
+ "drone": [
+  {"walk":[440,300,8]},{"aim":[520,300,40]},{"use":true},{"expect":"D_CONTROL drone1 enter","within":3},
+  {"hold":{"key":"jump","seconds":1}},{"hold":{"key":"forward","seconds":1}},{"shot":"sc_drone_fly"},
+  {"cmd":"d8_control_drone1_state up"},{"expect":"\"token\":\"up\"","within":3},
+  {"use":true},{"expect":"D_CONTROL drone1 exit","within":3}],
+ "car": [
+  {"walk":[1176,326,8]},{"aim":[1200,250,40]},{"use":true},{"expect":"V_CAR jeep enter","within":3},
+  {"hold":{"key":"forward","seconds":1.2}},{"shot":"sc_car_drive"},
+  {"cmd":"v9_control_jeep_state drove"},{"expect":"\"token\":\"drove\"","within":3},
+  {"use":true},{"expect":"V_CAR jeep exit","within":3}],
+ "turret": [
+  {"walk":[1818,1100,8]},{"aim":[1900,1100,34]},{"use":true},{"cmd":"t9_turret_gun1_state seated"},
+  {"expect":"\"token\":\"seated\".*\"active\":true","within":3},{"aim":[1000,1100,40]},
+  {"hold":{"key":"attack","seconds":1}},{"shot":"sc_turret_fire"},
+  {"cmd":"t9_turret_gun1_state fired"},{"expect":"\"token\":\"fired\"","within":3},
+  {"use":true},{"expect":"T_TURRET gun1 exit","within":3}],
+ "gallery": [
+  {"walk":[520,1350,8]},{"aim":"m9_range_start"},{"use":true},{"expect":"M_MINIGAME range start","within":3},
+  {"wait":1.5},{"shot":"sc_gallery"},{"cmd":"m9_range_state after"},{"expect":"\"token\":\"after\"","within":3}],
+ "weapon": [
+  {"walk":[240,560,8]},{"aim":[300,560,44]},{"use":true},{"cmd":"w9_rail_state"},
+  {"expect":"W_WEAPON rail state .*\"owner\":0","within":3},{"aim":[900,560,60]},
+  {"hold":{"key":"attack","seconds":1.2}},{"expect":"W_WEAPON rail shot","within":3},{"shot":"sc_rail_shot"}],
+ "ability": [
+  {"walk":[2175,275,8]},{"wait":0.6},{"expect":"A10_ABILITY zone grant","within":3},{"focus":true},
+  {"hold":{"key":"jump","seconds":0.05}},{"wait":0.35},{"hold":{"key":"jump","seconds":0.05}},
+  {"expect":"A10_ABILITY zone double_jump","within":3},{"shot":"sc_double_jump"},{"focus":false}],
+ "story": [
+  {"walk":[920,1500,8]},{"aim":[920,1588,56]},{"use":true},{"expect":"S_STORY sc_story stage wake done","within":3},
+  {"walk":[940,1325,8]},{"expect":"S_STORY sc_story complete","within":3},{"shot":"sc_story_done"}]
+}

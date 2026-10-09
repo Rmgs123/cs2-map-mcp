@@ -1,0 +1,41 @@
+# Whitelist: only what is listed below goes to git.
+# Everything else (tools/, logs/, screenshots/, backups/, .local/, my/, prompts/, reports/,
+# archive/, _to_delete/, resources/, local notes) stays on this computer.
+/*
+!/.gitignore
+!/.gitattributes
+!/README.md
+!/REPAIR.md
+!/CONTRIBUTING.md
+!/.github/
+!/CHANGELOG.md
+!/AGENTS.md
+!/LICENSE
+!/setup.ps1
+!/src/
+!/tests/
+!/docs/
+!/config/
+!/tools/
+
+# tools/: only our scripts, no Python, Blender, Hammer5Tools or archives
+/tools/*
+!/tools/mcp_call.py
+!/tools/prop_catalog.py
+!/tools/contact_sheet.py
+!/tools/setup_clients.py
+!/tools/selfcheck.py
+
+# Local settings and paths of this computer
+/config/settings.json
+/config/codex-mcp.toml
+
+# Internal working notes of the maintainer (local only)
+/docs/PARALLEL_WORK.md
+
+# Heavy pictures of old checks
+/docs/examples/
+
+# Python
+__pycache__/
+*.py[cod]

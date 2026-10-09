@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "archives": [
+    {
+      "id": "hammer5tools",
+      "version": "6.0.6",
+      "archive": "tools/downloads/Hammer5Tools-6.0.6-stable-full.nupkg",
+      "extract_to": "tools/Hammer5Tools-6.0.6",
+      "sha256": "3ba6880cbd6985b840caefa35b06fc874690dc2f9da90f9969f89486fb2991e0",
+      "origin": "https://github.com/dertwist/Hammer5Tools/releases/download/v6.0.6/Hammer5Tools-6.0.6-stable-full.nupkg"
+    },
+    {
+      "id": "blender",
+      "version": "4.5.14",
+      "archive": "tools/downloads/blender-4.5.14-windows-x64.zip",
+      "extract_to": "tools",
+      "sha256": "b9533d2397ac1984db4466fb23a7a4649391cca93f6e84209f9bcc60d071c8b9",
+      "origin": "https://download.blender.org/release/Blender4.5/blender-4.5.14-windows-x64.zip",
+      "note": "Portable fallback only: setup prefers Blender from Steam (app 365670) and offers this LTS zip when no Blender 4.5 - 5.x is installed."
+    },
+    {
+      "id": "vrf-cli",
+      "version": "20.0",
+      "archive": "tools/downloads/vrf-cli-windows-x64-20.0.zip",
+      "extract_to": "tools/vrf-cli-20.0",
+      "sha256": "d32ab327b8bbb42a2528866afb03bb582bdb779d0005488da32b90292afd3ff5",
+      "origin": "https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/20.0/cli-windows-x64.zip",
+      "note": "Source2Viewer-CLI (MIT): exports stock CS2 models to glTF for the offline prop atlas."
+    }
+  ]
+}

@@ -1,0 +1,491 @@
+{
+  "schema": 1,
+  "kit": "interior_common",
+  "title": "Interior common",
+  "style": [
+    "interior",
+    "urban"
+  ],
+  "parts": [
+    {
+      "key": "office_chair",
+      "model": "models/props/cs_office/chair_office.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -13.1012,
+          -12.8414,
+          -0.0349
+        ],
+        [
+          13.1012,
+          12.8414,
+          47.5446
+        ]
+      ],
+      "size": [
+        26.2024,
+        25.6828,
+        47.5795
+      ],
+      "tags": [
+        "chair",
+        "office"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "wood_chair",
+      "model": "models/props/de_inferno/chairantique_static.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -12.9853,
+          -12.2875,
+          -0.067
+        ],
+        [
+          11.9819,
+          12.2875,
+          38.7492
+        ]
+      ],
+      "size": [
+        24.9672,
+        24.575,
+        38.8162
+      ],
+      "tags": [
+        "chair",
+        "wood"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "patio_chair",
+      "model": "models/de_overpass/patio_chair/patio_chair.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -14.3178,
+          -14.4048,
+          -0.05
+        ],
+        [
+          14.3178,
+          14.48,
+          44.8187
+        ]
+      ],
+      "size": [
+        28.6356,
+        28.8848,
+        44.8687
+      ],
+      "tags": [
+        "chair",
+        "patio"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "office_table",
+      "model": "models/props/cs_office/table_meeting.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -148.0395,
+          -64.0773,
+          -0.05
+        ],
+        [
+          157.3957,
+          65.1183,
+          30.05
+        ]
+      ],
+      "size": [
+        305.4352,
+        129.1956,
+        30.1
+      ],
+      "tags": [
+        "table",
+        "office"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "antique_table",
+      "model": "models/props/de_inferno/tableantique.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -14.9775,
+          -22.55,
+          -0.073
+        ],
+        [
+          14.9775,
+          22.55,
+          31.0474
+        ]
+      ],
+      "size": [
+        29.955,
+        45.1,
+        31.1204
+      ],
+      "tags": [
+        "table",
+        "wood"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "market_table",
+      "model": "models/props/cs_italy/market_table01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -22.3365,
+          -53.2501,
+          -0.0476
+        ],
+        [
+          22.3365,
+          53.2501,
+          34.9411
+        ]
+      ],
+      "size": [
+        44.673,
+        106.5002,
+        34.9887
+      ],
+      "tags": [
+        "table",
+        "market"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "bookshelf",
+      "model": "models/props/cs_office/bookshelf1.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -6.7082,
+          -26.3687,
+          -0.0218
+        ],
+        [
+          6.7082,
+          26.3687,
+          86.6149
+        ]
+      ],
+      "size": [
+        13.4164,
+        52.7374,
+        86.6367
+      ],
+      "tags": [
+        "shelf",
+        "books"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "bookshelf_italy",
+      "model": "models/cs_italy/interior/office/bookshelf_wood_1.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -9.4102,
+          -24.4153,
+          -53.3306
+        ],
+        [
+          8.7,
+          23.9173,
+          53.3405
+        ]
+      ],
+      "size": [
+        18.1102,
+        48.3326,
+        106.6711
+      ],
+      "tags": [
+        "shelf",
+        "wood"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "metal_shelves",
+      "model": "models/props/cs_office/shelves_metal.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -14.679,
+          -32.0255,
+          -0.05
+        ],
+        [
+          14.094,
+          32.0255,
+          79.3213
+        ]
+      ],
+      "size": [
+        28.773,
+        64.051,
+        79.3713
+      ],
+      "tags": [
+        "shelf",
+        "metal"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "trashbin",
+      "model": "models/props/cs_office/trash_can.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.6128,
+          -8.1241,
+          -0.1388
+        ],
+        [
+          11.0054,
+          7.088,
+          22.3937
+        ]
+      ],
+      "size": [
+        21.6182,
+        15.2121,
+        22.5325
+      ],
+      "tags": [
+        "trash",
+        "bin"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "floor_lamp",
+      "model": "models/props_interiors/lamp_floor.vmdl",
+      "category": "lamp",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -12.1295,
+          -12.1295,
+          -0.05
+        ],
+        [
+          12.1295,
+          12.1295,
+          86.05
+        ]
+      ],
+      "size": [
+        24.259,
+        24.259,
+        86.1
+      ],
+      "tags": [
+        "lamp",
+        "interior"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "table_lamp",
+      "model": "models/props_interiors/lamp_table02.vmdl",
+      "category": "lamp",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -7.6943,
+          -7.6943,
+          -0.05
+        ],
+        [
+          7.6943,
+          7.6943,
+          29.05
+        ]
+      ],
+      "size": [
+        15.3886,
+        15.3886,
+        29.1
+      ],
+      "tags": [
+        "lamp",
+        "table"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "plant",
+      "model": "models/props/cs_office/plant01.vmdl",
+      "category": "plant",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -19.152,
+          -24.7473,
+          -0.05
+        ],
+        [
+          24.036,
+          26.2838,
+          71.7756
+        ]
+      ],
+      "size": [
+        43.188,
+        51.0311,
+        71.8256
+      ],
+      "tags": [
+        "plant",
+        "pot"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "pot",
+      "model": "models/props/de_inferno/claypot02.vmdl",
+      "category": "plant",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -21.007,
+          -16.0524,
+          0.1187
+        ],
+        [
+          16.0524,
+          16.0524,
+          53.915
+        ]
+      ],
+      "size": [
+        37.0594,
+        32.1048,
+        53.7963
+      ],
+      "tags": [
+        "pot",
+        "terracotta"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "crate",
+      "model": "models/props/de_nuke/crate_small.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -33.1515,
+          -33.1249,
+          -0.0415
+        ],
+        [
+          33.184,
+          33.223,
+          65.3457
+        ]
+      ],
+      "size": [
+        66.3355,
+        66.3479,
+        65.3872
+      ],
+      "tags": [
+        "crate",
+        "wood"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "pallet",
+      "model": "models/props/de_dust/pallet01.vmdl",
+      "category": "prop",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -44.5052,
+          -70.2927,
+          0.2467
+        ],
+        [
+          44.5052,
+          70.2927,
+          40.9401
+        ]
+      ],
+      "size": [
+        89.0104,
+        140.5854,
+        40.6934
+      ],
+      "tags": [
+        "pallet",
+        "wood"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    }
+  ]
+}

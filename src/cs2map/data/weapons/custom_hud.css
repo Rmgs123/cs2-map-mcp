@@ -1,0 +1,6 @@
+.Root { width: 100%; height: 100%; }
+/* Custom guns: bottom right above the native ammo counter, never on top of the gadget HUD. */
+#weapon { horizontal-align: right; vertical-align: bottom; margin-right: 32px; margin-bottom: 96px;
+ padding: 10px 20px; background-color: #10212ee8; border-right: 3px solid #55dfffff; }
+Label { color: #80eaffff; font-family: Arial; font-size: 22px; }
+.Hidden { visibility: collapse; }

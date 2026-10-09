@@ -1,0 +1,12 @@
+{
+  "name": "vrm",
+  "description": "VRM / Unity humanoid rigs",
+  "roles": {
+    "pelvis": "J_Bip_C_Hips", "spine_0": "J_Bip_C_Spine", "spine_1": "J_Bip_C_Chest", "spine_2": "J_Bip_C_UpperChest",
+    "neck": "J_Bip_C_Neck", "head": "J_Bip_C_Head", "upper_arm_l": "J_Bip_L_UpperArm", "upper_arm_r": "J_Bip_R_UpperArm",
+    "lower_arm_l": "J_Bip_L_LowerArm", "lower_arm_r": "J_Bip_R_LowerArm", "hand_l": "J_Bip_L_Hand", "hand_r": "J_Bip_R_Hand",
+    "thigh_l": "J_Bip_L_UpperLeg", "thigh_r": "J_Bip_R_UpperLeg", "calf_l": "J_Bip_L_LowerLeg", "calf_r": "J_Bip_R_LowerLeg",
+    "foot_l": "J_Bip_L_Foot", "foot_r": "J_Bip_R_Foot", "toe_l": "J_Bip_L_ToeBase", "toe_r": "J_Bip_R_ToeBase"
+  },
+  "aliases": {}
+}

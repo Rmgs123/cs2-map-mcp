@@ -1,0 +1,284 @@
+{
+  "schema": 1,
+  "theme": "warehouse",
+  "verified": false,
+  "materials": {
+    "floor": "materials/concrete/concrete_floor_04.vmat",
+    "walls": "materials/concrete/hr_c/hr_concrete_wall_004.vmat",
+    "ceiling": "materials/concrete/concreteceiling001a.vmat",
+    "trim": "materials/brick/brick_ext_04.vmat",
+    "metal": "materials/metal/metalwall031a.vmat",
+    "wood": "materials/wood/milbeams003.vmat"
+  },
+  "props": [
+    {
+      "key": "crate",
+      "model": "models/props/de_nuke/crate_small.vmdl",
+      "bounds": [
+        [
+          -33.152,
+          -33.125,
+          -0.121
+        ],
+        [
+          33.184,
+          33.223,
+          65.346
+        ]
+      ],
+      "size": [
+        66.34,
+        66.35,
+        65.47
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 500.0,
+      "tris": 504,
+      "role": "floor",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "large_crate",
+      "model": "models/props/de_nuke/crate_large.vmdl",
+      "bounds": [
+        [
+          -48.052,
+          -48.049,
+          -0.16
+        ],
+        [
+          48.053,
+          48.056,
+          96.043
+        ]
+      ],
+      "size": [
+        96.1,
+        96.1,
+        96.2
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 500.0,
+      "tris": 184,
+      "role": "floor",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "barrel",
+      "model": "models/props/de_dust/dust_rusty_barrel.vmdl",
+      "bounds": [
+        [
+          -14.84,
+          -14.84,
+          -0.05
+        ],
+        [
+          14.879,
+          14.84,
+          45.05
+        ]
+      ],
+      "size": [
+        29.72,
+        29.68,
+        45.1
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 1345.36,
+      "tris": 892,
+      "role": "floor",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "pallet",
+      "model": "models/props/de_dust/pallet01.vmdl",
+      "bounds": [
+        [
+          -45.639,
+          -71.413,
+          -0.05
+        ],
+        [
+          44.505,
+          70.293,
+          44.586
+        ]
+      ],
+      "size": [
+        90.14,
+        141.71,
+        44.64
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 20.0,
+      "tris": 624,
+      "role": "floor",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "barrel_pallet",
+      "model": "models/props/de_train/pallet_barrels.vmdl",
+      "bounds": [
+        [
+          -30.132,
+          -31.618,
+          -0.089
+        ],
+        [
+          29.19,
+          31.487,
+          51.38
+        ]
+      ],
+      "size": [
+        59.32,
+        63.1,
+        51.47
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 500.0,
+      "tris": 1792,
+      "role": "floor",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "trash",
+      "model": "models/props/cs_office/trash_can.vmdl",
+      "bounds": [
+        [
+          -11.567,
+          -8.165,
+          -0.139
+        ],
+        [
+          11.542,
+          7.088,
+          22.394
+        ]
+      ],
+      "size": [
+        23.11,
+        15.25,
+        22.53
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 15.0,
+      "tris": 453,
+      "role": "corner",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "pipe_fitting",
+      "model": "models/props_c17/gaspipes006a.vmdl",
+      "bounds": [
+        [
+          -6.078,
+          -1.459,
+          -26.442
+        ],
+        [
+          5.912,
+          1.459,
+          26.442
+        ]
+      ],
+      "size": [
+        11.99,
+        2.92,
+        52.88
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 400.0,
+      "tris": 128,
+      "role": "wall",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "wall_lamp",
+      "model": "models/props/de_mirage/lamp_ver1.vmdl",
+      "bounds": [
+        [
+          -0.766,
+          -6.985,
+          -29.35
+        ],
+        [
+          35.991,
+          6.904,
+          22.827
+        ]
+      ],
+      "size": [
+        36.76,
+        13.89,
+        52.18
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 500.0,
+      "tris": 1822,
+      "role": "wall",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    }
+  ],
+  "decals": [
+    {
+      "key": "dirt",
+      "material": "materials/decals/dirt02.vmat",
+      "size": [
+        72,
+        56
+      ],
+      "verified": false
+    },
+    {
+      "key": "stain",
+      "material": "materials/overlays/wall_stain001.vmat",
+      "size": [
+        80,
+        96
+      ],
+      "verified": false
+    }
+  ],
+  "sounds": [
+    {
+      "event": "port.Warehouse.Tone",
+      "sounds": [
+        "sounds/ambient/common/backgrounds/underground_hall_loop1.vsnd"
+      ],
+      "verified": "indexed; runtime playback not tested by V"
+    }
+  ],
+  "lighting": {
+    "temperature": 4200,
+    "brightness": 300,
+    "range": 480
+  },
+  "notes": [
+    "Stock props stay static; PHYS presence is metadata, not a dynamic-prop guarantee."
+  ],
+  "material_verified": {
+    "floor": true,
+    "walls": true,
+    "ceiling": true,
+    "trim": true,
+    "metal": true,
+    "wood": true
+  }
+}

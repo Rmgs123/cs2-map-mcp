@@ -1,0 +1,8 @@
+#control { horizontal-align: center; vertical-align: bottom; margin-bottom: 130px; background-color: #10252bef; padding: 12px 24px; border: 1px solid #47879cff; flow-children: down; }
+.Title { color: #5ed2efff; font-size: 18px; font-weight: bold; }
+.Status { color: white; font-size: 26px; }
+.Hint { color: #b8d0d9ff; font-size: 17px; }
+.Hidden { visibility: collapse; }
+.Low .Status { color: #ff756aff; }
+.CarRoot { width: 100%; height: 100%; }
+Label { font-family: Arial; color: white; font-size: 21px; }

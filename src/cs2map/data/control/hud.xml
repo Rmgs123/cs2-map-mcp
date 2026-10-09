@@ -1,0 +1,5 @@
+<root><styles><include src="file://{resources}/styles/custom_game/HUDNAME.css" /></styles>
+<Panel class="ControlRoot"><Panel id="control" class="Hidden" hittest="false">
+<Label id="title" text="HUDTITLE" />
+<Label id="telemetry" text="{s:telemetry}" /><Label text="HUDHINT" />
+</Panel></Panel></root>

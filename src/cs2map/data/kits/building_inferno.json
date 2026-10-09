@@ -1,0 +1,1003 @@
+{
+  "schema": 1,
+  "kit": "building_inferno",
+  "title": "building_inferno",
+  "style": [
+    "mediterranean"
+  ],
+  "parts": [
+    {
+      "key": "window_stone_40",
+      "model": "models/de_inferno/bk01/bk01_w01_frame04_a.vmdl",
+      "category": "window",
+      "front": "-x",
+      "mount": "wall",
+      "bounds": [
+        [
+          -7.050013,
+          -33.539803,
+          -16.04998
+        ],
+        [
+          6.697341,
+          33.539902,
+          88.05001
+        ]
+      ],
+      "size": [
+        13.7474,
+        67.0797,
+        104.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        40,
+        76
+      ],
+      "opening_bottom": 2
+    },
+    {
+      "key": "window_stone_56",
+      "model": "models/de_inferno/frame_kit_01/fk01_f01_56x112_a.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.024321,
+          -34.05018,
+          -0.05008392334
+        ],
+        [
+          1.0500046,
+          34.050459999999994,
+          118.05005
+        ]
+      ],
+      "size": [
+        11.074,
+        68.101,
+        118.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        52,
+        108
+      ],
+      "opening_bottom": 2.949916
+    },
+    {
+      "key": "window_stone_68",
+      "model": "models/de_inferno/frame_kit_01/fk01_f02_68x112_a.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.024314,
+          -42.050003999999994,
+          -0.050037583057000005
+        ],
+        [
+          1.0500015,
+          42.050003999999994,
+          120.05014
+        ]
+      ],
+      "size": [
+        11.074,
+        84.1,
+        120.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        64,
+        108
+      ],
+      "opening_bottom": 2.949962
+    },
+    {
+      "key": "window_shutters_green",
+      "model": "models/props/cs_italy/window/it_wndg1open.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.050000786805,
+          -18.711112,
+          -24.05
+        ],
+        [
+          11.549974,
+          18.05,
+          24.05
+        ]
+      ],
+      "size": [
+        11.6,
+        36.761,
+        48.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        30.76,
+        42.1
+      ],
+      "opening_bottom": -21.05
+    },
+    {
+      "key": "window_shutters_blue",
+      "model": "models/props/cs_italy/window/it_wndb1open.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.050000786805,
+          -18.711112,
+          -24.05
+        ],
+        [
+          11.549974,
+          18.05,
+          24.05
+        ]
+      ],
+      "size": [
+        11.6,
+        36.761,
+        48.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        30.76,
+        42.1
+      ],
+      "opening_bottom": -21.05
+    },
+    {
+      "key": "window_shutters_red",
+      "model": "models/props/cs_italy/window/it_wndr1open.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.050000786805,
+          -18.711112,
+          -24.05
+        ],
+        [
+          11.549974,
+          18.05,
+          24.05
+        ]
+      ],
+      "size": [
+        11.6,
+        36.761,
+        48.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        30.76,
+        42.1
+      ],
+      "opening_bottom": -21.05
+    },
+    {
+      "key": "window_shutters_yellow",
+      "model": "models/props/cs_italy/window/it_wndyel1open.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.050000786805,
+          -18.711112,
+          -24.05
+        ],
+        [
+          11.549974,
+          18.05,
+          24.05
+        ]
+      ],
+      "size": [
+        11.6,
+        36.761,
+        48.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        30.76,
+        42.1
+      ],
+      "opening_bottom": -21.05
+    },
+    {
+      "key": "window_italy_01",
+      "model": "models/cs_italy/italy_windowkit_01/italy_windowkit01_window01_a.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -12.050016000000001,
+          -19.050021,
+          -0.050043456967
+        ],
+        [
+          -9.450000999999999,
+          19.050021,
+          84.050015
+        ]
+      ],
+      "size": [
+        2.6,
+        38.1,
+        84.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        32.1,
+        78.1
+      ],
+      "opening_bottom": 2.949957
+    },
+    {
+      "key": "window_italy_02",
+      "model": "models/cs_italy/italy_windowkit_01/italy_windowkit02_window01_a.vmdl",
+      "category": "window",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -8.511921000000001,
+          -20.050074000000002,
+          4.9499895
+        ],
+        [
+          0.32520978,
+          20.05017,
+          68.049954
+        ]
+      ],
+      "size": [
+        8.837,
+        40.1,
+        63.1
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        34.1,
+        57.1
+      ],
+      "opening_bottom": 7.94999
+    },
+    {
+      "key": "shutter_left",
+      "model": "models/cs_italy/italy_windowkit_01/italy_windowkit01_shutterleft_a.vmdl",
+      "category": "shutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -1.2241444000000001,
+          -0.49380423,
+          -27.04992
+        ],
+        [
+          1.2306072000000001,
+          19.62365,
+          27.250068000000002
+        ]
+      ],
+      "size": [
+        2.455,
+        20.117,
+        54.3
+      ],
+      "tags": [
+        "shutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "shutter_right",
+      "model": "models/cs_italy/italy_windowkit_01/italy_windowkit01_shutterright_a.vmdl",
+      "category": "shutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -1.2241444000000001,
+          -19.623639,
+          -27.04992
+        ],
+        [
+          1.2306072000000001,
+          0.49381616,
+          27.250068000000002
+        ]
+      ],
+      "size": [
+        2.455,
+        20.117,
+        54.3
+      ],
+      "tags": [
+        "shutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "door_wood_double",
+      "model": "models/props/de_inferno/hr_i/door_a/door_a.vmdl",
+      "category": "door",
+      "front": "+x",
+      "mount": "wall",
+      "bounds": [
+        [
+          -11.2487505,
+          -43.049996,
+          -80.04998499999999
+        ],
+        [
+          10.668198,
+          43.049991999999996,
+          80.04998499999999
+        ]
+      ],
+      "size": [
+        21.9169,
+        86.1,
+        160.1
+      ],
+      "tags": [
+        "door"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        64,
+        132
+      ],
+      "opening_bottom": -77.04998499999999
+    },
+    {
+      "key": "door_wood",
+      "model": "models/cs_italy/doors/kit/italy_door_1.vmdl",
+      "category": "door",
+      "front": "+x",
+      "mount": "wall",
+      "bounds": [
+        [
+          -2.5339587,
+          -34.044453,
+          -0.05042960676
+        ],
+        [
+          0.9256234600000001,
+          34.042609999999996,
+          112.04987
+        ]
+      ],
+      "size": [
+        3.4596,
+        68.0871,
+        112.1003
+      ],
+      "tags": [
+        "door"
+      ],
+      "solid": true,
+      "verified": "bounds",
+      "opening": [
+        62,
+        106
+      ],
+      "opening_bottom": 2.94957039324
+    },
+    {
+      "key": "door_frame",
+      "model": "models/de_inferno/generic/inferno_doorframe_02_96_a.vmdl",
+      "category": "trim",
+      "mount": "wall",
+      "front": "+y",
+      "bounds": [
+        [
+          9.950002,
+          -6.3630717,
+          -0.050006303508600004
+        ],
+        [
+          118.04997,
+          6.3629096,
+          118.05
+        ]
+      ],
+      "size": [
+        108.1,
+        12.726,
+        118.1
+      ],
+      "tags": [
+        "trim"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "balcony_128",
+      "model": "models/cs_italy/props/balcony/italy_balcony_128_01.vmdl",
+      "category": "balcony",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.050271889900000005,
+          -61.09364,
+          -17.954467
+        ],
+        [
+          37.441907,
+          60.974515,
+          31.767297
+        ]
+      ],
+      "size": [
+        37.492,
+        122.068,
+        49.722
+      ],
+      "tags": [
+        "balcony"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "balcony_64",
+      "model": "models/cs_italy/props/balcony/italy_balcony_64_01.vmdl",
+      "category": "balcony",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.050271889900000005,
+          -29.64894,
+          -17.954467
+        ],
+        [
+          37.441907,
+          29.556424,
+          31.767297
+        ]
+      ],
+      "size": [
+        37.492,
+        59.205,
+        49.722
+      ],
+      "tags": [
+        "balcony"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "awning_128",
+      "model": "models/cs_italy/props/awning/awning_cloth_128_01a.vmdl",
+      "category": "awning",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.050020027200000004,
+          -0.35454253999999996,
+          -40.147549999999995
+        ],
+        [
+          28.487122,
+          128.57025000000002,
+          0.050005722
+        ]
+      ],
+      "size": [
+        28.537,
+        128.925,
+        40.198
+      ],
+      "tags": [
+        "awning"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "awning_64",
+      "model": "models/cs_italy/props/awning/awning_cloth_64_01a.vmdl",
+      "category": "awning",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.050020027200000004,
+          -0.35454253999999996,
+          -40.147549999999995
+        ],
+        [
+          28.487122,
+          64.07025,
+          0.050005722
+        ]
+      ],
+      "size": [
+        28.537,
+        64.425,
+        40.198
+      ],
+      "tags": [
+        "awning"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "sill_stone",
+      "model": "models/de_inferno/bk01/bk01_w01_silk01_a.vmdl",
+      "category": "trim",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -8.050005,
+          -31.550519,
+          -6.0500305
+        ],
+        [
+          4.550007,
+          31.54966,
+          0.049762058260000006
+        ]
+      ],
+      "size": [
+        12.6,
+        63.1,
+        6.1
+      ],
+      "tags": [
+        "trim"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "frame_stone",
+      "model": "models/de_inferno/bk01/bk01_w01_frame01_a.vmdl",
+      "category": "trim",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -7.050057,
+          -29.050767,
+          -3.8564089999999998
+        ],
+        [
+          3.5500285999999996,
+          29.050761,
+          86.05037
+        ]
+      ],
+      "size": [
+        10.6,
+        58.102,
+        89.907
+      ],
+      "tags": [
+        "trim"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "sign_pizzeria",
+      "model": "models/de_inferno/inferno_signs_01/inferno_signs_shop_gelateria_01.vmdl",
+      "category": "sign",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.05,
+          -29.249587000000002,
+          -10.635251
+        ],
+        [
+          1.550001,
+          29.249587000000002,
+          10.635236
+        ]
+      ],
+      "size": [
+        1.6,
+        58.499,
+        21.27
+      ],
+      "tags": [
+        "sign"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "sign_street",
+      "model": "models/props/de_inferno/hr_i/inferno_sign_street_01/inferno_sign_street_01.vmdl",
+      "category": "sign",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -3.3372317,
+          -8.699973,
+          -0.051298724700000006
+        ],
+        [
+          13.464339,
+          15.177856,
+          1.4986368
+        ]
+      ],
+      "size": [
+        16.802,
+        23.878,
+        1.55
+      ],
+      "tags": [
+        "sign"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "lamp_ornate",
+      "model": "models/props/de_inferno/hr_i/ornate_lamp/ornate_lamp.vmdl",
+      "category": "lamp",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -6.9138386999999994,
+          -0.061358640000000006,
+          -17.734319
+        ],
+        [
+          6.9138377,
+          17.699761000000002,
+          17.734319
+        ]
+      ],
+      "size": [
+        13.828,
+        17.761,
+        35.469
+      ],
+      "tags": [
+        "lamp"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "potted_tree",
+      "model": "models/props/de_inferno/potted_plant1_simple.vmdl",
+      "category": "plant",
+      "front": "+x",
+      "mount": "floor",
+      "bounds": [
+        [
+          -20.436948,
+          -23.37133,
+          -0.022093
+        ],
+        [
+          22.946273,
+          20.785584,
+          34.900566999999995
+        ]
+      ],
+      "size": [
+        43.3832,
+        44.1569,
+        34.9227
+      ],
+      "tags": [
+        "plant"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "gutter_128",
+      "model": "models/generic/gutter_kit_01/gk01_gutter_01_128_a.vmdl",
+      "category": "gutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -1.7459486,
+          -0.05,
+          -6.392984
+        ],
+        [
+          9.354059000000001,
+          128.05006,
+          1.5005672
+        ]
+      ],
+      "size": [
+        11.1,
+        128.1,
+        7.894
+      ],
+      "tags": [
+        "gutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "gutter_64",
+      "model": "models/generic/gutter_kit_01/gk01_gutter_01_64_a.vmdl",
+      "category": "gutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -1.7459486,
+          -0.05,
+          -6.3929728
+        ],
+        [
+          9.354059000000001,
+          64.05002999999999,
+          1.5005785
+        ]
+      ],
+      "size": [
+        11.1,
+        64.1,
+        7.894
+      ],
+      "tags": [
+        "gutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "downpipe_128",
+      "model": "models/generic/gutter_kit_01/gk01_pipe_01_128_a.vmdl",
+      "category": "gutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -2.5499945,
+          -2.549914,
+          -0.050026975338000004
+        ],
+        [
+          2.5500072,
+          2.5501047,
+          128.04996
+        ]
+      ],
+      "size": [
+        5.1,
+        5.1,
+        128.1
+      ],
+      "tags": [
+        "gutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "pipe_end",
+      "model": "models/generic/gutter_kit_01/gk01_pipe_01_end_01_a.vmdl",
+      "category": "gutter",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.0500105,
+          -2.7057385999999997,
+          -17.66969
+        ],
+        [
+          2.7057092999999997,
+          2.705691,
+          1.039019
+        ]
+      ],
+      "size": [
+        12.756,
+        5.411,
+        18.709
+      ],
+      "tags": [
+        "gutter"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "chimney_01",
+      "model": "models/generic/chimney_kit_01/chimney_01a.vmdl",
+      "category": "chimney",
+      "mount": "roof",
+      "front": "+x",
+      "bounds": [
+        [
+          -15.899602000000002,
+          -15.899600000000001,
+          -0.050002372454
+        ],
+        [
+          15.899601,
+          15.899600000000001,
+          46.280739999999994
+        ]
+      ],
+      "size": [
+        31.799,
+        31.799,
+        46.331
+      ],
+      "tags": [
+        "chimney"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "chimney_03",
+      "model": "models/generic/chimney_kit_01/chimney_03_a.vmdl",
+      "category": "chimney",
+      "mount": "roof",
+      "front": "+x",
+      "bounds": [
+        [
+          -6.278843,
+          -6.2788113,
+          -0.0499967711644
+        ],
+        [
+          6.278829,
+          6.2788113,
+          39.915924999999994
+        ]
+      ],
+      "size": [
+        12.558,
+        12.558,
+        39.966
+      ],
+      "tags": [
+        "chimney"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "window_bars",
+      "model": "models/de_inferno/bk01/bk01_w01_gate01_a.vmdl",
+      "category": "window",
+      "front": "-x",
+      "mount": "wall",
+      "bounds": [
+        [
+          -2.7771719999999998,
+          -22.152549,
+          -0.008614156000000005
+        ],
+        [
+          -1.2771629,
+          21.94742,
+          80.04998499999999
+        ]
+      ],
+      "size": [
+        1.5,
+        44.1,
+        80.0586
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "window_glass",
+      "model": "models/de_inferno/bk01/bk01_w01_glass01_a.vmdl",
+      "category": "window",
+      "front": "-x",
+      "mount": "wall",
+      "bounds": [
+        [
+          -10.813938,
+          -22.050534,
+          -0.05032043457
+        ],
+        [
+          -6.9499960000000005,
+          22.04965,
+          80.05006
+        ]
+      ],
+      "size": [
+        3.8639,
+        44.1002,
+        80.1004
+      ],
+      "tags": [
+        "window"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    }
+  ],
+  "materials": {
+    "walls": "materials/de_inferno/plaster/inferno_plaster_07.vmat",
+    "plinth": "materials/brick/brick_ext_04.vmat",
+    "trim": "materials/de_inferno/stone/inferno_stone_wall_02.vmat",
+    "roof": "materials/cs_italy/tileroof01.vmat",
+    "floor": "materials/concrete/concrete_floor_04.vmat",
+    "inner": "materials/dev/reflectivity_10.vmat",
+    "stone": "materials/de_inferno/stone/inferno_stone_wall_02.vmat",
+    "stucco": "materials/shared_base/stucco/stucco_003.vmat"
+  }
+}

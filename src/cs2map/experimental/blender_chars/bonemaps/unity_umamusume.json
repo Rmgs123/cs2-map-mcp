@@ -1,0 +1,72 @@
+{
+  "name": "unity_umamusume",
+  "description": "Unity Uma Musume style rigs",
+  "roles": {
+    "pelvis": "Hip",
+    "spine_0": "Waist",
+    "spine_1": "Spine",
+    "spine_2": "Chest",
+    "neck": "Neck",
+    "head": "Head",
+    "clavicle_l": "Shoulder_L",
+    "clavicle_r": "Shoulder_R",
+    "upper_arm_l": "Arm_L",
+    "upper_arm_r": "Arm_R",
+    "lower_arm_l": "Elbow_L",
+    "lower_arm_r": "Elbow_R",
+    "hand_l": "Wrist_L",
+    "hand_r": "Wrist_R",
+    "thigh_l": "Thigh_L",
+    "thigh_r": "Thigh_R",
+    "calf_l": "Knee_L",
+    "calf_r": "Knee_R",
+    "foot_l": "Ankle_L",
+    "foot_r": "Ankle_R",
+    "toe_l": "Toe_L",
+    "toe_r": "Toe_R",
+    "thumb_0_l": "Thumb_01_L",
+    "thumb_1_l": "Thumb_02_L",
+    "thumb_2_l": "Thumb_03_L",
+    "index_0_l": "Index_01_L",
+    "index_1_l": "Index_02_L",
+    "index_2_l": "Index_03_L",
+    "middle_0_l": "Middle_01_L",
+    "middle_1_l": "Middle_02_L",
+    "middle_2_l": "Middle_03_L",
+    "ring_0_l": "Ring_01_L",
+    "ring_1_l": "Ring_02_L",
+    "ring_2_l": "Ring_03_L",
+    "pinky_0_l": "Pinky_01_L",
+    "pinky_1_l": "Pinky_02_L",
+    "pinky_2_l": "Pinky_03_L",
+    "thumb_0_r": "Thumb_01_R",
+    "thumb_1_r": "Thumb_02_R",
+    "thumb_2_r": "Thumb_03_R",
+    "index_0_r": "Index_01_R",
+    "index_1_r": "Index_02_R",
+    "index_2_r": "Index_03_R",
+    "middle_0_r": "Middle_01_R",
+    "middle_1_r": "Middle_02_R",
+    "middle_2_r": "Middle_03_R",
+    "ring_0_r": "Ring_01_R",
+    "ring_1_r": "Ring_02_R",
+    "ring_2_r": "Ring_03_R",
+    "pinky_0_r": "Pinky_01_R",
+    "pinky_1_r": "Pinky_02_R",
+    "pinky_2_r": "Pinky_03_R"
+  },
+  "aliases": {
+    "Shoulder_L": [
+      "Clavicle_L"
+    ],
+    "Shoulder_R": [
+      "Clavicle_R"
+    ],
+    "Knee_L": [
+      "LowerLeg_L"
+    ],
+    "Knee_R": [
+      "LowerLeg_R"
+    ]
+  }
+}

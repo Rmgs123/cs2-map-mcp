@@ -1,0 +1,491 @@
+{
+  "schema": 1,
+  "kit": "rocks",
+  "title": "Rocks",
+  "style": [
+    "rock",
+    "outdoor"
+  ],
+  "parts": [
+    {
+      "key": "rock_collection",
+      "model": "models/props/de_inferno/hr_i/rock_collection/rock_collection_b.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -126.1056,
+          -188.5462,
+          -109.6697
+        ],
+        [
+          126.1057,
+          188.5462,
+          109.6697
+        ]
+      ],
+      "size": [
+        252.2113,
+        377.0924,
+        219.3394
+      ],
+      "tags": [
+        "rock",
+        "collection"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_river_01",
+      "model": "models/props/de_aztec/hr_aztec/aztec_stairs/aztec_river_rock_01.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -16.298,
+          -24.5665,
+          -10.0732
+        ],
+        [
+          16.298,
+          24.5665,
+          10.0732
+        ]
+      ],
+      "size": [
+        32.596,
+        49.133,
+        20.1464
+      ],
+      "tags": [
+        "rock",
+        "river"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_river_02",
+      "model": "models/props/de_aztec/hr_aztec/aztec_stairs/aztec_river_rock_02.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -17.2568,
+          -14.0597,
+          -25.8129
+        ],
+        [
+          17.2568,
+          14.0597,
+          25.8129
+        ]
+      ],
+      "size": [
+        34.5136,
+        28.1194,
+        51.6258
+      ],
+      "tags": [
+        "rock",
+        "river"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_river_03",
+      "model": "models/props/de_aztec/hr_aztec/aztec_stairs/aztec_river_rock_03.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -23.7492,
+          -27.2265,
+          -30.7174
+        ],
+        [
+          23.7492,
+          27.2265,
+          30.7174
+        ]
+      ],
+      "size": [
+        47.4984,
+        54.453,
+        61.4348
+      ],
+      "tags": [
+        "rock",
+        "river"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_river_04",
+      "model": "models/props/de_aztec/hr_aztec/aztec_stairs/aztec_river_rock_04.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -20.3214,
+          -19.2999,
+          -29.4265
+        ],
+        [
+          20.3214,
+          19.2999,
+          29.4265
+        ]
+      ],
+      "size": [
+        40.6428,
+        38.5998,
+        58.853
+      ],
+      "tags": [
+        "rock",
+        "river"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_dust_01",
+      "model": "models/props/de_dust/hr_dust/dust_kasbah/dust_kasbah_small_rock_01.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.6856,
+          -6.9134,
+          -5.2058
+        ],
+        [
+          5.6856,
+          6.9134,
+          5.2058
+        ]
+      ],
+      "size": [
+        11.3712,
+        13.8268,
+        10.4116
+      ],
+      "tags": [
+        "rock",
+        "dust"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_dust_02",
+      "model": "models/props/de_dust/hr_dust/dust_kasbah/dust_kasbah_small_rock_02.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.3533,
+          -6.0336,
+          -4.2561
+        ],
+        [
+          5.3533,
+          6.0336,
+          4.2561
+        ]
+      ],
+      "size": [
+        10.7066,
+        12.0672,
+        8.5122
+      ],
+      "tags": [
+        "rock",
+        "dust"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_dust_03",
+      "model": "models/props/de_dust/hr_dust/dust_kasbah/dust_kasbah_small_rock_03.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.0332,
+          -6.8618,
+          -6.2935
+        ],
+        [
+          5.0332,
+          6.8618,
+          6.2935
+        ]
+      ],
+      "size": [
+        10.0664,
+        13.7236,
+        12.587
+      ],
+      "tags": [
+        "rock",
+        "dust"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_dust_04",
+      "model": "models/props/de_dust/hr_dust/dust_kasbah/dust_kasbah_small_rock_04.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.8537,
+          -7.883,
+          -5.3939
+        ],
+        [
+          5.8537,
+          7.883,
+          5.3939
+        ]
+      ],
+      "size": [
+        11.7074,
+        15.766,
+        10.7878
+      ],
+      "tags": [
+        "rock",
+        "dust"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_dust_05",
+      "model": "models/props/de_dust/hr_dust/dust_kasbah/dust_kasbah_small_rock_05.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.4279,
+          -8.0825,
+          -2.8784
+        ],
+        [
+          5.4279,
+          8.0825,
+          2.8784
+        ]
+      ],
+      "size": [
+        10.8558,
+        16.165,
+        5.7568
+      ],
+      "tags": [
+        "rock",
+        "dust"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "cliff_rock_02",
+      "model": "models/props/dust_massive/rocks/cliff_rock002.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -49.3838,
+          -37.8799,
+          -58.6601
+        ],
+        [
+          49.3838,
+          37.8799,
+          58.6601
+        ]
+      ],
+      "size": [
+        98.7676,
+        75.7598,
+        117.3202
+      ],
+      "tags": [
+        "rock",
+        "cliff"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "cliff_rock_03",
+      "model": "models/props/dust_massive/rocks/cliff_rock003.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -104.894,
+          -80.1824,
+          -56.2109
+        ],
+        [
+          104.894,
+          80.1824,
+          56.2109
+        ]
+      ],
+      "size": [
+        209.788,
+        160.3648,
+        112.4218
+      ],
+      "tags": [
+        "rock",
+        "cliff"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "cliff_rock_04",
+      "model": "models/props/dust_massive/rocks/cliff_rock004.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -41.6502,
+          -40.6567,
+          -32.558
+        ],
+        [
+          41.6502,
+          40.6567,
+          32.558
+        ]
+      ],
+      "size": [
+        83.3004,
+        81.3134,
+        65.116
+      ],
+      "tags": [
+        "rock",
+        "cliff"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "mirage_base",
+      "model": "models/props/de_mirage/base_rocks_a.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -51.6837,
+          -11.6562,
+          -15.5394
+        ],
+        [
+          51.6837,
+          11.6562,
+          15.5394
+        ]
+      ],
+      "size": [
+        103.3674,
+        23.3124,
+        31.0788
+      ],
+      "tags": [
+        "rock",
+        "mirage"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_dust_06",
+      "model": "models/props/de_dust/hr_dust/dust_kasbah/dust_kasbah_small_rock_06.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.5139,
+          -13.7718,
+          -4.6246
+        ],
+        [
+          5.5139,
+          13.7718,
+          4.6246
+        ]
+      ],
+      "size": [
+        11.0278,
+        27.5436,
+        9.2492
+      ],
+      "tags": [
+        "rock",
+        "dust"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    },
+    {
+      "key": "rock_dust_07",
+      "model": "models/props/de_dust/hr_dust/dust_kasbah/dust_kasbah_small_rock_07.vmdl",
+      "category": "rock",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.2479,
+          -5.7086,
+          -5.165
+        ],
+        [
+          5.2479,
+          5.7086,
+          5.165
+        ]
+      ],
+      "size": [
+        10.4958,
+        11.4172,
+        10.33
+      ],
+      "tags": [
+        "rock",
+        "dust"
+      ],
+      "solid": false,
+      "verified": "bounds"
+    }
+  ]
+}

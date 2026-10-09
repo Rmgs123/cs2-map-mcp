@@ -1,0 +1,1401 @@
+{
+  "source": ".local/scratch/D/agent.vmdl",
+  "source_modeldoc_format": "modeldoc28",
+  "nodes": [
+    {
+      "_class": "AnimConstraintList",
+      "children": [
+        {
+          "_class": "AnimConstraintDotToMorph",
+          "m_sBoneName": "eyeball_r",
+          "m_sTargetBoneName": "eye_target",
+          "m_sMorphChannelName": "eye_look_down",
+          "m_flRemap": [
+            90.0,
+            110.0,
+            0.0,
+            1.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintDotToMorph",
+          "m_sBoneName": "eyeball_r",
+          "m_sTargetBoneName": "eye_target",
+          "m_sMorphChannelName": "eye_look_up",
+          "m_flRemap": [
+            90.0,
+            70.0,
+            0.0,
+            1.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "head_0_TWIST",
+              "weight": 0.5,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "head_0",
+              "weight": 1.0,
+              "relative_origin": [
+                5.762153,
+                0.0,
+                -0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                -17.378817,
+                0.0
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintPoint",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "head_0_TWIST",
+              "weight": 1.0,
+              "relative_origin": [
+                -2.225522,
+                -0.0,
+                68.035034
+              ],
+              "relative_angles": [
+                -72.621178,
+                0.0,
+                -89.999992
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "neck_0",
+              "weight": 0.5,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "head_0",
+              "weight": 0.5,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            }
+          ],
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "arm_lower_L_TWIST",
+              "weight": 0.5,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "hand_L",
+              "weight": 1.0,
+              "relative_origin": [
+                11.48696,
+                -0.0,
+                -0.0
+              ],
+              "relative_angles": [
+                -3.033937,
+                2.807187,
+                86.409981
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "arm_lower_L_TWIST1",
+              "weight": 1.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "hand_L",
+              "weight": 1.0,
+              "relative_origin": [
+                11.48696,
+                -0.0,
+                -0.0
+              ],
+              "relative_angles": [
+                -3.033937,
+                2.807187,
+                86.409981
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "arm_lower_R_TWIST",
+              "weight": 0.5,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "hand_R",
+              "weight": 1.0,
+              "relative_origin": [
+                -11.486992,
+                9e-06,
+                5e-06
+              ],
+              "relative_angles": [
+                -3.033937,
+                2.807187,
+                86.409981
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "arm_lower_R_TWIST1",
+              "weight": 1.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "hand_R",
+              "weight": 1.0,
+              "relative_origin": [
+                -11.486992,
+                9e-06,
+                5e-06
+              ],
+              "relative_angles": [
+                -3.033937,
+                2.807187,
+                86.409981
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "arm_upper_L_TWIST",
+              "weight": -1.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "arm_upper_L",
+              "weight": 1.0,
+              "relative_origin": [
+                6.665432,
+                -0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -8.301013,
+                40.214989,
+                1.747
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "arm_upper_L_TWIST1",
+              "weight": -0.5,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "arm_upper_L",
+              "weight": 1.0,
+              "relative_origin": [
+                6.665432,
+                -0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -8.301013,
+                40.214989,
+                1.747
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "arm_upper_R_TWIST",
+              "weight": -1.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "arm_upper_R",
+              "weight": 1.0,
+              "relative_origin": [
+                -6.665438,
+                -4e-06,
+                1e-06
+              ],
+              "relative_angles": [
+                -8.301013,
+                40.214989,
+                1.747
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "arm_upper_R_TWIST1",
+              "weight": -0.5,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "arm_upper_R",
+              "weight": 1.0,
+              "relative_origin": [
+                -6.665438,
+                -4e-06,
+                1e-06
+              ],
+              "relative_angles": [
+                -38.000534,
+                16.037397,
+                11.704826
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "leg_upper_L_TWIST",
+              "weight": -1.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "leg_upper_L",
+              "weight": 1.0,
+              "relative_origin": [
+                -3.771384,
+                0.913481,
+                3.694229
+              ],
+              "relative_angles": [
+                -2.271182,
+                179.170776,
+                -15.008667
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "leg_upper_L_TWIST1",
+              "weight": -0.5,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "leg_upper_L",
+              "weight": 1.0,
+              "relative_origin": [
+                -3.771384,
+                0.913481,
+                3.694229
+              ],
+              "relative_angles": [
+                -2.271182,
+                179.170776,
+                -15.008667
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "leg_upper_R_TWIST",
+              "weight": -1.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "leg_upper_R",
+              "weight": 1.0,
+              "relative_origin": [
+                -3.771431,
+                0.913481,
+                -3.69423
+              ],
+              "relative_angles": [
+                -2.271182,
+                -0.82922,
+                -15.008667
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintTiltTwist",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "leg_upper_R_TWIST1",
+              "weight": -0.5,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "leg_upper_R",
+              "weight": 1.0,
+              "relative_origin": [
+                -3.771431,
+                0.913481,
+                -3.69423
+              ],
+              "relative_angles": [
+                -2.271182,
+                -0.82922,
+                -15.008667
+              ]
+            }
+          ],
+          "input_axis": 0,
+          "slave_axis": 0,
+          "up_vector": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "_class": "AnimConstraintAim",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "scapula_L",
+              "weight": 1.0,
+              "relative_origin": [
+                -3.334388,
+                6.707625,
+                63.767994
+              ],
+              "relative_angles": [
+                67.662216,
+                -137.307419,
+                65.637634
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "scap_L_AIMAT",
+              "weight": 1.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "scap_AIMUP",
+              "weight": 0.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            }
+          ],
+          "aim_offset": [
+            -0.0,
+            89.999992,
+            89.999992
+          ],
+          "up_vector": [
+            0.0,
+            0.0,
+            1.0
+          ],
+          "up_type": 2
+        },
+        {
+          "_class": "AnimConstraintAim",
+          "children": [
+            {
+              "_class": "AnimConstraintSlave",
+              "parent_bone": "scapula_R",
+              "weight": 1.0,
+              "relative_origin": [
+                -3.334391,
+                -6.707629,
+                63.767979
+              ],
+              "relative_angles": [
+                -67.664101,
+                -42.686634,
+                -114.367874
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "scap_R_AIMAT",
+              "weight": 1.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            },
+            {
+              "_class": "AnimConstraintBoneInput",
+              "parent_bone": "scap_AIMUP",
+              "weight": 0.0,
+              "relative_origin": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "relative_angles": [
+                -0.0,
+                0.0,
+                0.0
+              ]
+            }
+          ],
+          "aim_offset": [
+            -0.0,
+            -89.999992,
+            -89.999992
+          ],
+          "up_vector": [
+            0.0,
+            0.0,
+            -1.0
+          ],
+          "up_type": 2
+        }
+      ]
+    },
+    {
+      "_class": "GameDataList",
+      "children": [
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "CPhysicsBodyGameMarkupData",
+          "game_keys": {
+            "m_PhysicsBodyMarkupByBoneName": {
+              "hand_R": {
+                "m_TargetBody": "hand_R",
+                "m_Tag": ""
+              },
+              "ankle_R": {
+                "m_TargetBody": "ankle_R",
+                "m_Tag": ""
+              },
+              "ankle_L": {
+                "m_TargetBody": "ankle_L",
+                "m_Tag": ""
+              },
+              "arm_lower_L": {
+                "m_TargetBody": "arm_lower_L",
+                "m_Tag": ""
+              },
+              "hand_L": {
+                "m_TargetBody": "hand_L",
+                "m_Tag": ""
+              },
+              "arm_lower_R": {
+                "m_TargetBody": "arm_lower_R",
+                "m_Tag": ""
+              },
+              "head_0": {
+                "m_TargetBody": "head_0",
+                "m_Tag": ""
+              },
+              "arm_upper_R": {
+                "m_TargetBody": "arm_upper_R",
+                "m_Tag": ""
+              },
+              "arm_upper_L": {
+                "m_TargetBody": "arm_upper_L",
+                "m_Tag": ""
+              },
+              "leg_upper_R": {
+                "m_TargetBody": "leg_upper_R",
+                "m_Tag": ""
+              },
+              "leg_lower_R": {
+                "m_TargetBody": "leg_lower_R",
+                "m_Tag": ""
+              },
+              "leg_lower_L": {
+                "m_TargetBody": "leg_lower_L",
+                "m_Tag": ""
+              },
+              "pelvis": {
+                "m_TargetBody": "pelvis",
+                "m_Tag": ""
+              },
+              "leg_upper_L": {
+                "m_TargetBody": "leg_upper_L",
+                "m_Tag": ""
+              },
+              "spine_2": {
+                "m_TargetBody": "spine_2",
+                "m_Tag": ""
+              }
+            }
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "leg_lower_L",
+            "radius": 3.35306,
+            "point0": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "point1": [
+              14.256,
+              0.069175,
+              0.686705
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "ankle_L",
+            "radius": 2.28692,
+            "point0": [
+              -0.143441,
+              -2.52988,
+              -0.392931
+            ],
+            "point1": [
+              7.64466,
+              1.16415,
+              0.130248
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "ankle_R",
+            "radius": 2.28692,
+            "point0": [
+              0.143441,
+              2.52988,
+              0.392931
+            ],
+            "point1": [
+              -7.64466,
+              -1.16415,
+              -0.130248
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "hand_L",
+            "radius": 1.84066,
+            "point0": [
+              -0.582719,
+              0.510149,
+              0.05536
+            ],
+            "point1": [
+              2.42216,
+              1.05179,
+              0.111563
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "hand_R",
+            "radius": 1.84066,
+            "point0": [
+              0.582719,
+              -0.510149,
+              -0.05536
+            ],
+            "point1": [
+              -2.42216,
+              -1.05179,
+              -0.111563
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "arm_lower_R",
+            "radius": 1.84066,
+            "point0": [
+              1.18304,
+              0.0,
+              0.0
+            ],
+            "point1": [
+              -7.86575,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "arm_lower_L",
+            "radius": 1.84066,
+            "point0": [
+              -1.18304,
+              0.0,
+              0.0
+            ],
+            "point1": [
+              7.86575,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "arm_upper_R",
+            "radius": 3.18769,
+            "point0": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "point1": [
+              -7.86575,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "arm_upper_L",
+            "radius": 3.18769,
+            "point0": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "point1": [
+              7.86575,
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "leg_upper_R",
+            "radius": 4.11706,
+            "point0": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "point1": [
+              -16.98,
+              0.215972,
+              -0.592158
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "leg_lower_R",
+            "radius": 3.35306,
+            "point0": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "point1": [
+              -14.256,
+              -0.069175,
+              -0.686705
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "leg_upper_L",
+            "radius": 4.11706,
+            "point0": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "point1": [
+              16.98,
+              -0.215972,
+              0.592158
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "spine_3",
+            "radius": 7.10434,
+            "point0": [
+              0.467953,
+              0.88271,
+              1.9
+            ],
+            "point1": [
+              0.467953,
+              0.88271,
+              -1.9
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "spine_2",
+            "radius": 5.86083,
+            "point0": [
+              -2.61519,
+              0.547004,
+              1.9
+            ],
+            "point1": [
+              -2.61519,
+              0.547004,
+              -1.9
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "spine_0",
+            "radius": 5.86083,
+            "point0": [
+              -2.7,
+              1.0,
+              3.0
+            ],
+            "point1": [
+              -2.7,
+              1.0,
+              -3.0
+            ]
+          }
+        },
+        {
+          "_class": "GenericGameData",
+          "name": "",
+          "game_class": "ao_proxy_capsule",
+          "game_keys": {
+            "bonename": "head_0",
+            "radius": 4.56249,
+            "point0": [
+              0.548162,
+              1.32232,
+              0.0
+            ],
+            "point1": [
+              2.72269,
+              0.298181,
+              0.0
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "_class": "PhysicsShapeList",
+      "children": [
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "leg_upper_L",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 4.0,
+          "point0": [
+            3.901958,
+            0.0,
+            0.269713
+          ],
+          "point1": [
+            16.18115,
+            0.0,
+            0.266649
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "leg_lower_L",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 4.0,
+          "point0": [
+            -1.267832,
+            0.0,
+            0.271905
+          ],
+          "point1": [
+            17.395945,
+            -0.013783,
+            0.445297
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "leg_upper_R",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 4.0,
+          "point0": [
+            -3.746644,
+            0.954926,
+            -0.202416
+          ],
+          "point1": [
+            -15.910505,
+            0.515027,
+            -0.280735
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "leg_lower_R",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 4.0,
+          "point0": [
+            1.754834,
+            0.0,
+            -0.486214
+          ],
+          "point1": [
+            -17.393562,
+            0.714657,
+            -0.285032
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeSphere",
+          "parent_bone": "head_0",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 5.0,
+          "center": [
+            2.61314,
+            0.396103,
+            0.0
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "pelvis",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 7.0,
+          "point0": [
+            -1.020988,
+            1.016835,
+            0.0
+          ],
+          "point1": [
+            8.890408,
+            0.545862,
+            0.0
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "spine_2",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 7.0,
+          "point0": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "point1": [
+            9.874312,
+            0.470632,
+            0.0
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "arm_upper_L",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 3.0,
+          "point0": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "point1": [
+            11.801615,
+            0.0,
+            1e-06
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "arm_lower_L",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 2.7,
+          "point0": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "point1": [
+            12.028038,
+            0.0,
+            0.609469
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "arm_upper_R",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 3.0,
+          "point0": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "point1": [
+            -11.8016,
+            0.0,
+            1e-06
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "arm_lower_R",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 2.7,
+          "point0": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "point1": [
+            -12.028,
+            0.0,
+            -0.779665
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeSphere",
+          "parent_bone": "hand_L",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 3.0,
+          "center": [
+            3.453312,
+            1.471839,
+            0.0
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeSphere",
+          "parent_bone": "hand_R",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 3.0,
+          "center": [
+            -3.53448,
+            -1.722921,
+            0.0
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "ankle_L",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 2.0,
+          "point0": [
+            -0.166774,
+            -2.314008,
+            0.0
+          ],
+          "point1": [
+            8.453588,
+            1.821742,
+            0.0
+          ],
+          "name": ""
+        },
+        {
+          "_class": "PhysicsShapeCapsule",
+          "parent_bone": "ankle_R",
+          "surface_prop": "playerflesh",
+          "collision_tags": "",
+          "radius": 2.0,
+          "point0": [
+            -8.742064,
+            -1.770272,
+            0.0
+          ],
+          "point1": [
+            0.05791,
+            2.422145,
+            0.0
+          ],
+          "name": ""
+        }
+      ]
+    }
+  ],
+  "classes": [
+    "AnimConstraintList",
+    "GameDataList",
+    "PhysicsShapeList"
+  ]
+}

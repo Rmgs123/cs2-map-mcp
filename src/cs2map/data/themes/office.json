@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "theme": "office",
+  "verified": false,
+  "materials": {
+    "floor": "materials/carpet/carpet03.vmat",
+    "walls": "materials/plaster/offwllb.vmat",
+    "ceiling": "materials/plaster/plasterceiling_int_01.vmat",
+    "trim": "materials/wood/milbeams003.vmat",
+    "metal": "materials/metal/metalwall031a.vmat",
+    "wood": "materials/wood/milbeams003.vmat"
+  },
+  "props": [
+    {
+      "key": "chair",
+      "model": "models/props/cs_office/chair_office.vmdl",
+      "bounds": [
+        [
+          -14.047,
+          -12.841,
+          -0.05
+        ],
+        [
+          13.101,
+          12.841,
+          47.545
+        ]
+      ],
+      "size": [
+        27.15,
+        25.68,
+        47.59
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 15.0,
+      "tris": 1203,
+      "role": "floor",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "shelf",
+      "model": "models/props/cs_office/bookshelf1.vmdl",
+      "bounds": [
+        [
+          -6.708,
+          -26.369,
+          -0.05
+        ],
+        [
+          6.708,
+          26.369,
+          86.615
+        ]
+      ],
+      "size": [
+        13.42,
+        52.74,
+        86.66
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 100.0,
+      "tris": 686,
+      "role": "floor",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "desk",
+      "model": "models/props/cs_office/security_desk.vmdl",
+      "bounds": [
+        [
+          -47.817,
+          -67.157,
+          -79.925
+        ],
+        [
+          104.448,
+          41.184,
+          30.432
+        ]
+      ],
+      "size": [
+        152.26,
+        108.34,
+        110.36
+      ],
+      "has_physics": true,
+      "physics_kind": "mesh",
+      "mass": 100.0,
+      "tris": 4890,
+      "role": "floor",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "trash",
+      "model": "models/props/cs_office/trash_can.vmdl",
+      "bounds": [
+        [
+          -11.567,
+          -8.165,
+          -0.139
+        ],
+        [
+          11.542,
+          7.088,
+          22.394
+        ]
+      ],
+      "size": [
+        23.11,
+        15.25,
+        22.53
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 15.0,
+      "tris": 453,
+      "role": "corner",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    },
+    {
+      "key": "wall_lamp",
+      "model": "models/props/de_mirage/lamp_ver1.vmdl",
+      "bounds": [
+        [
+          -0.766,
+          -6.985,
+          -29.35
+        ],
+        [
+          35.991,
+          6.904,
+          22.827
+        ]
+      ],
+      "size": [
+        36.76,
+        13.89,
+        52.18
+      ],
+      "has_physics": true,
+      "physics_kind": "hull",
+      "mass": 500.0,
+      "tris": 1822,
+      "role": "wall",
+      "bounds_source": "resourceinfo MDAT + PHYS hulls",
+      "verified": true
+    }
+  ],
+  "decals": [
+    {
+      "key": "dirt",
+      "material": "materials/decals/dirt02.vmat",
+      "size": [
+        72,
+        56
+      ],
+      "verified": false
+    },
+    {
+      "key": "stain",
+      "material": "materials/overlays/wall_stain001.vmat",
+      "size": [
+        80,
+        96
+      ],
+      "verified": false
+    }
+  ],
+  "sounds": [
+    {
+      "event": "train.Office.BG",
+      "sounds": [
+        "sounds/ambient/survival/interior_04.vsnd"
+      ],
+      "verified": "indexed; runtime playback not tested by V"
+    }
+  ],
+  "lighting": {
+    "temperature": 4800,
+    "brightness": 300,
+    "range": 480
+  },
+  "notes": [
+    "Stock props stay static; PHYS presence is metadata, not a dynamic-prop guarantee."
+  ],
+  "material_verified": {
+    "floor": true,
+    "walls": true,
+    "ceiling": true,
+    "trim": true,
+    "metal": true,
+    "wood": true
+  }
+}

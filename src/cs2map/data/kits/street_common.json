@@ -1,0 +1,491 @@
+{
+  "schema": 1,
+  "kit": "street_common",
+  "title": "Street common",
+  "style": [
+    "urban",
+    "street"
+  ],
+  "parts": [
+    {
+      "key": "bench_urban",
+      "model": "models/props_urban/bench001.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+y",
+      "bounds": [
+        [
+          -38.05,
+          -16.05,
+          -0.05
+        ],
+        [
+          38.05,
+          15.158,
+          46.05
+        ]
+      ],
+      "size": [
+        76.1,
+        31.208,
+        46.1
+      ],
+      "tags": [
+        "bench",
+        "wood"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "bench_inferno",
+      "model": "models/props/de_inferno/bench_wood.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "-x",
+      "bounds": [
+        [
+          -19.2475,
+          -49.1776,
+          -0.1087
+        ],
+        [
+          18.5414,
+          49.2711,
+          41.6984
+        ]
+      ],
+      "size": [
+        37.7889,
+        98.4487,
+        41.8071
+      ],
+      "tags": [
+        "bench",
+        "wood"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "bench_stone",
+      "model": "models/props/de_inferno/stone_bench.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -17.6522,
+          -60.1439,
+          -0.05
+        ],
+        [
+          17.3,
+          60.1439,
+          53.1382
+        ]
+      ],
+      "size": [
+        34.9522,
+        120.2878,
+        53.1882
+      ],
+      "tags": [
+        "bench",
+        "stone"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "streetlamp",
+      "model": "models/props_urban/streetlight001.vmdl",
+      "category": "lamp",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -62.45,
+          -14.05,
+          -0.05
+        ],
+        [
+          62.05,
+          14.05,
+          509.8115
+        ]
+      ],
+      "size": [
+        124.5,
+        28.1,
+        509.8615
+      ],
+      "tags": [
+        "lamp",
+        "street"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "streetlamp_inferno",
+      "model": "models/props/de_inferno/light_streetlight.vmdl",
+      "category": "lamp",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -11.9502,
+          -18.4541,
+          -0.0428
+        ],
+        [
+          11.7894,
+          18.4878,
+          169.1977
+        ]
+      ],
+      "size": [
+        23.7396,
+        36.9419,
+        169.2405
+      ],
+      "tags": [
+        "lamp",
+        "street"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "wall_lamp",
+      "model": "models/props/de_mirage/lamp_ver1.vmdl",
+      "category": "lamp",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.766,
+          -6.9851,
+          -29.3498
+        ],
+        [
+          35.9913,
+          6.7677,
+          22.8273
+        ]
+      ],
+      "size": [
+        36.7573,
+        13.7528,
+        52.1771
+      ],
+      "tags": [
+        "lamp",
+        "wall"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "trashbin",
+      "model": "models/props_street/trashbin01.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -15.9163,
+          -14.8644,
+          -0.1758
+        ],
+        [
+          16.386,
+          14.8644,
+          50.4104
+        ]
+      ],
+      "size": [
+        32.3023,
+        29.7288,
+        50.5862
+      ],
+      "tags": [
+        "trash",
+        "bin"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "hydrant",
+      "model": "models/props_street/firehydrant.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -9.1937,
+          -11.9248,
+          -0.05
+        ],
+        [
+          10.4165,
+          11.9248,
+          41.4248
+        ]
+      ],
+      "size": [
+        19.6102,
+        23.8496,
+        41.4748
+      ],
+      "tags": [
+        "hydrant",
+        "red"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "bollard",
+      "model": "models/generic/bollard_kit_01/bollard_01_base.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -5.6762,
+          -5.6765,
+          -0.05
+        ],
+        [
+          5.6768,
+          5.6765,
+          47.3676
+        ]
+      ],
+      "size": [
+        11.353,
+        11.353,
+        47.4176
+      ],
+      "tags": [
+        "bollard",
+        "post"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "bollard_dock",
+      "model": "models/props/dust_massive/docks/dock_bollard001.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -24.05,
+          -24.05,
+          -0.05
+        ],
+        [
+          24.05,
+          33.7784,
+          52.0162
+        ]
+      ],
+      "size": [
+        48.1,
+        57.8284,
+        52.0662
+      ],
+      "tags": [
+        "bollard",
+        "dock"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "sign_stop",
+      "model": "models/props/de_dust/sign_stop.vmdl",
+      "category": "sign",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.05,
+          -14.9353,
+          -14.9353
+        ],
+        [
+          0.4745,
+          14.9353,
+          14.9353
+        ]
+      ],
+      "size": [
+        0.5245,
+        29.8706,
+        29.8706
+      ],
+      "tags": [
+        "sign",
+        "street"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "sign_italy",
+      "model": "models/cs_italy/italy_signs_dne.vmdl",
+      "category": "sign",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.05,
+          -15.05,
+          -15.0477
+        ],
+        [
+          1.05,
+          15.05,
+          15.0477
+        ]
+      ],
+      "size": [
+        1.1,
+        30.1,
+        30.0954
+      ],
+      "tags": [
+        "sign",
+        "italy"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "manhole",
+      "model": "models/generic/manholecoverkit_01/manholecover_02.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.05,
+          -10.05,
+          -0.05
+        ],
+        [
+          10.05,
+          10.05,
+          2.1211
+        ]
+      ],
+      "size": [
+        20.1,
+        20.1,
+        2.1711
+      ],
+      "tags": [
+        "manhole",
+        "road"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "mailbox",
+      "model": "models/generic/mailbox_01/mailbox_01_a.vmdl",
+      "category": "street",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.0608,
+          -10.3198,
+          -0.05
+        ],
+        [
+          9.5473,
+          10.0534,
+          32.05
+        ]
+      ],
+      "size": [
+        9.6081,
+        20.3732,
+        32.1
+      ],
+      "tags": [
+        "mailbox",
+        "wall"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "mailbox_italy",
+      "model": "models/cs_italy/italy_mailbox/italy_mailbox.vmdl",
+      "category": "street",
+      "mount": "wall",
+      "front": "+x",
+      "bounds": [
+        [
+          -0.05,
+          -12.645,
+          -0.05
+        ],
+        [
+          13.49,
+          12.645,
+          58.81
+        ]
+      ],
+      "size": [
+        13.54,
+        25.29,
+        58.86
+      ],
+      "tags": [
+        "mailbox",
+        "italy"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    },
+    {
+      "key": "street_drain",
+      "model": "models/de_overpass/grate/street_drain_1.vmdl",
+      "category": "street",
+      "mount": "floor",
+      "front": "+x",
+      "bounds": [
+        [
+          -10.0491,
+          -10.0498,
+          -1.1155
+        ],
+        [
+          10.0508,
+          10.0519,
+          1.1155
+        ]
+      ],
+      "size": [
+        20.0999,
+        20.1017,
+        2.231
+      ],
+      "tags": [
+        "drain",
+        "road"
+      ],
+      "solid": true,
+      "verified": "bounds"
+    }
+  ]
+}

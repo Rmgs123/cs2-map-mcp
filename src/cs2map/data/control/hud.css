@@ -1,0 +1,8 @@
+.ControlRoot { width: 100%; height: 100%; }
+#control { horizontal-align: center; vertical-align: bottom; margin-bottom: 110px; padding: 14px 24px;
+ background-color: #0b1826ee; border-top: 3px solid #e9a32fff; flow-children: down; }
+Label { color: #dceef5ff; font-family: Arial; font-size: 21px; }
+#title { color: #e9a32fff; font-size: 17px; margin-bottom: 5px; }
+#control.Low { border-top: 3px solid #e2442fff; }
+#control.Low #telemetry { color: #ff6a4dff; }
+.Hidden { visibility: collapse; }
