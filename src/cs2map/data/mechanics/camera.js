@@ -4,15 +4,17 @@
 // camera: FOLLOW_POSITION camera on an entity (FPV and chase views, R switches). CONTROLLED does not
 // read the mouse, FOLLOW_POSITION does: the player keeps looking around.
 //   const camera = Camera({core, follow: () => body, views: config.camera});   // {forward, up, chase:{forward, up}|false, start?:"fpv"|"chase"}
+//   views.pilot: the FPV view follows the eyes of cfg.pilot() (the seated player) instead of the body origin.
 function Camera(cfg) {
     const {core} = cfg;
     let cam, chase = cfg.views.start === "chase" && !!cfg.views.chase, held = false;
     const view = () => (chase && cfg.views.chase) ? cfg.views.chase : cfg.views;
     function apply() {
         if (!core.valid(cam)) return;
-        const c = view();
-        cam.SetFollowConfig({followEntity: cfg.follow(), followOffset: {x: 0, y: c.right || 0, z: c.up},
-                             cameraOffset: {x: c.forward, y: 0, z: 0}, clipCameraOffset: true});
+        const c = view(), eyes = !!(c.pilot && cfg.pilot && core.valid(cfg.pilot()));
+        cam.SetFollowConfig({followEntity: eyes ? cfg.pilot() : cfg.follow(), followEyes: eyes,
+                             followOffset: eyes ? {x: 0, y: 0, z: 0} : {x: 0, y: c.right || 0, z: c.up},
+                             cameraOffset: {x: c.forward, y: 0, z: 0}, clipCameraOffset: !eyes});
     }
     return {
         get chase() { return chase; },

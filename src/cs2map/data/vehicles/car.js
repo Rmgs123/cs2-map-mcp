@@ -17,6 +17,18 @@ const WHEELS = W.positions, R = W.radius, WZ = W.z, UP = S.up, DOWN = S.down;
 const FALL = -(DOWN + 6), FALL_WEIGHT = .7;
 const SAMPLES = [-.55, 0, .55], TOP = WZ + UP + R + 2, REACH = 2 * R + UP + DOWN + 6;
 const G = 800, MU = S.grip, ROLLING = 70;
+// Own bodies (vehicles.py door/exits/size/passengers); absent fields keep the stock SUV's numbers.
+const DOOR = config.door ?? {at: [-8, 66, 0], radius: 62};
+const EXITS = config.exits ?? [[-8, 80, 90], [-8, -80, 90], [-20, 0, 170], [-135, 0, 90], [135, 0, 90]];
+const HALF = config.size ? [config.size[0] / 2, config.size[1] / 2] : [118, 58];
+const RIDE = config.passengers;          // {floor, roof, spots}: players inside the body ride with it
+const DOORS = RIDE?.doors ?? [];
+const PILOT = config.pilot ?? {scale: .5, at: config.seat};
+// Turning radius follows the wheelbase (the stock SUV's 122 units gave the original 120).
+const PROBE = config.size ? Math.max(125, HALF[0] + 30) : 125;    // crash probe ahead of the body centre
+// Status line words (hud.labels translates them).
+const LABEL = {kmh: 'km/h', crawl: 'CRAWL', exit: 'E: exit', blocked: 'Exit blocked', air: 'AIR', ...(config.hud?.labels ?? {})};
+const WHEELBASE = (WHEELS[0][0] - WHEELS[2][0]) * 120 / 122;
 let body, wheels = [], decoy, lastTime = 0, steerAngle = 0, spin = 0, lastPose;
 let contacts = 0, grounded = false, speed = 0, longitudinal = 0, lateral = 0, motorMode = null, crawl = false;
 let lastVelocity = zero, lastCrash = -10, lastExit = null, lastSafe = null, entrySafe = null, seatPose, pilotParent;
@@ -26,7 +38,7 @@ let travel = [0, 0, 0, 0], touch = [false, false, false, false];
 let peak = {bump: 0, droop: 0, pitch: 0, roll: 0, air: 0, speed: 0};
 const hits = new Map();
 const hud = Hud({core, name: E.hud, panel: 'control', variable: 'telemetry'});
-const camera = Camera({core, follow: () => body, views: config.camera});
+const camera = Camera({core, follow: () => body, views: config.camera, pilot: () => seat.player});
 
 const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
 function local(o, b, x, y, z) {
@@ -35,16 +47,19 @@ function local(o, b, x, y, z) {
 }
 function transform(off) { return local(body.GetAbsOrigin(), basis(body.GetAbsAngles()), off[0], off[1], off[2]); }
 function ignored(p) { return [body, ...wheels, decoy, p].filter(valid); }
+// Hull traces never ignore an entity parented to the body (the seated pilot, the decoy): CS2 then skips the whole
+// hierarchy, the body included, and a point inside the bus reads as free. The decoy is never solid anyway.
+const loose = p => [p].filter(e => valid(e) && !valid(e.GetParent?.()));
 function clearance(point, p) {
-    const t = Instance.TraceBox({start: point, end: point, mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72},
-        ignoreEntity: [p, decoy].filter(valid)});
+    const t = core.boxTrace({start: point, end: point, mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72},
+        ignoreEntity: loose(p)});
     return !t.startedInSolid && !t.didHit;
 }
 function safeExit(p) {
     // Keep the car in the trace: a point inside its body is never considered free.
-    for (const off of [[-8, 80, 90], [-8, -80, 90], [-20, 0, 170], [-135, 0, 90], [135, 0, 90]]) {
-        const start = transform(off), t = Instance.TraceBox({start, end: {...start, z: start.z - 190},
-            mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72}, ignoreEntity: [p, decoy].filter(valid)});
+    for (const off of EXITS) {
+        const start = transform(off), t = core.boxTrace({start, end: {...start, z: start.z - 190},
+            mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72}, ignoreEntity: loose(p)});
         if (!t.startedInSolid && t.didHit && t.normal?.z >= .65) {
             const at = {...t.end, z: t.end.z + 2};
             if (clearance(at, p)) return at;
@@ -69,15 +84,18 @@ function motor(mode) {
     motorMode = mode;
     if (mode && config.engine) core.fx(E[mode + '_sound'], 'StartSound', undefined, .05);
 }
+const riders = new Map();     // pawn -> {door, spot}
 const health = Health({core, body: () => body, max: config.health, native: true, parts: () => wheels,
     effects: {smoke: E.smoke, fire: E.fire, boom: E.boom, boom_sound: E.boom_sound}, respawn: config.respawn,
     spawn: {origin: config.origin, yaw: config.yaw}, guard: w => !!seat.player && w?.GetOwner() === seat.player,
-    onDestroy() { if (seat.player) seat.exit('destroyed'); motor(null); },
+    onDestroy() { if (seat.player) seat.exit('destroyed'); leaveAll('destroyed'); motor(null); },
     onRestore() {
+        if (parked) { parked = false; parkSince = 0; Instance.EntFireAtTarget({target: body, input: 'EnableMotion'}); }
         Instance.EntFireAtTarget({target: body, input: 'SetMass', value: config.mass});
         steerAngle = spin = speed = longitudinal = lateral = 0; lastPose = null; lastVelocity = zero;
         travel = [0, 0, 0, 0]; hits.clear(); placeWheels(); impactWindow = []; upsideSince = 0;
         if (seat.player) seat.exit('respawn');
+        leaveAll('respawn');
     }});
 const seatCore = {...core, input: (name, fn) => core.input(name, e => {
     if (name === 'Exit' && seat.player && !refreshExit()) { core.log('exit_blocked'); return; }
@@ -85,22 +103,26 @@ const seatCore = {...core, input: (name, fn) => core.input(name, e => {
 })};
 const seat = Seat({core: seatCore, camera, hud, target: () => body, pawn: E.pawn, decoy: () => decoy, reach: config.reach,
     allow(p) {
-        if (!valid(body)) return false;
+        if (!valid(body) || riders.has(p)) return false;
         if (health.dead) return {reason: 'destroyed', respawn: health.respawnIn(Instance.GetGameTime())};
         // The eye trace must hit the car, AND feet must be beside the driver's door (+local Y).
-        const at = p.GetAbsOrigin(), door = transform([-8, 66, 0]);
-        if (Math.hypot(at.x - door.x, at.y - door.y) > 62 || Math.abs(at.z - door.z) > 40) return {reason: 'driver_door'};
-        if (!clearance(at, p)) return {reason: 'entry_in_solid'};
+        const at = p.GetAbsOrigin(), door = transform(DOOR.at);
+        // With passengers, E elsewhere boards instead (passengers()): no refusal line then.
+        if (Math.hypot(at.x - door.x, at.y - door.y) > DOOR.radius || Math.abs(at.z - door.z) > 40) return RIDE ? false : {reason: 'driver_door'};
+        // 1 unit up: a box resting exactly on a floor (a bus salon) touches it and would read as solid.
+        if (!clearance({...at, z: at.z + 1}, p)) return {reason: 'entry_in_solid'};
     },
     onEnter(p, saved) {
         entrySafe = lastSafe = {...saved.position};
         pilotParent = p.GetParent(); p.SetParent(body);
         p.SetEyeAngles({pitch: 12, yaw: body.GetAbsAngles().yaw, roll: 0});
         Instance.EntFireAtTarget({target: body, input: 'DisableAutoSleeping'});
-        camera.start(p); hud.show(p); seatPose = null; placeDriver(); motor('idle'); refreshExit();
+        camera.start(p); hud.show(p); seatPose = null; placeDriver(); camera.apply(); motor('idle'); refreshExit();
     },
     onExit(p, reason) {
         motor(null); steerAngle = 0; crawl = false;
+        // A body with passengers: the driver stays inside (the generic search may pick a spot in the hull).
+        if (DOORS.length && valid(p) && p.IsAlive() && !['reset', 'round', 'disconnect', 'death'].includes(reason)) aisle(p);
         lastExit = {reason, position: valid(p) ? p.GetAbsOrigin() : null};
         if (valid(p)) p.SetParent(valid(pilotParent) ? pilotParent : undefined);
         pilotParent = undefined;
@@ -122,10 +144,10 @@ function placeDriver() {
     const [sx, sy, sz] = config.seat;
     seat.player.Teleport({position: transform([sx, sy, sz - 14]), velocity: zero});
     if (valid(decoy)) {
-        const a = body.GetAbsAngles(), p = transform([sx, sy, sz]);
+        const a = body.GetAbsAngles(), p = transform(PILOT.at);
         const pose = [p.x, p.y, p.z, a.pitch, a.yaw, a.roll];
         if (!seatPose || pose.some((v, i) => Math.abs(v - seatPose[i]) > .05)) {
-            decoy.SetModelScale(.5); decoy.SetParent(body);
+            decoy.SetModelScale(PILOT.scale); decoy.SetParent(body);
             decoy.Move({position: p, angles: a}); seatPose = pose;
         }
     }
@@ -194,22 +216,30 @@ function crash(v, now) {
     const prev = peak.speed, cur = Math.hypot(v.x, v.y), loss = prev - cur;
     if (prev > 240 && loss > 100 && now - lastCrash > .6 && !health.dead) {
         const p = body.GetAbsOrigin(), t = Instance.TraceLine({start: {...p, z: p.z + 40},
-            end: {x: p.x + peak.velocity.x / prev * 125, y: p.y + peak.velocity.y / prev * 125, z: p.z + 40}, ignoreEntity: ignored(seat.player), ignorePlayers: true});
+            end: {x: p.x + peak.velocity.x / prev * PROBE, y: p.y + peak.velocity.y / prev * PROBE, z: p.z + 40}, ignoreEntity: ignored(seat.player), ignorePlayers: true});
         if (t.didHit && t.normal?.z < .4) {
             lastCrash = now; impactWindow = []; const damage = Math.min(100, (loss - 60) * config.crash_damage);
             health.hurt(damage, 'crash'); core.log('crash', {speed: prev, loss, damage});
         }
     }
 }
+// A passenger: feet on the floor inside the body (body frame), not the driver.
+function aboard(p) {
+    if (!RIDE || p === seat.player) return false;
+    const q = p.GetAbsOrigin(), o = body.GetAbsOrigin(), b = basis(body.GetAbsAngles());
+    const d = {x: q.x - o.x, y: q.y - o.y, z: q.z - o.z};
+    const x = dot(d, b.f), y = dot(d, b.l), z = dot(d, b.u);
+    return Math.abs(x) < HALF[0] && Math.abs(y) < HALF[1] && z > RIDE.floor - 12 && z < RIDE.roof;
+}
 function runover(now, dt) {
     if (speed < 180 || health.dead) return;
     const b = basis(body.GetAbsAngles()), o = body.GetAbsOrigin();
     // Sweep a torso-sized box over the real previous-to-current car path, including fast crossings.
     for (const p of core.pawns({bots: true})) {
-        if (p === seat.player || now - (hits.get(p) ?? -10) < .8) continue;
+        if (p === seat.player || now - (hits.get(p) ?? -10) < .8 || riders.has(p) || aboard(p)) continue;
         const q = p.GetAbsOrigin(), dx = q.x - o.x, dy = q.y - o.y;
         const x = dx * b.f.x + dy * b.f.y, y = dx * b.l.x + dy * b.l.y;
-        if (Math.abs(x) > 118 + speed * dt || Math.abs(y) > 58 || q.z + 72 < o.z + 5 || q.z > o.z + 80) continue;
+        if (Math.abs(x) > HALF[0] + speed * dt || Math.abs(y) > HALF[1] || q.z + 72 < o.z + 5 || q.z > o.z + 80) continue;
         const t = Instance.TraceLine({start: {x: o.x, y: o.y, z: o.z + 40}, end: {x: q.x, y: q.y, z: q.z + 36}, ignoreEntity: ignored(seat.player)});
         if (t.didHit && t.hitEntity !== p) continue; // Do not hit through a wall.
         const damage = clamp((speed - 120) * .15, 10, 90);
@@ -218,17 +248,297 @@ function runover(now, dt) {
         hits.set(p, now); core.log('runover', {slot: core.slot(p), damage, speed});
     }
 }
+// Passengers (vehicles.py passengers): each door has a group of standing spots. E near a door (or inside) puts a
+// player on a random free spot of that group, E again lets them off; whoever stands inside when the body starts to
+// move is put on a spot (a walking player inside a moving physics body blocks it). Riders stay normal standing
+// players on the floor (accurate fire, crouch and stand up), not parented (a parented pawn turns and leans with the
+// body): every tick they stand on their spot where the floor will be after the physics step, at rest. Physics crush
+// never hurts the driver or riders.
+const prompt = Hud({core, name: E.hud, panel: 'prompt', variable: 'prompt'});
+const useHeld = new Map(), shown = new Map(), toggled = new Map();   // toggled: slot -> time of the last E action
+const E_GAP = .5;
+const blocked = new Map();   // slot -> until when the "no room to get out" prompt shows            // one E action per half second: a held or bouncing key never boards and leaves at once
+let lastPilot;           // the driver of the previous tick: their E that left the wheel must not board too
+function bodyFrame(q) {
+    const o = body.GetAbsOrigin(), b = basis(body.GetAbsAngles()), d = {x: q.x - o.x, y: q.y - o.y, z: q.z - o.z};
+    return [dot(d, b.f), dot(d, b.l), dot(d, b.u)];
+}
+function doorAt(p) {
+    const q = bodyFrame(p.GetAbsOrigin());
+    let best = -1, bestD = Infinity;
+    DOORS.forEach((d, i) => {
+        const r = Math.hypot(q[0] - d.at[0], q[1] - d.at[1]);
+        if (r < d.radius && Math.abs(q[2] - d.at[2]) < 60 && r < bestD) { best = i; bestD = r; }
+    });
+    return best;
+}
+function nearestDoor(p) {
+    const q = bodyFrame(p.GetAbsOrigin());
+    let best = 0, bestD = Infinity;
+    DOORS.forEach((d, i) => { const r = Math.hypot(q[0] - d.at[0], q[1] - d.at[1]); if (r < bestD) { best = i; bestD = r; } });
+    return best;
+}
+function atDriverDoor(p) {
+    const q = bodyFrame(p.GetAbsOrigin());
+    return Math.hypot(q[0] - DOOR.at[0], q[1] - DOOR.at[1]) < DOOR.radius && Math.abs(q[2] - DOOR.at[2]) < 40;
+}
+// Room for a standing player at a spot of the body as it is now: nothing solid (the body, a wall it scrapes, another
+// player) in the hull, 1 unit above the feet.
+function roomAt(at, p) {
+    const s = {...at, z: at.z + 1}, t = core.boxTrace({start: s, end: s, mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72},
+        ignoreEntity: loose(p)});
+    return !t.startedInSolid && !t.didHit;
+}
+function freeSpot(door, p) {
+    const used = new Set([...riders.entries()].filter(([q, r]) => q !== p && r.door === door).map(([, r]) => r.spot));
+    const free = DOORS[door].spots.map((_, i) => i).filter(i => !used.has(i) && (!p || roomAt(transform(DOORS[door].spots[i]), p)));
+    return free.length ? free[Math.floor(Math.random() * free.length)] : -1;
+}
+const UNDUCK = 18;           // CS2 stands an airborne crouched player up by lowering the feet this much
+function placeRider(p, r, dt) {
+    // Feet on the floor where it will be after this tick's physics step (the body moves after the script). Zero
+    // velocity: a rider counts as standing still on the ground, so their shots are as accurate as standing ones.
+    const at = transform(DOORS[r.door].spots[r.spot]), v = body.GetAbsVelocity(), moving = Math.hypot(v.x, v.y, v.z) > 1;
+    // A still body (parked): a rider already at the spot is left alone. A teleport drops the ground state, and an
+    // "airborne" crouched player stands up by lowering the feet into the floor: they could not stand up.
+    if (!moving && core.dist(p.GetAbsOrigin(), at) < 1.5) return;
+    let target = core.add(at, v, dt);
+    // Moving: the teleport every tick cannot be avoided, so a crouched rider letting go of crouch gets the feet raised
+    // by the stand-up drop for that tick: they stand up onto the floor instead of into it.
+    if ((p.IsDucked() || p.IsDucking()) && !p.IsInputPressed(CSInputs.DUCK)) target = {...target, z: target.z + UNDUCK};
+    p.Teleport({position: target, velocity: zero});
+}
+// Every tick: a spot that has no room (the body pressed on a wall, a player in it) moves its rider to another free
+// spot, else out of the nearest door; a rider is never held inside anything solid (that fight shook the body and
+// crushed the rider).
+function holdRider(p, r, dt) {
+    if (roomAt(transform(DOORS[r.door].spots[r.spot]), p)) { placeRider(p, r, dt); return; }
+    for (const d of doorOrder(r.door)) {
+        const s = freeSpot(d, p);
+        if (s >= 0) { r.door = d; r.spot = s; placeRider(p, r, dt); core.log('respot', {slot: core.slot(p), door: d, spot: s}); return; }
+    }
+    leave(p, 'no_room', true);
+}
+// The door's own group first, then the groups of the nearest other doors.
+function doorOrder(door) {
+    return DOORS.map((_, i) => i).sort((a, b) =>
+        Math.abs(DOORS[a].at[0] - DOORS[door].at[0]) - Math.abs(DOORS[b].at[0] - DOORS[door].at[0]));
+}
+const fullLogged = new Map();
+function board(p, door) {
+    for (const d of doorOrder(door)) {
+        const s = freeSpot(d, p);
+        if (s < 0) continue;
+        const r = {door: d, spot: s};
+        riders.set(p, r);
+        placeRider(p, r, 0);
+        // Face the nearest side window (spots on the centre line face the rear).
+        const y = DOORS[d].spots[s][1], face = Math.abs(y) < 6 ? 180 : (y < 0 ? -90 : 90);
+        p.SetEyeAngles({pitch: 0, yaw: body.GetAbsAngles().yaw + face, roll: 0});
+        core.log('board', {slot: core.slot(p), door: d, spot: s});
+        return true;
+    }
+    const now = Instance.GetGameTime();
+    if (now - (fullLogged.get(core.slot(p)) ?? -10) > 2) { fullLogged.set(core.slot(p), now); core.log('full', {slot: core.slot(p)}); }
+    return false;
+}
+function doorOutside(i, p) {
+    const d = DOORS[i].at, side = d[1] < 0 ? -1 : 1;
+    for (const dx of [0, -50, 50]) {
+        const start = transform([d[0] + dx, d[1] + side * 48, d[2] + 40]), t = core.boxTrace({start,
+            end: {...start, z: start.z - 160}, mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72},
+            ignoreEntity: loose(p)});
+        if (t.startedInSolid || !t.didHit || !(t.normal?.z >= .65) || t.hitEntity === body) continue;
+        if (valid(t.hitEntity) && t.hitEntity.GetClassName() === 'player') continue;     // not on someone's head
+        const at = {...t.end, z: t.end.z + 2};
+        if (clearance(at, p)) return at;
+    }
+    return null;
+}
+// Off the bus. Standing still: stay on the floor at the spot. Moving (or `out`): through the nearest door with room
+// outside; a rider who asked to get off at speed with no room outside keeps riding (returns false).
+function leave(p, reason, out = false) {
+    const r = riders.get(p);
+    if (!r) return true;
+    if (!valid(p) || !p.IsAlive()) { riders.delete(p); core.log('leave', {slot: valid(p) ? core.slot(p) : null, reason}); return true; }
+    let spot = null;
+    // With a driver (or a route test) or at speed nobody stands loose inside: off through a door, or stay on.
+    if (speed >= 60 || out || seat.player || auto) {
+        for (const d of doorOrder(r.door)) if ((spot = doorOutside(d, p))) break;
+        if (!spot && reason === 'use') { core.log('exit_blocked', {slot: core.slot(p)}); blocked.set(core.slot(p), Instance.GetGameTime() + 1.5); return false; }
+    }
+    riders.delete(p);
+    p.Teleport(spot ? {position: spot, velocity: body.GetAbsVelocity()} : {velocity: zero});
+    core.log('leave', {slot: core.slot(p), reason, outside: !!spot});
+    return true;
+}
+// The driver leaves the wheel: moving -> a front spot as a passenger; standing -> on the salon floor at the first free
+// exit point (a short trace that can only find the body's own floor), else a spot as well.
+function aisle(p) {
+    if (speed <= 25) {
+        for (const off of EXITS) {
+            const start = transform([off[0], off[1], RIDE.floor + 40]), t = core.boxTrace({start,
+                end: transform([off[0], off[1], RIDE.floor - 6]), mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72},
+                ignoreEntity: loose(p)});
+            if (t.startedInSolid || !t.didHit || t.hitEntity !== body) continue;
+            const at = {...t.end, z: t.end.z + 1};
+            if (!clearance(at, p)) continue;
+            p.Teleport({position: at, velocity: zero});
+            core.log('aisle', {slot: core.slot(p)});
+            return;
+        }
+    }
+    if (board(p, 0)) return;
+    for (const d of doorOrder(0)) {
+        const at = doorOutside(d, p);
+        if (at) { p.Teleport({position: at, velocity: body.GetAbsVelocity()}); core.log('aisle_outside', {slot: core.slot(p)}); return; }
+    }
+    core.log('aisle_blocked', {slot: core.slot(p)});
+}
+function leaveAll(reason) { for (const p of [...riders.keys()]) leave(p, reason); }
+function hint(p, text) {
+    const s = core.slot(p), now = Instance.GetGameTime(), last = shown.get(s);
+    if (last && last.text === text && now - last.at < 2) return;
+    if (!last && text === null) return;
+    shown.set(s, {text, at: now});
+    if (text) prompt.put(p, text); else prompt.hide(p);
+    if (last?.text !== text) core.log('prompt', {slot: s, text});
+}
+function passengers(dt) {
+    // Riders are held every tick: players merely standing on a physics body weigh it down and it does not move.
+    for (const [p, r] of [...riders]) {
+        if (!valid(p) || !p.IsAlive() || p === seat.player) { riders.delete(p); continue; }
+        holdRider(p, r, dt);
+        const q = riders.get(p);
+        if (q && core.dist(p.GetAbsOrigin(), transform(DOORS[q.door].spots[q.spot])) > 64) leave(p, 'lost', true);
+    }
+    // Whoever stands inside while the body moves or has a driver goes to a spot: a walking player in a physics body
+    // holds it down (the body would not start at all).
+    const ride = (speed > 25 || !!seat.player || !!auto) && !health.dead;
+    const humans = new Set(core.pawns()), seen = new Set();
+    for (const p of core.pawns({bots: true})) {
+        if (humans.has(p)) seen.add(core.slot(p));
+        if (p === seat.player || p === lastPilot) {
+            if (humans.has(p)) {
+                const pressed = p.IsInputPressed(CSInputs.USE);
+                hint(p, null); useHeld.set(core.slot(p), pressed);
+                if (pressed) toggled.set(core.slot(p), Instance.GetGameTime());   // the wheel's E is not a boarding E too
+            }
+            continue;
+        }
+        const riding = riders.has(p), door = riding ? -1 : doorAt(p), inside = !riding && aboard(p);
+        const driverDoor = !seat.player && !riding && atDriverDoor(p);
+        if (humans.has(p)) {
+            const s = core.slot(p), pressed = p.IsInputPressed(CSInputs.USE), now = Instance.GetGameTime();
+            const edge = pressed && !useHeld.get(s) && now - (toggled.get(s) ?? -10) > E_GAP;
+            useHeld.set(s, pressed);
+            if (edge) toggled.set(s, now);
+            // At the driver's place E takes the wheel (Seat); anywhere else at a door or inside it boards.
+            if (edge && !health.dead && !driverDoor) {
+                if (riding) leave(p, 'use');
+                else if (door >= 0 || inside) board(p, door >= 0 ? door : nearestDoor(p));
+            }
+            hint(p, health.dead ? null : riders.has(p) ? ((blocked.get(s) ?? 0) > now ? RIDE.hint.blocked : RIDE.hint.ride) :
+                 driverDoor ? RIDE.hint.drive : (door >= 0 || inside) ? RIDE.hint.board : null);
+        }
+        if (ride && !riders.has(p) && !aboard(p) && p.GetGroundEntity?.() === body) {
+            const d = doorAt(p);
+            if (!(d >= 0 && board(p, d))) {
+                for (const k of doorOrder(nearestDoor(p))) {
+                    const at = doorOutside(k, p);
+                    if (at) { p.Teleport({position: at, velocity: body.GetAbsVelocity()}); core.log('off_roof', {slot: core.slot(p)}); break; }
+                }
+            }
+        }
+        if (ride && !riders.has(p) && aboard(p) && !board(p, nearestDoor(p))) {
+            // No spot left: nobody stands loose in a moving bus; out of the nearest door with room.
+            for (const d of doorOrder(nearestDoor(p))) {
+                const at = doorOutside(d, p);
+                if (at) { p.Teleport({position: at, velocity: body.GetAbsVelocity()}); core.log('overflow_out', {slot: core.slot(p)}); break; }
+            }
+        }
+    }
+    // A player who is gone (dead, spectating, disconnected) keeps no prompt.
+    for (const [s, v] of [...shown]) if (!seen.has(s)) { if (v.text) prompt.hideSlot(s); shown.delete(s); }
+    lastPilot = seat.player;
+}
+// What hurts the driver or a rider, and what kills them: one line each (tests and online reports read them).
+const who = e => valid(e) ? e.GetClassName() + (e === body ? ':body' : '') : null;
+core.on('OnPlayerDamage', e => {
+    if (e.player === seat.player || riders.has(e.player))
+        core.log('hurt', {slot: core.slot(e.player), damage: e.damage, types: e.damageTypes, flags: e.damageFlags,
+                          attacker: who(e.attacker), inflictor: who(e.inflictor), rider: riders.has(e.player)});
+});
+core.on('OnPlayerKill', e => {
+    if (e.player === seat.player || riders.has(e.player))
+        core.log('killed', {slot: core.slot(e.player), attacker: who(e.attacker), inflictor: who(e.inflictor), rider: riders.has(e.player)});
+});
+const crushLogged = new Map();
+core.on('OnModifyPlayerDamage', e => {
+    if (!RIDE || (e.player !== seat.player && !riders.has(e.player))) return;
+    // Inside the bus only weapons hurt the driver and the riders (bullets, knives, grenades thrown by players): the
+    // body's own pushes, crush, falls and "stuck" damage never do.
+    const byPlayer = valid(e.attacker) && e.attacker.GetClassName() === 'player' && e.attacker !== e.player;
+    if (valid(e.weapon) || byPlayer) return;
+    const now = Instance.GetGameTime(), s = core.slot(e.player);
+    if (now - (crushLogged.get(s) ?? -10) > 1) { crushLogged.set(s, now); core.log('crush_blocked', {slot: s, damage: e.damage, types: e.damageTypes}); }
+    return {abort: true};
+});
+// Route test (cheat command <name>_route x1,y1,x2,y2,...[,speed]): without a driver the body drives itself through
+// the points with virtual keys and logs route_point / route_done, or route_stuck with the place where it stopped.
+let auto = null;
+core.command('v9_control_' + config.name + '_route', token => {
+    const n = token.split(/[ ,]+/).map(Number).filter(Number.isFinite);
+    if (n.length < 2) { auto = null; core.log('route_off'); return; }
+    const speed = n.length % 2 ? n.pop() : 300;
+    const pts = []; for (let i = 0; i + 1 < n.length; i += 2) pts.push({x: n[i], y: n[i + 1]});
+    auto = {pts, i: 0, speed, slow: null}; core.log('route', {points: pts.length, speed});
+});
+function autoKeys(now) {
+    const o = body.GetAbsOrigin(), t = auto.pts[auto.i];
+    if (Math.hypot(t.x - o.x, t.y - o.y) < 160) {
+        core.log('route_point', {i: auto.i, at: o}); auto.i++;
+        if (auto.i >= auto.pts.length) { core.log('route_done', {at: o, hp: health.hp}); auto = null; return null; }
+    }
+    const tgt = auto.pts[auto.i], want = Math.atan2(tgt.y - o.y, tgt.x - o.x) / rad;
+    const err = ((want - body.GetAbsAngles().yaw + 540) % 360) - 180;
+    if (now - (auto.logged ?? 0) >= 1) { auto.logged = now; core.log('route_tick', {i: auto.i, at: {x: Math.round(o.x), y: Math.round(o.y)}, yaw: Math.round(body.GetAbsAngles().yaw), err: Math.round(err), speed: Math.round(speed), steer: Math.round(steerAngle)}); }
+    if (speed < 25) { auto.slow ??= now; if (now - auto.slow > 2.5) { core.log('route_stuck', {at: o, i: auto.i, hp: health.hp}); auto = null; return null; } }
+    else auto.slow = null;
+    // Proportional steering (a test driver, not keys): the wheels point at the next point, gas below the route speed.
+    return {gas: speed < auto.speed ? 1 : 0, back: 0, left: 0, right: 0, hand: false, steer: err * 1.5};
+}
+// Parking (fundamental for a hollow body): without a driver or a route test, a body standing on its wheels and nearly
+// still has its physics motion switched off: players walking in it, pushing or standing on it cannot slide, sink or
+// shake it. Gravity stays: a body in the air or rolling keeps its physics until it settles. A driver turns it back on.
+let parked = false, parkSince = 0;
+function park(now) {
+    const want = !seat.player && !auto && !health.dead && contacts >= 3 && speed < 15;
+    if (!want) {
+        parkSince = 0;
+        if (parked) { parked = false; Instance.EntFireAtTarget({target: body, input: 'EnableMotion'}); core.log('unparked'); }
+        return;
+    }
+    parkSince ||= now;
+    if (!parked && now - parkSince > .4) {
+        parked = true; longitudinal = lateral = 0;
+        body.Teleport({velocity: zero, angularVelocity: zero});
+        Instance.EntFireAtTarget({target: body, input: 'DisableMotion'}); core.log('parked');
+    }
+}
 function drive(dt, fit) {
     const a = body.GetAbsAngles(), v = body.GetAbsVelocity(), p = health.dead ? undefined : seat.player, b = basis(a);
+    const A = !p && auto && !health.dead ? autoKeys(Instance.GetGameTime()) : null;
     const key = k => !!p?.IsInputPressed(k);
-    const left = key(CSInputs.LEFT) ? 1 : 0, right = key(CSInputs.RIGHT) ? 1 : 0;
-    const gas = key(CSInputs.FORWARD) ? 1 : 0, back = key(CSInputs.BACK) ? 1 : 0, hand = key(CSInputs.JUMP);
-    crawl = key(CSInputs.WALK);
+    const left = A ? A.left : key(CSInputs.LEFT) ? 1 : 0, right = A ? A.right : key(CSInputs.RIGHT) ? 1 : 0;
+    const gas = A ? A.gas : key(CSInputs.FORWARD) ? 1 : 0, back = A ? A.back : key(CSInputs.BACK) ? 1 : 0, hand = A ? false : key(CSInputs.JUMP);
+    crawl = A ? false : key(CSInputs.WALK);
     const ctl = JSON.stringify({gas, back, left, right, hand, crawl});
     if (p && ctl !== controls) { controls = ctl; core.log('controls', JSON.parse(ctl)); }
     // Speed-sensitive steering: the angle shrinks from ST.max to ST.fast at top speed, the wheel turns at ST.rate
     // (half as fast at top speed: it feels heavier) and comes back to the centre at ST.return degrees per second.
-    const fast = clamp(Math.abs(longitudinal) / config.speed, 0, 1), aimSteer = (left - right) * (ST.max + (ST.fast - ST.max) * fast);
+    const fast = clamp(Math.abs(longitudinal) / config.speed, 0, 1), lock = ST.max + (ST.fast - ST.max) * fast;
+    const aimSteer = A ? clamp(A.steer, -lock, lock) : (left - right) * lock;
     const centring = aimSteer === 0 || (steerAngle !== 0 && Math.sign(aimSteer) !== Math.sign(steerAngle));
     const rate = (centring ? ST.return : ST.rate * (1 - .5 * fast)) * dt;
     steerAngle += clamp(aimSteer - steerAngle, -rate, rate);
@@ -244,7 +554,7 @@ function drive(dt, fit) {
     const top = config.speed * (crawl ? .35 : 1), accel = config.accel * (crawl ? 1.4 : 1);
     // What the driver (or the parking brake) wants the tyres to do along the car.
     let tf;
-    if (hand || !p) tf = toward0(longitudinal, (hand ? config.brake : 380) * dt);
+    if (hand || (!p && !A)) tf = toward0(longitudinal, (hand ? config.brake : 380) * dt);
     else if (back && longitudinal > 30) tf = Math.max(0, longitudinal - config.brake * dt);
     else if (gas && longitudinal < -30) tf = Math.min(0, longitudinal + config.brake * dt);
     else if (gas || back) tf = clamp(longitudinal + (gas - back) * accel * dt, -config.reverse * (crawl ? .6 : 1), top);
@@ -258,7 +568,7 @@ function drive(dt, fit) {
     const fwd = longitudinal + gf * dt + df, side = lateral + gl * dt + ds;
     // Steering (bicycle model) needs the front tyres on the ground.
     const front = (touch[0] ? 1 : 0) + (touch[1] ? 1 : 0);
-    const yawRate = front ? clamp(fwd / 120, -4.5, 4.5) * Math.tan(steerAngle * rad) * Math.min(1, Math.abs(fwd) / 55) * (front / 2) : 0;
+    const yawRate = front ? clamp(fwd / WHEELBASE, -4.5, 4.5) * Math.tan(steerAngle * rad) * Math.min(1, Math.abs(fwd) / 55) * (front / 2) : 0;
     // Suspension: spring-damper toward the plane of the wheels (stiffer in bump than in rebound).
     const s = plane(fit);
     const lift = s.h >= 0 ? s.h * S.stiffness : s.h * S.rebound;
@@ -271,6 +581,15 @@ function drive(dt, fit) {
     // Velocity in the new frame; the engine adds gravity during its step, so the carried share is pre-added.
     const vel = core.add(core.add(core.add(zero, nb.f, fwd), nb.l, side), nb.u, nu);
     vel.z += G * dt * support;
+    // Without a driver a slow body is parked: it holds its place on the ground (no creeping on slopes or
+    // under passengers). The suspension still works vertically.
+    if (!p && !A && support >= 1 && Math.hypot(fwd, side) < 25) {
+        const keep = dot(vel, nb.u);
+        vel.x = nb.u.x * keep; vel.y = nb.u.y * keep; vel.z = nb.u.z * keep;
+        longitudinal = lateral = 0;
+        body.Teleport({angles, velocity: vel, angularVelocity: zero});
+        return;
+    }
     body.Teleport({angles, velocity: vel, angularVelocity: zero});
     longitudinal = fwd; lateral = side;
 }
@@ -303,6 +622,8 @@ function selfRight(now) {
     core.log('righted', {position: o});
 }
 function setup() {
+    if (parked && valid(body)) Instance.EntFireAtTarget({target: body, input: 'EnableMotion'});
+    parked = false; parkSince = 0;
     if (seat.player) seat.exit('round');
     body = Instance.FindEntityByName(E.body); wheels = E.wheels.map(n => Instance.FindEntityByName(n)); decoy = Instance.FindEntityByName(E.pilot);
     if (W.scale !== 1) for (const w of wheels) if (valid(w)) w.SetModelScale(W.scale);
@@ -312,14 +633,23 @@ function setup() {
     body.Teleport({position: core.vec(config.origin), angles: {pitch: 0, yaw: config.yaw, roll: 0}, velocity: zero, angularVelocity: zero});
     // The suspension holds the body every tick: it must never fall asleep in mid-air.
     Instance.EntFireAtTarget({target: body, input: 'DisableAutoSleeping'});
-    health.restore(); hud.hideAll(); seat.clearEdges(); lastTime = Instance.GetGameTime(); lastCrash = -10;
+    leaveAll('round'); prompt.find();
+    for (const s of shown.keys()) prompt.hideSlot(s);      // per player: hideAll does not override a shown prompt
+    health.restore(); hud.hideAll(); prompt.hideAll(); shown.clear(); useHeld.clear(); toggled.clear(); seat.clearEdges(); lastTime = Instance.GetGameTime(); lastCrash = -10;
     contacts = 0; grounded = false; lastExit = lastSafe = entrySafe = null; motor(null);
     core.log('ready', {position: body.GetAbsOrigin(), hp: health.hp}); Instance.SetNextThink(lastTime + .016);
 }
 Instance.SetThink(() => {
     const now = Instance.GetGameTime(), dt = Math.min(.05, Math.max(0, now - lastTime)); lastTime = now;
+    let next = now + .016;
     try {
-        if (!valid(body)) { if (seat.player) seat.exit('death'); Instance.SetNextThink(now + .1); return; }
+        if (!valid(body)) {
+            // The body is gone (removed by the engine or the map): nobody rides it and nobody keeps its prompts.
+            if (seat.player) seat.exit('death');
+            if (riders.size) { core.log('body_gone', {riders: riders.size}); riders.clear(); }
+            for (const [s, v] of [...shown]) { if (v.text) prompt.hideSlot(s); shown.delete(s); }
+            next = now + .1; return;
+        }
         health.update(now); const canExit = refreshExit();
         if (health.dead && seat.player && canExit) seat.exit('destroyed');
         // Fully enclosed: keep the pilot seated until a tested point becomes free.
@@ -329,10 +659,12 @@ Instance.SetThink(() => {
         const v = body.GetAbsVelocity(); speed = Math.hypot(v.x, v.y);
         // A wreck stays on its wheels too (the body has no tyre collision): it is a parked car without a driver.
         const fit = sense();
-        crash(v, now); drive(dt, fit); selfRight(now);
+        park(now);
+        if (!parked) { crash(v, now); drive(dt, fit); selfRight(now); }
         if (!health.dead) runover(now, dt);
         lastVelocity = body.GetAbsVelocity();
         spin = (spin + longitudinal / R / rad * dt) % 360; placeWheels();
+        if (DOORS.length) passengers(dt);
         const ang = body.GetAbsAngles();
         peak = {bump: Math.max(peak.bump, ...travel), droop: Math.min(peak.droop, ...travel),
                 pitch: Math.max(peak.pitch, Math.abs(ang.pitch)), roll: Math.max(peak.roll, Math.abs(ang.roll)),
@@ -341,13 +673,18 @@ Instance.SetThink(() => {
             camera.update(seat.player); followView(seat.player, now, dt); placeDriver();
             motor(speed > 40 ? 'drive' : 'idle');
             if (hud.due('speed', now, .1)) {
-                hud.text(seat.player, Math.round(speed * .09144) + ' km/h   HP ' + Math.ceil(health.hp) + '/' + config.health +
-                    (crawl ? '   CRAWL' : '') + (canExit ? '   E: exit' : '   Exit blocked') + (!contacts ? '   AIR' : ''));
+                hud.text(seat.player, Math.round(speed * .09144) + ' ' + LABEL.kmh + '   HP ' + Math.ceil(health.hp) + '/' + config.health +
+                    (crawl ? '   ' + LABEL.crawl : '') + '   ' + (canExit ? LABEL.exit : LABEL.blocked) + (!contacts ? '   ' + LABEL.air : ''));
                 hud.flag(seat.player, 'Low', !!config.health && health.hp <= config.health / 3);
             }
         }
-    } catch (e) { if (seat.player) seat.exit('error'); throw Error('V_CAR_ERROR ' + config.name + ': ' + String(e)); }
-    Instance.SetNextThink(now + .016);
+    } catch (e) {
+        // Report (tests fail on it) but keep the vehicle alive: a stopped think froze prompts and riders for good.
+        if (seat.player) seat.exit('error');
+        throw Error('V_CAR_ERROR ' + config.name + ': ' + String(e) + (e?.stack ? ' ' + String(e.stack).slice(0, 300) : ''));
+    } finally {
+        Instance.SetNextThink(next);
+    }
 });
 core.on('OnActivate', setup); core.on('OnRoundStart', setup);
 const rounded = v => Math.round(v * 100) / 100;

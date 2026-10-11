@@ -88,6 +88,18 @@ function Core(opts) {
     function state(extra) {
         command(opts.state, token => log("state", {token, recent: recent.filter(x => !x.startsWith("state ")), ...extra(token), humans: humans()}));
     }
-    return {rad, zero, valid, clamp, vec, add, dist, log, recent, slot, basis, anglesOf, pawns, eyeRay, fx, sound, on, command, humans, state,
+    // A hull trace for "is there room for a player": weapons and items (a carried or dropped C4, a gun on the floor)
+    // are not obstacles, so a hit on one is retried without it.
+    function boxTrace(opts) {
+        let ignore = [].concat(opts.ignoreEntity ?? []), t;
+        for (let k = 0; k < 6; k++) {
+            t = Instance.TraceBox({...opts, ignoreEntity: ignore});
+            const e = t.hitEntity;
+            if (!(t.didHit || t.startedInSolid) || !valid(e) || !/^(weapon_|item_)/.test(e.GetClassName())) return t;
+            ignore = [...ignore, e];
+        }
+        return t;
+    }
+    return {rad, zero, valid, clamp, vec, add, dist, log, recent, slot, basis, anglesOf, pawns, eyeRay, boxTrace, fx, sound, on, command, humans, state,
             input: (name, fn) => Instance.OnScriptInput(name, fn)};
 }

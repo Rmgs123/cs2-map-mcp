@@ -22,7 +22,7 @@ MATERIALS = [  # name, colour, metalness, roughness, emissive glow
     ('rim', [168, 172, 178], .9, .28, 0), ('window', [14, 20, 24], .4, .06, 0), ('tyre', [26, 26, 28], 0, .92, 0),
     ('lamp', [255, 236, 190], 0, .3, 4), ('tail', [200, 20, 18], 0, .3, 2.5), ('amber', [255, 130, 20], 0, .3, 2.5)]
 FIELDS = {'speed', 'reverse', 'accel', 'brake', 'grip', 'steer', 'mass', 'wheel_model', 'engine', 'crash_damage',
-          'wheels', 'suspension', 'seat'}
+          'wheels', 'suspension', 'seat', 'door', 'exits', 'size', 'passengers', 'pilot'}
 STEER = {'max': 32, 'fast': 9, 'rate': 120, 'return': 200}
 SUSPENSION = {'up': 9, 'down': 12, 'stiffness': 16, 'rebound': 7, 'damping': 14, 'grip': .85}
 
@@ -65,6 +65,63 @@ def _wheels(value, wheel_model):
     return out
 
 
+def _door(value):
+    """door: where the driver's feet must be to take the wheel: {at: [x,y,z] body frame, radius}."""
+    if not isinstance(value, dict) or set(value) - {'at', 'radius'} or 'at' not in value:
+        raise ValueError('door must be {at: [x,y,z] in the body frame, radius}')
+    return {'at': mechanics.vector(value['at'], 'door.at'),
+            'radius': mechanics.number(value.get('radius', 62), 'door.radius', 16, 160)}
+
+
+def _exits(value):
+    """exits: 1..8 body-frame points tried in order when the driver leaves (inside a hollow body too)."""
+    if not isinstance(value, list) or not 1 <= len(value) <= 8:
+        raise ValueError('exits must be a list of 1..8 [x,y,z] points in the body frame')
+    return [mechanics.vector(e, 'exits') for e in value]
+
+
+def _size(value):
+    """size: [length, width] of the body, for run-over hits, crash probes and passengers."""
+    if not isinstance(value, list) or len(value) != 2:
+        raise ValueError('size must be [length, width] of the body')
+    return [mechanics.number(value[0], 'size.length', 48, 1200), mechanics.number(value[1], 'size.width', 32, 400)]
+
+
+HINTS = {'board': 'E: get in', 'ride': 'E: get out', 'drive': 'E: drive', 'blocked': 'No room to get out'}
+
+
+def _passengers(ride):
+    """passengers: a hollow body players ride in. floor/roof: body-frame heights; doors: [{at, radius, spots}] where
+    `at` is the doorway (body frame) and `spots` the standing places (feet) of the passengers who got in there. E near a
+    door (or inside) puts a player on a random free spot of that door's group, E again lets them off; anyone standing
+    inside when the body starts moving is put on a spot. Riders keep their weapons and look around. hint: the prompt
+    texts {board, ride, drive}."""
+    if not isinstance(ride, dict) or set(ride) - {'floor', 'roof', 'doors', 'hint'}:
+        raise ValueError('passengers must be {floor, roof, doors: [{at, radius, spots}], hint}')
+    doors = ride.get('doors', [])
+    if not isinstance(doors, list) or not 1 <= len(doors) <= 8:
+        raise ValueError('passengers.doors must list 1..8 doors {at: [x,y,z], radius, spots: [[x,y,z], ...]}')
+    out, total = [], 0
+    for d in doors:
+        if not isinstance(d, dict) or set(d) - {'at', 'radius', 'spots'} or 'at' not in d:
+            raise ValueError('a passenger door is {at: [x,y,z] body frame, radius, spots: [[x,y,z], ...]}')
+        spots = d.get('spots', [])
+        if not isinstance(spots, list) or not spots:
+            raise ValueError('every passenger door needs its standing spots')
+        total += len(spots)
+        out.append({'at': mechanics.vector(d['at'], 'passengers.doors.at'),
+                    'radius': mechanics.number(d.get('radius', 64), 'passengers.doors.radius', 16, 160),
+                    'spots': [mechanics.vector(x, 'passengers.doors.spots') for x in spots]})
+    if total > 32:
+        raise ValueError('at most 32 passenger spots')
+    hint = ride.get('hint', {})
+    if not isinstance(hint, dict) or set(hint) - set(HINTS) or any(not isinstance(v, str) or len(v) > 64 for v in hint.values()):
+        raise ValueError('passengers.hint is {board, ride, drive, blocked}: texts up to 64 characters')
+    return {'floor': mechanics.number(ride.get('floor', 24), 'passengers.floor', 0, 200),
+            'roof': mechanics.number(ride.get('roof', 140), 'passengers.roof', 40, 400),
+            'doors': out, 'hint': {**HINTS, **hint}}
+
+
 def validate(spec, m=None):
     spec['camera'].setdefault('start', 'chase' if spec['camera']['chase'] is not False else 'fpv')
     origin = spec.get('origin', [0, 0, 8])
@@ -84,10 +141,28 @@ def validate(spec, m=None):
                                   'damping': (1, 60), 'grip': (.1, 2)})
     # Where the driver sits (body frame, hips): the dummy is drawn there, the hidden player 14 units lower.
     spec['seat'] = mechanics.vector(spec.get('seat', [-6, 17, 40]), 'seat')
-    spec['reach'] = mechanics.number(spec.get('reach', 80), 'reach', 16, 80)
+    spec['reach'] = mechanics.number(spec.get('reach', 80), 'reach', 16, 160)     # long bodies: the wheel is far inside
     spec['model'] = mechanics.model_path(spec.get('model', BODY))
     spec['wheel_model'] = mechanics.model_path(spec.get('wheel_model', WHEEL), 'wheel_model')
     spec['wheels'] = _wheels(spec.get('wheels'), spec['wheel_model'])
+    # Own bodies (a bus, a van): the driver's door, the exit points, the footprint and riding passengers. Absent
+    # fields stay absent, so stock cars keep their recorded configuration (and script file).
+    if 'door' in spec:
+        spec['door'] = _door(spec['door'])
+    if 'exits' in spec:
+        spec['exits'] = _exits(spec['exits'])
+    if 'size' in spec:
+        spec['size'] = _size(spec['size'])
+    if 'passengers' in spec:
+        spec['passengers'] = _passengers(spec['passengers'])
+        if 'size' not in spec:
+            raise ValueError('passengers need size: [length, width] of the body')
+    if 'pilot' in spec:
+        # The driver's stand-in: its scale and where its feet are (body frame); default half size at the seat.
+        if not isinstance(spec['pilot'], dict) or set(spec['pilot']) - {'scale', 'at'}:
+            raise ValueError('pilot must be {scale, at: [x,y,z] feet of the stand-in in the body frame}')
+        spec['pilot'] = {'scale': mechanics.number(spec['pilot'].get('scale', .5), 'pilot.scale', .2, 1.5),
+                         'at': mechanics.vector(spec['pilot'].get('at', spec['seat']), 'pilot.at')}
     engine = spec.get('engine', {'idle': 'mcp.v9_engine_idle', 'drive': 'mcp.v9_engine_drive'})
     if engine is not False:
         mechanics.keys(engine, {'idle', 'drive'}, 'engine')

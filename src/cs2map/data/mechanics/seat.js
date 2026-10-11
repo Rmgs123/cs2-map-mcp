@@ -4,7 +4,7 @@
 // seat: a player takes control of an object (drone, car, turret) and gives it back.
 //   const seat = Seat({core, camera, hud, target: () => remote, pawn: E.pawn, decoy: () => decoy, reach: 96,
 //                      allow: p => ..., onEnter: (p, saved) => ..., onExit: (p, reason, saved) => ...});
-// Enter: E (rising edge) while the eye ray hits `target` within `reach`. The player is saved
+// Enter: E (rising edge) while the eye ray hits `target` (or a part parented to it) within `reach`. The player is saved
 // (MoveType, position, yaw/pitch, weapon, name), frozen (MoveType NONE), holds only the knife, is renamed
 // (the object's damage filter refuses that name: the pilot cannot hurt their own object), hidden and
 // replaced by a still decoy of the same model. CS2 turns a pawn's body to its view in every camera mode and
@@ -36,13 +36,15 @@ function Seat(cfg) {
     // The way out: the saved spot, or the nearest free spot around it and the object (a turret that turned, a car
     // that moved may stand where the player stood). A 32x32x72 hull with a floor under it; the object is solid.
     const HULL = {mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72}};
-    const ignore = p => [p, cfg.decoy ? cfg.decoy() : undefined].filter(core.valid);
+    // Only the player, and only while not parented: ignoring an entity parented to a vehicle (the seated pilot, the
+    // decoy) makes CS2 skip the whole hierarchy, so a spot inside the vehicle's body read as free. Decoys are never solid.
+    const ignore = p => [p].filter(e => core.valid(e) && !core.valid(e.GetParent?.()));
     function free(at, p) {
-        const t = Instance.TraceBox({start: at, end: at, ...HULL, ignoreEntity: ignore(p)});
+        const t = core.boxTrace({start: at, end: at, ...HULL, ignoreEntity: ignore(p)});
         return !t.startedInSolid && !t.didHit;
     }
     function ground(at, p) {
-        const t = Instance.TraceBox({start: {...at, z: at.z + 48}, end: {...at, z: at.z - 96}, ...HULL, ignoreEntity: ignore(p)});
+        const t = core.boxTrace({start: {...at, z: at.z + 48}, end: {...at, z: at.z - 96}, ...HULL, ignoreEntity: ignore(p)});
         if (t.startedInSolid || !t.didHit || (t.normal && t.normal.z < .65)) return null;
         const spot = {...t.end, z: t.end.z + 1};
         return free(spot, p) ? spot : null;
@@ -123,8 +125,9 @@ function Seat(cfg) {
             if (!edge) continue;
             if (p === player) { exit("use"); continue; }
             if (player) continue;
-            const t = targets();
-            if (t.length && t.includes(core.eyeRay(p, cfg.reach || 96).hitEntity)) enter(p);
+            const t = targets(), hit = core.eyeRay(p, cfg.reach || 96).hitEntity;
+            // Parts parented to the object count too (a bus window, a turret shield).
+            if (t.length && core.valid(hit) && (t.includes(hit) || t.includes(hit.GetParent?.()))) enter(p);
         }
         if (player) holster();
     }

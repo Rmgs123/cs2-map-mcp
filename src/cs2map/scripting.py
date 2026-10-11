@@ -652,6 +652,7 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
                     shot(name + '_complete_hud')
                 else:
                     cursor = len(lines)
+                    command('\n'.join(RELEASE), 0.1)     # keys a previous run (or a person at the keyboard) left held
                     for i, step in enumerate(steps):
                         remaining()
                         key = _step_kind(step)

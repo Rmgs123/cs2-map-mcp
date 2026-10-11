@@ -229,16 +229,20 @@ def validate_camera(camera, default=None):
     """``{forward, up, chase:{forward, up}|false, start?:"fpv"|"chase"}``: FPV view and the optional chase view (R switches)."""
     default = default or {'forward': 22, 'up': 10}
     camera = default if camera is None else camera
-    keys(camera, {'forward', 'up', 'right', 'chase', 'start'}, 'camera')
+    keys(camera, {'forward', 'up', 'right', 'chase', 'start', 'pilot'}, 'camera')
     out = {'forward': number(camera.get('forward', default['forward']), 'camera.forward', -256, 128),
            'up': number(camera.get('up', default['up']), 'camera.up', 0, 128)}
     if camera.get('right', default.get('right', 0)):        # sideways from the body origin (a driver's seat)
         out['right'] = number(camera.get('right', default.get('right', 0)), 'camera.right', -128, 128)
+    if camera.get('pilot'):                  # FPV from the seated pilot's eyes (a seat far from the body origin)
+        if camera['pilot'] is not True:
+            raise ValueError('camera.pilot must be true or absent')
+        out['pilot'] = True
     chase = camera.get('chase', default.get('chase', {'forward': -120, 'up': 36}))
     if chase is not False:
         keys(chase, {'forward', 'up'}, 'camera.chase')
-        chase = {'forward': number(chase.get('forward', -120), 'camera.chase.forward', -512, 128),
-                 'up': number(chase.get('up', 36), 'camera.chase.up', 0, 256)}
+        chase = {'forward': number(chase.get('forward', -120), 'camera.chase.forward', -1024, 128),
+                 'up': number(chase.get('up', 36), 'camera.chase.up', 0, 512)}
     out['chase'] = chase
     if 'start' in camera:                    # optional: which view a seated player gets first (default fpv)
         if camera['start'] not in ('fpv', 'chase') or (camera['start'] == 'chase' and chase is False):
@@ -268,16 +272,22 @@ def validate_seat(spec):
 
 
 def validate_hud(hud):
-    """``hud`` is optional: ``{"title": "text up to 24 chars"}`` prefixed to the telemetry line, plus the style keys
-    of ui.py (theme, position, size, width, offset, animation, accent, background, text, font)."""
+    """``hud`` is optional: ``{"title": "text up to 24 chars", "hint": "key hints up to 120 chars"}`` (the heading
+    and the key line of the panel), plus the style keys of ui.py (theme, position, size, width, offset, animation,
+    accent, background, text, font)."""
     if hud is None:
         return {}
     from . import ui
-    hud = ui.validate(hud, extra={'title'})
-    title = hud.pop('title', '')
-    if not isinstance(title, str) or len(title) > 24 or any(c in title for c in '"\\\n\r<>'):
+    hud = ui.validate(hud, extra={'title', 'hint', 'labels'})
+    title, hint, labels = hud.pop('title', ''), hud.pop('hint', ''), hud.pop('labels', {})
+    if (not isinstance(labels, dict) or set(labels) - {'kmh', 'crawl', 'exit', 'blocked', 'air'} or
+            any(not isinstance(v, str) or len(v) > 32 or any(c in v for c in '"\\\n\r<>&') for v in labels.values())):
+        raise ValueError('hud.labels translates the status words {kmh, crawl, exit, blocked, air}: plain strings up to 32 characters')
+    if not isinstance(title, str) or len(title) > 24 or any(c in title for c in '"\\\n\r<>&'):
         raise ValueError('hud.title must be a plain string up to 24 characters')
-    return {**hud, **({'title': title} if title else {})}
+    if not isinstance(hint, str) or len(hint) > 120 or any(c in hint for c in '"\\\n\r<>&'):
+        raise ValueError('hud.hint must be a plain string up to 120 characters')
+    return {**hud, **({'title': title} if title else {}), **({'hint': hint} if hint else {}), **({'labels': labels} if labels else {})}
 
 
 def model_path(value, label='model'):

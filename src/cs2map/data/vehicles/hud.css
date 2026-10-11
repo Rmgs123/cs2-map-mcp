@@ -2,6 +2,8 @@
 .Title { color: #5ed2efff; font-size: 18px; font-weight: bold; }
 .Status { color: white; font-size: 26px; }
 .Hint { color: #b8d0d9ff; font-size: 17px; }
+#prompt { horizontal-align: center; vertical-align: center; margin-top: 90px; background-color: #10252bd0; padding: 6px 16px; border: 1px solid #47879cff; }
+.Prompt { color: white; font-size: 22px; }
 .Hidden { visibility: collapse; }
 .Low .Status { color: #ff756aff; }
 .CarRoot { width: 100%; height: 100%; }

@@ -27,10 +27,38 @@ class Schema(unittest.TestCase):
 
     def test_bad_numbers_fields_and_sound(self):
         for key, value in [('speed', float('nan')), ('mass', True), ('steer', 46), ('grip', 0),
-                ('reach', 81), ('origin', [0, 0]), ('wheel_model', '../x.vmdl'), ('engine', {}),
+                ('reach', 161), ('origin', [0, 0]), ('wheel_model', '../x.vmdl'), ('engine', {}),
                 ('engine', {'idle': 'x', 'drive': 'x;quit'}), ('sound', 'motor'), ('physics', False), ('rotors', [])]:
             with self.subTest(key=key), self.assertRaises(ValueError):
                 control.validate({'name': 'car1', 'kind': 'car', key: value})
+
+    def test_own_body_fields_bus(self):
+        door = {'at': [220, -78, 14], 'radius': 70, 'spots': [[165, -24, 26], [165, 26, 26]]}
+        bus = {'name': 'bus', 'kind': 'car', 'door': {'at': [226, -24, 24], 'radius': 40}, 'reach': 140,
+               'exits': [[150, -20, 50]], 'size': [590, 140], 'pilot': {'scale': 1, 'at': [236, 37, 24]},
+               'passengers': {'floor': 24, 'roof': 140, 'doors': [door], 'hint': {'board': 'E: board'}},
+               'camera': {'forward': 0, 'up': 72, 'pilot': True, 'chase': {'forward': -620, 'up': 230}}}
+        s = control.validate(copy.deepcopy(bus))
+        self.assertEqual(control.validate(s), s)
+        self.assertEqual(s['passengers']['hint'], {'board': 'E: board', 'ride': 'E: get out', 'drive': 'E: drive', 'blocked': 'No room to get out'})
+        self.assertTrue(s['camera']['pilot'])
+        code, xml, _, _ = control.generate(s)
+        self.assertIn('id="prompt"', xml)
+        self.assertIn('function passengers(', code)
+        stock = control.validate({'name': 'car1', 'kind': 'car'})
+        self.assertFalse({'door', 'exits', 'size', 'passengers', 'pilot'} & set(stock), 'stock cars keep their config')
+        for key, value in [('passengers', {'doors': [door]}), ('size', [10, 10]), ('exits', []),
+                           ('door', {'radius': 40}), ('pilot', {'scale': 3})]:
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                spec = copy.deepcopy(bus)
+                if key == 'passengers':
+                    spec.pop('size')
+                spec[key] = value if key != 'passengers' else spec[key]
+                control.validate(spec)
+        too_many = copy.deepcopy(bus)
+        too_many['passengers']['doors'] = [dict(door, spots=[[0, 0, 26]] * 17)] * 2
+        with self.assertRaises(ValueError):
+            control.validate(too_many)
 
     def test_relative_origin_and_yaw_wheel_positions(self):
         with patch.object(vehicles.layout, 'point', return_value=([100, 200, 8], None)):

@@ -52,7 +52,7 @@ class ControlValidation(unittest.TestCase):
         change(lambda x: x.update(physics=False, health=50))
         change(lambda x: x.update(on_exit='home'))
         change(lambda x: x.update(health=-5))
-        change(lambda x: x.update(camera={'chase': {'forward': -600}}))
+        change(lambda x: x.update(camera={'chase': {'forward': -1100}}))
         change(lambda x: x.update(kind='car'))
         change(lambda x: x.update(origin=[1, 1, 0]))
         change(lambda x: x.update(bounds={'mins': [0, 0, 0], 'maxs': [50, 50, 50]}))

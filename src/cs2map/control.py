@@ -63,7 +63,7 @@ def register_kind(kind, validate, fragments, entities, motion, *, fields=(), pre
     fragments: shared fragments of data/mechanics (['core','hud','camera','seat','health', ...]).
     entities(spec, names): the add_entity operations (see mechanics.entity/seat_entities/effect_entities).
     motion: the JS adapter (`// @fragment <kind>_motion`, `// @requires ...`): the body of the script after the fragments.
-    title, hint: HUD heading and key hints of the shared template (data/control/hud.xml); hud={'title': ...} overrides the title.
+    title, hint: HUD heading and key hints of the shared template (data/control/hud.xml); hud={'title', 'hint'} overrides them.
     names(spec): extra targetnames; the standard ones (script, hud, sound, pilot, filter, pawn, effects) are always there.
     """
     if not mechanics._NAME.fullmatch(kind):
@@ -267,8 +267,9 @@ def generate(spec):
     code = mechanics.build_script(n['script'], [*k.fragments, f'{k.name}_motion'], {**spec, 'entities': n},
                                   marker=MARKER, marker_config=spec)
     title = (spec.get('hud') or {}).get('title') or k.title
+    hint = (spec.get('hud') or {}).get('hint') or k.hint
     xml = (k.hud_files[0].read_text(encoding='utf-8').replace('HUDNAME', n['hud'])
-           .replace('HUDTITLE', title).replace('HUDHINT', k.hint))
+           .replace('HUDTITLE', title).replace('HUDHINT', hint))
     from . import ui
     css = k.hud_files[1].read_text(encoding='utf-8') + ui.override(HUD_ROLES, spec.get('hud') or {}, 'bottom')
     return code, xml, css, k.entities(spec, n)
