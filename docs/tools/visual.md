@@ -8,7 +8,10 @@
 Use `visual_check(name)` after a `map_edit` batch and before a build. It audits
 the authored VMAP in seconds; it does not load the map or replace a real CS2
 capture. The response is `{map, ok, problems, summary}`. Each problem has
-`severity`, `code`, `id`, `message`, and a numeric `fix`.
+`severity`, `code`, `id`, `message`, and a numeric `fix`. `problems` lists the
+first `limit` (default 200, errors first); `summary.by_code` counts every
+problem, so a town of thousands of meshes answers in a few kilobytes. A map
+with ~4000 meshes and a 257×291 terrain is checked in about 30 seconds.
 
 ```json
 {"name":"q_f2_orig"}
@@ -35,7 +38,7 @@ Codes:
 | `visual_flat_model_on_surface` | A model at most 4 units thin (glass pane, shutter, door panel) lies within 0.3 of a parallel wall or niche face that faces it: its visible side is in that plane and flickers (white curtains in dark window niches). Floor covers and drains are skipped (their back faces down). | Move it 1+ unit off the surface: deepen the niche or offset the model. |
 | `visual_wall_part_off_wall` | A part whose kit or atlas `mount` is `wall` has no wall within 16 units (a sign or shutter left on the floor or in the air). | Put it on a wall with a layout wall point or `facing`. |
 | `visual_worldtext_unbacked` | No visible triangle behind the text plane within 32 units. | Add a backing or correct the angle; rotating story hints are excluded. |
-| `visual_phantom_floor` (error) | A render-only (no collision) floor in a playable room lies 2–64 units above the solid floor: players walk and shoot through it. | Pave the floor itself (`add_paving`, `set_material`) or make the slab solid. |
+| `visual_phantom_floor` (error) | A render-only (no collision) floor in a playable room lies 2–64 units above the solid floor: players walk and shoot through it. Faces narrower than 24 units seen from above (sills, cornices, frames, curtains, cables — also when turned) are skipped. | Pave the floor itself (`add_paving`, `set_material`) or make the slab solid. |
 | `visual_phantom_wall` (error) | A render-only wall at player height in a room with no collision within 8 units behind it. | Make it solid or put it on a real wall. |
 | `visual_exposed_foundation` | Empty underside of a ground slab in an outdoor layout is visible from a gameplay point. | Add a ground mass/skirt, or water and supports for a pier. |
 

@@ -107,8 +107,8 @@ def _triangles(node):
             yield points[0],points[i],points[i+1]
 
 
-def _sub(a,b): return tuple(a[i]-b[i] for i in range(3))
-def _dot(a,b): return sum(a[i]*b[i] for i in range(3))
+def _sub(a,b): return (a[0]-b[0],a[1]-b[1],a[2]-b[2])
+def _dot(a,b): return sum((a[0]*b[0],a[1]*b[1],a[2]*b[2]))
 def _cross(a,b): return (a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0])
 
 
@@ -140,6 +140,17 @@ def _floor(point,triangles,max_drop=4096):
                 or y>max(a[1],b[1],c[1])+1e-3 or min(a[2],b[2],c[2])>z or max(a[2],b[2],c[2])<bottom):continue
         normal=_cross(_sub(tri[1],tri[0]),_sub(tri[2],tri[0]))
         if normal[2] <= 1e-6:continue
+        t=_ray(point,(0,0,-1),tri)
+        if t is not None and t<=max_drop:hits.append(point[2]-t)
+    return max(hits,default=None)
+
+
+def _floor_boxed(point,entries,max_drop=4096):
+    """_floor over (triangle, lo, hi, up) entries with precomputed boxes and up = the normal's z > 1e-6
+    (same result as _floor, without the per-call min/max and cross products)."""
+    hits=[];x,y,z=point[0],point[1],point[2];bottom=z-max_drop-1e-3
+    for tri,lo,hi,up in entries:
+        if not up or x<lo[0]-1e-3 or x>hi[0]+1e-3 or y<lo[1]-1e-3 or y>hi[1]+1e-3 or lo[2]>z or hi[2]<bottom:continue
         t=_ray(point,(0,0,-1),tri)
         if t is not None and t<=max_drop:hits.append(point[2]-t)
     return max(hits,default=None)

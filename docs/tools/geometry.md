@@ -148,3 +148,13 @@ sculpture import a Blender model with explicit collision. Keep >=1 unit
 between layered surfaces. Limit faces (8192), profile points (512), path
 stations (256); use coarse solids and render-only details. Validate with
 check_map/visual_check, full build, opened game frames and physical routes.
+
+## Big maps: speed
+
+- `mesh` shapes are cached by content (in memory and in `.local/cache/meshes.sqlite`, 256 MB): replaying a
+  batch of unchanged buildings skips their triangulation and checks.
+- `map_edit` reuses the map it has just written while the file is unchanged, so a series of calls on a
+  100 MB map reads it once. Every save still keeps a backup; a map keeps its newest copies within
+  `backups_per_map` and `backups_map_mb` (settings `limits`), and always the last three.
+- Builds: `fast` (~20 s on a town map) for shape and placement frames; `full` and cubemaps once the look matters.
+- Keep source data of a map (OSM extracts, drawn plans, heightmaps) out of `.local/tmp`: it is emptied after a day.

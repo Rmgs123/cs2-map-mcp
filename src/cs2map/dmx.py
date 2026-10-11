@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import struct
 import uuid
+from itertools import chain
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Iterator
 
@@ -124,6 +125,11 @@ class Document:
 # ---------------------------------------------------------------------------
 # decoding
 
+_I32 = struct.Struct('<i')
+_U8 = struct.Struct('<B')
+_I32x2 = struct.Struct('<ii')
+
+
 class _Reader:
     def __init__(self, data: bytes):
         self.data = data
@@ -145,7 +151,11 @@ class _Reader:
         return v
 
     def i32(self) -> int:
-        return self.unpack('i')[0]
+        pos = self.pos
+        if pos + 4 > len(self.data):
+            raise DmxError('unexpected end of file')
+        self.pos = pos + 4
+        return _I32.unpack_from(self.data, pos)[0]
 
     def cstring(self) -> str:
         end = self.data.find(b'\0', self.pos)
@@ -304,9 +314,9 @@ def _write_bulk(w: _Writer, tag: str, values: list) -> None:
             raise DmxError('bool array needs True/False values')
         flat = values
     else:
-        if any(len(v) != width for v in values):
+        if values and set(map(len, values)) != {width}:
             raise DmxError(f'{tag} items need {width} components')
-        flat = [c for v in values for c in v]
+        flat = list(chain.from_iterable(values))
     try:
         w.pack(f'{len(flat)}{code}', *flat)
     except struct.error as e:
@@ -339,17 +349,19 @@ def _write_scalar(w: _Writer, tag: str, v, strings: dict[str, int], index: dict[
 
 
 def _write_attrs(w: _Writer, attrs: dict[str, Attr], strings, index, prefix: bool):
-    w.pack('i', len(attrs))
+    buf = w.buf
+    buf += _I32.pack(len(attrs))
     for name, a in attrs.items():
-        tag = a.base
+        is_array = a.type.endswith('_array')
+        tag = a.type[:-6] if is_array else a.type
         if tag not in _TYPE_ID:
             raise DmxError(f'unknown type {a.type!r} on {name!r}')
         if prefix and tag == 'element':
             raise DmxError('element references are not allowed in the prefix block')
-        w.cstring(name) if prefix else w.pack('i', strings[name])
-        w.pack('B', _TYPE_ID[tag] + (_ARRAY_FLAG if a.is_array else 0))
-        if a.is_array:
-            w.pack('i', len(a.value))
+        w.cstring(name) if prefix else buf.extend(_I32.pack(strings[name]))
+        buf.append(_TYPE_ID[tag] + (_ARRAY_FLAG if is_array else 0))
+        if is_array:
+            buf += _I32.pack(len(a.value))
             if tag in _BULK:
                 _write_bulk(w, tag, a.value)
             else:

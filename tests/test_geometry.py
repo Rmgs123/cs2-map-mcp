@@ -83,6 +83,17 @@ class GeometryShapes(unittest.TestCase):
         self.checked(m,False);self.assertEqual(len(m.faces),8)
         self.assertTrue(all(m.normal(f)[2]>.999 and f.material=='second' and f.scale==(.5,1.) for f in m.faces))
 
+    def test_validated_mesh_cache_returns_fresh_equal_copies(self):
+        cube=mesh.box((0,0,0),(10,10,10))
+        s={'vertices':cube.positions,'faces':[f.verts for f in cube.faces]}
+        first=g.mesh_shape(s,MAT)[0]
+        first.positions[0]=(999,999,999)                      # a caller changing its copy
+        again=g.mesh_shape(s,MAT)[0]
+        self.assertIsNot(again,first)
+        self.assertEqual(again.positions,cube.positions)
+        self.assertEqual([f.verts for f in again.faces],[f.verts for f in cube.faces])
+        self.assertIsNone(g._cache_key({'vertices':[[float('nan'),0,0]]},MAT),'NaN specs are not cached')
+
     def test_closed_mesh_preserves_winding(self):
         cube=mesh.box((0,0,0),(10,10,10))
         s={'vertices':cube.positions,'faces':[f.verts for f in cube.faces]}

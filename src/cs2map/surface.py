@@ -187,10 +187,11 @@ def register(mcp, project) -> list[str]:
         return R['check_map'](name)
 
     @mcp.tool()
-    def visual_check(name: str) -> dict:
+    def visual_check(name: str, limit: int = 200) -> dict:
         """Scene audit from measured model bounds: floating or deeply intersecting props, unsupported lamps,
-        open meshes, likely z-fighting, unbacked text, exposed foundations. Returns {ok, problems with ids and fixes}."""
-        return R['visual_check'](name)
+        open meshes, likely z-fighting, unbacked text, exposed foundations. Returns {ok, problems with ids and fixes
+        (first `limit`, errors first), summary.by_code}."""
+        return R['visual_check'](name, limit)
 
     # ---- references -----------------------------------------------------------------------------------------
     @mcp.tool()

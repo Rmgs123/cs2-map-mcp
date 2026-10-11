@@ -64,6 +64,7 @@ class VMap:
         self.path = Path(path) if path else None
         self._node_ids: set[int] | None = None
         self._ref_ids: set[int] | None = None
+        self.written: dmx.Document | None = None     # set by save(): the parsed copy of the bytes written
 
     # -- loading / creating ---------------------------------------------------
     @classmethod
@@ -399,17 +400,19 @@ class VMap:
 
     # -- saving ---------------------------------------------------------------------------
     def to_bytes(self) -> bytes:
+        return self._encode()[0]
+
+    def _encode(self) -> tuple[bytes, dmx.Document]:
         self._update_prefix()
         data = dmx.dumps(self.doc)
-        dmx.loads(data)   # self-check: the file we write must parse
-        return data
+        return data, dmx.loads(data)   # self-check: the file we write must parse
 
     def save(self, path: Path | None = None, backup_dir: Path | None = None) -> dict[str, Any]:
         """Write the map (atomically).  An existing file is first copied to backup_dir."""
         target = Path(path or self.path or '')
         if not target.name:
             raise MapError('no path to save to')
-        data = self.to_bytes()
+        data, written = self._encode()
         target.parent.mkdir(parents=True, exist_ok=True)
         backup = None
         if target.exists() and backup_dir is not None:
@@ -424,4 +427,7 @@ class VMap:
             os.fsync(f.fileno())
         os.replace(tmp, target)
         self.path = target
+        # The self-check parse is exactly what loading the new file gives: keep it, so the next load of an
+        # unchanged file can skip reading and parsing it again (Project.load).
+        self.written = written
         return {'path': str(target), 'bytes': len(data), 'backup': str(backup) if backup else None}

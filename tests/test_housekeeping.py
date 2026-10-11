@@ -28,6 +28,21 @@ class Limits(unittest.TestCase):
             self.assertEqual(out['removed'], 3)
             self.assertNotIn('shot1.png', left)
 
+    def test_map_backups_trimmed_after_save_by_size(self):
+        import dataclasses
+        from cs2map.config import load_settings
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            for i in range(8):
+                make(d / f'2026100{i}.vmap', 2**20, 50 - i)            # 1 MB each, the last is the newest
+            s = dataclasses.replace(load_settings(), limits={'backups_per_map': 6, 'backups_map_mb': 4})
+            self.assertEqual(hk.trim_map_backups(s, d), 4)
+            self.assertEqual(sorted(p.name for p in d.iterdir()),
+                             ['20261004.vmap', '20261005.vmap', '20261006.vmap', '20261007.vmap'])
+            s = dataclasses.replace(s, limits={'backups_map_mb': 1})
+            hk.trim_map_backups(s, d)                                    # the newest copies always stay
+            self.assertEqual(len(list(d.iterdir())), hk.KEEP_MIN_BACKUPS)
+
     def test_backups_newest_per_map(self):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)

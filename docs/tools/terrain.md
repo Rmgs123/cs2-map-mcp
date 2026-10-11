@@ -23,7 +23,7 @@
 
 - `bounds` XY (or XYZ: `mins.z` gives `base_z`); `cell` 32..256 (64 for detailed ground); grid ≤ 512×512; chunks of ≤ 64×64 cells share edge heights (no seams).
 - `ops` in order: `hill`/`valley` (`center`, `radius`, `height`), `ridge` (`path`, `width`, `height`), `plateau` (`polygon`, `z`, `falloff`), `noise` (`amplitude`, `scale`, `seed`), `flatten` (`path`, `width`, `z` or `"follow"` = grade between sampled ends, `falloff`). A small `noise` after `flatten` makes a bumpy dirt road.
-- Or a heightmap: local grayscale PNG + `height_range:[min,max]`.
+- Or a heightmap: local grayscale PNG + `height_range:[min,max]`; 16-bit PNGs keep 65536 levels. Pixel column i is the i-th x step and row j the j-th y step from `bounds` min (row 0 = lowest y: do not flip an image made with y up).
 - `blend:true` (default): Valve's grass/dirt blend shader; dirt in hollows (`dirt_height`, default min+64), rock on slopes over `rock_slope` (42°). `blend:false`: one material per face. `materials`: `grass`, `dirt`, `rock`, `sides`, `blend`.
 - `paint`: up to 32 dirt tracks `{path, width, falloff}` — a soft dirt band in blend mode (faces in the band get `dirt` with `blend:false`). Roads, trails, tyre tracks.
 

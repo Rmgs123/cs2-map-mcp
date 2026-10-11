@@ -49,6 +49,24 @@ class BatchOps(unittest.TestCase):
         self.p.map_edit(MAP, [{'op': 'delete', 'ids': [n['id'] for n in crates]}])
         self.assertEqual(self.p.map_info(MAP, classname='prop_static')['total_matching'], 0)
 
+    def test_saved_map_reused_until_the_file_changes(self):
+        import os
+        self.p.map_edit(MAP, [{'op': 'add_entity', 'classname': 'info_target', 'origin': [1, 2, 3],
+                               'keyvalues': {'targetname': 'cache_probe'}}])
+        cached = self.p._saved_map
+        self.assertIsNotNone(cached, 'map_edit keeps the parsed copy of what it wrote')
+        m = self.p.load(MAP)
+        self.assertIs(m.doc, cached[3])
+        self.assertIsNone(self.p._saved_map, 'handed out once: a caller may change it')
+        self.assertEqual(len(m.entities(targetname='cache_probe')), 1)
+        self.p.map_edit(MAP, [{'op': 'update', 'id': 'cache_probe', 'keyvalues': {'spawnflags': 1}}])
+        path = self.p._map_file(MAP)
+        stale = self.p._saved_map[3]
+        os.utime(path, ns=(path.stat().st_atime_ns, path.stat().st_mtime_ns + 10**9))   # changed outside
+        fresh = self.p.load(MAP)
+        self.assertIsNot(fresh.doc, stale, 'a file changed by someone else is read again')
+        self.assertEqual(fresh.entities(targetname='cache_probe')[0]['entity_properties']['spawnflags'], '1')
+
     def test_point_vs_brush_entity_checks(self):
         from cs2map.project import OpError
         with self.assertRaises(OpError):

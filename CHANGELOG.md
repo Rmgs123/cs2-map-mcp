@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **Big maps are fast**: a 4000-mesh town map with a 257×291 terrain rebuilds from its batches in about 1.5 min instead of 4 and `visual_check` takes 30 s instead of 18 min, with the same results: grid lookups instead of whole-map scans in the phantom-floor check, cheaper z-fighting pairs, hole bridges in triangulation tried nearest first, faster self-intersection checks and DMX encoding.
+- `mesh` shapes are cached by content; `map_edit` reuses the map it has just written while the file is unchanged; map backups are trimmed after every save (`backups_map_mb`, newest three always kept).
+- `visual_check(limit)` and `summary.by_code`; `visual_phantom_floor` no longer flags narrow turned faces (sills, frames, curtains, cables).
+
 ## 1.0.0 — 2026-10-09 (phase 10)
 
 First release: any CS2 map and mechanic through MCP, with docs in English.

@@ -492,6 +492,34 @@ def _clip(subject, clipper):
     return out
 
 
+def _min_width_xy(points):
+    """Smallest width of a face seen from above (rotating calipers on its convex hull): a sill or a cable
+    turned 45 degrees is as narrow as an axis-aligned one, although its bounding box is wide."""
+    pts = sorted({(p[0], p[1]) for p in points})
+    if len(pts) < 3:
+        return 0.0
+    def turn(o, a, b):
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+    lower, upper = [], []
+    for p in pts:
+        while len(lower) >= 2 and turn(lower[-2], lower[-1], p) <= 0:
+            lower.pop()
+        lower.append(p)
+    for p in reversed(pts):
+        while len(upper) >= 2 and turn(upper[-2], upper[-1], p) <= 0:
+            upper.pop()
+        upper.append(p)
+    hull = lower[:-1] + upper[:-1]
+    if len(hull) < 3:
+        return 0.0
+    best = math.inf
+    for a, b in zip(hull, hull[1:] + hull[:1]):
+        length = math.hypot(b[0] - a[0], b[1] - a[1])
+        if length > 1e-9:
+            best = min(best, max(abs(turn(a, b, p)) / length for p in hull))
+    return best
+
+
 def _area(poly):
     return 0.5 * sum(a[0] * b[1] - b[0] * a[1] for a, b in zip(poly, poly[1:] + poly[:1]))
 
@@ -552,22 +580,33 @@ def _zfight_checks(m, visible):
     found, pairs = [], set()
     for faces in buckets.values():
         faces.sort(key=lambda f: f[0])
-        for i, (d, nid, pts, n, mat) in enumerate(faces):
-            for d2, nid2, pts2, _, mat2 in faces[i + 1:]:
+        count = len(faces)
+        for i in range(count):
+            d, nid, pts, n, mat = faces[i]
+            a = None
+            for j in range(i + 1, count):
+                d2, nid2, pts2, _, mat2 = faces[j]
                 if d2 - d > ZFIGHT_GAP:
                     break
                 pair = (min(nid, nid2), max(nid, nid2))
                 # Same material with our world-projected UVs draws the same pixels: no visible flicker.
                 if nid2 == nid or pair in pairs or mat2 == mat:
                     continue
-                u = structure._cross(n, (0, 0, 1) if abs(n[2]) < 0.9 else (1, 0, 0))
-                ul = math.sqrt(sum(x * x for x in u))
-                u = [x / ul for x in u]
-                v = structure._cross(n, u)
-                a = [(sum(q[k] * u[k] for k in range(3)), sum(q[k] * v[k] for k in range(3))) for q in pts]
-                b = [(sum(q[k] * u[k] for k in range(3)), sum(q[k] * v[k] for k in range(3))) for q in pts2]
-                if _area(a) < 0:
-                    a = a[::-1]
+                if a is None:       # projection of face i, computed once for all its partners
+                    u = structure._cross(n, (0, 0, 1) if abs(n[2]) < 0.9 else (1, 0, 0))
+                    ul = math.sqrt(sum(x * x for x in u))
+                    u = [x / ul for x in u]
+                    v = structure._cross(n, u)
+                    a = [(sum(q[k] * u[k] for k in range(3)), sum(q[k] * v[k] for k in range(3))) for q in pts]
+                    if _area(a) < 0:
+                        a = a[::-1]
+                    abox = (min(q[0] for q in a), max(q[0] for q in a), min(q[1] for q in a), max(q[1] for q in a))
+                # sum() of a tuple: the same compensated float sum as before, without a generator per vertex.
+                b = [(sum((q[0] * u[0], q[1] * u[1], q[2] * u[2])), sum((q[0] * v[0], q[1] * v[1], q[2] * v[2])))
+                     for q in pts2]
+                if (max(q[0] for q in b) <= abox[0] or min(q[0] for q in b) >= abox[1]
+                        or max(q[1] for q in b) <= abox[2] or min(q[1] for q in b) >= abox[3]):
+                    continue        # projections apart: no shared area
                 if _area(b) < 0:
                     b = b[::-1]
                 shared = _clip(a, b)
@@ -798,6 +837,29 @@ def _render_only_meshes(m):
     return out
 
 
+class _TriGrid:
+    """XY grid over (triangle, lo, hi, ...) entries: near() returns the entries whose cells meet a box, in their
+    original order, so a caller filtering them gets exactly what a scan of the whole list would give."""
+    CELL = 256.0
+
+    def __init__(self, entries):
+        self.entries = entries
+        self.cells = {}
+        c = self.CELL
+        for i, (_, lo, hi, *_rest) in enumerate(entries):
+            for gx in range(math.floor(lo[0] / c), math.floor(hi[0] / c) + 1):
+                for gy in range(math.floor(lo[1] / c), math.floor(hi[1] / c) + 1):
+                    self.cells.setdefault((gx, gy), []).append(i)
+
+    def near(self, x0, x1, y0, y1):
+        c = self.CELL
+        found = set()
+        for gx in range(math.floor(x0 / c), math.floor(x1 / c) + 1):
+            for gy in range(math.floor(y0 / c), math.floor(y1 / c) + 1):
+                found.update(self.cells.get((gx, gy), ()))
+        return [self.entries[i] for i in sorted(found)]
+
+
 def _phantom_checks(m, meshes):
     """Visible floors and walls without collision in the playable rooms (seen, but walked and shot through)."""
     rooms = [b for _, b, meta in _layout_rooms(m)]
@@ -811,7 +873,8 @@ def _phantom_checks(m, meshes):
         for tri in tris:
             lo = [min(p[i] for p in tri) for i in range(3)]
             hi = [max(p[i] for p in tri) for i in range(3)]
-            solid.append((tri, lo, hi))
+            solid.append((tri, lo, hi, checks._cross(checks._sub(tri[1], tri[0]), checks._sub(tri[2], tri[0]))[2] > 1e-6))
+    grid = _TriGrid(solid)
 
     def room_at(point, below=8.0):
         return next((r for r in rooms if r[0][0] <= point[0] <= r[1][0] and r[0][1] <= point[1] <= r[1][1]
@@ -832,17 +895,17 @@ def _phantom_checks(m, meshes):
             hi = [max(p[i] for p in points) for i in range(3)]
             c = [sum(p[i] for p in points) / len(points) for i in range(3)]
             if n[2] > 0.7:
-                if min(hi[0] - lo[0], hi[1] - lo[1]) < 24:
-                    continue          # ledges, sills, plinth tops: nobody stands there
-                near = [t for t, a, b in solid if a[0] <= hi[0] and b[0] >= lo[0] and a[1] <= hi[1] and b[1] >= lo[1]
-                        and a[2] <= hi[2] + 1]
+                if _min_width_xy(points) < 24:
+                    continue          # ledges, sills, plinth tops, cables (also when turned): nobody stands there
+                near = [e for e in grid.near(lo[0], hi[0], lo[1], hi[1]) if e[1][0] <= hi[0] and e[2][0] >= lo[0]
+                        and e[1][1] <= hi[1] and e[2][1] >= lo[1] and e[1][2] <= hi[2] + 1]
                 samples = [c] + [(lo[0] + (hi[0] - lo[0]) * fx, lo[1] + (hi[1] - lo[1]) * fy,
                                   lo[2] + (hi[2] - lo[2]) * 0.5) for fx in (0.25, 0.75) for fy in (0.25, 0.75)]
                 bad = 0
                 for x, y, z in samples:
                     if room_at((x, y, z)) is None:
                         continue
-                    floor = checks._floor((x, y, z - 0.01), near, 4096)
+                    floor = checks._floor_boxed((x, y, z - 0.01), near, 4096)
                     if floor is None or PHANTOM_GAP < z - floor <= PHANTOM_REACH:
                         bad += 1
                 if bad >= 3:
@@ -852,14 +915,18 @@ def _phantom_checks(m, meshes):
                 width = math.hypot(hi[0] - lo[0], hi[1] - lo[1])
                 if width < 32 or room_at(c) is None:
                     continue
-                near = [t for t, a, b in solid if a[0] <= hi[0] + 64 and b[0] >= lo[0] - 64
-                        and a[1] <= hi[1] + 64 and b[1] >= lo[1] - 64]
-                floor = checks._floor((c[0], c[1], lo[2] + 1), near, 512)
+                boxed = [e for e in grid.near(lo[0] - 64, hi[0] + 64, lo[1] - 64, hi[1] + 64)
+                         if e[1][0] <= hi[0] + 64 and e[2][0] >= lo[0] - 64 and e[1][1] <= hi[1] + 64 and e[2][1] >= lo[1] - 64]
+                floor = checks._floor_boxed((c[0], c[1], lo[2] + 1), boxed, 512)
                 base = floor if floor is not None else lo[2]
                 if min(hi[2], base + 72) - max(lo[2], base) < 48:
                     continue          # above head height or too low to block anyone
                 # Backed on either side: a skin in front of a wall, or the back face of one pressed against it.
                 probe = (c[0], c[1], max(lo[2], base) + 24)
+                # A hit within PHANTOM_BACKING of the probe lies in a triangle whose box is that close.
+                reach = PHANTOM_BACKING + 1
+                near = [e[0] for e in boxed if all(e[1][k] <= probe[k] + reach and e[2][k] >= probe[k] - reach
+                                                   for k in range(3))]
                 if not any((hit := checks._ray(probe, d, t)) is not None and hit <= PHANTOM_BACKING
                            for d in (tuple(-x for x in n), tuple(n)) for t in near):
                     walls += 1
@@ -1250,15 +1317,25 @@ def _audit(project, m) -> list[dict]:
     return problems
 
 
-def visual_check(project, name: str) -> dict:
-    """Audit a map for conservative visual authoring problems."""
+def visual_check(project, name: str, limit: int = 200) -> dict:
+    """Audit a map for conservative visual authoring problems. The list shows `limit` problems (errors
+    first); summary.by_code counts all of them, so a big map does not return a huge answer."""
     m = project.load(name)
     problems = _audit(project, m)
-    return {"map": name, "ok": not any(p["severity"] == "error" for p in problems),
-            "problems": problems,
-            "summary": {"errors": sum(p["severity"] == "error" for p in problems),
-                        "warnings": sum(p["severity"] == "warning" for p in problems),
-                        "models_measured": len(getattr(project, "_visual_model_bounds", {}))}}
+    by_code: dict[str, int] = {}
+    for p in problems:
+        by_code[p["code"]] = by_code.get(p["code"], 0) + 1
+    limit = max(0, int(limit))
+    shown = sorted(problems, key=lambda p: p["severity"] != "error")[:limit] if len(problems) > limit else problems
+    out = {"map": name, "ok": not any(p["severity"] == "error" for p in problems),
+           "problems": shown,
+           "summary": {"errors": sum(p["severity"] == "error" for p in problems),
+                       "warnings": sum(p["severity"] == "warning" for p in problems),
+                       "by_code": by_code,
+                       "models_measured": len(getattr(project, "_visual_model_bounds", {}))}}
+    if len(shown) < len(problems):
+        out["summary"]["shown"] = len(shown)
+    return out
 
 
 def visual_check_loaded(project, m) -> list[dict]:

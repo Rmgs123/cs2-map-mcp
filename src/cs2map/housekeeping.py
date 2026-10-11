@@ -17,7 +17,8 @@ from pathlib import Path
 from .config import PROJECT_ROOT, Settings
 
 DEFAULTS = {'screenshots_mb': 800, 'logs_mb': 200, 'logs_files': 3000, 'backups_mb': 1500, 'backups_per_map': 15,
-            'backups_other_mb': 300, 'tmp_hours': 24}
+            'backups_map_mb': 800, 'backups_other_mb': 300, 'tmp_hours': 24}
+KEEP_MIN_BACKUPS = 3      # the newest copies of a map always stay, whatever their size
 STAMP = PROJECT_ROOT / '.local' / 'housekeeping.json'
 REFERENCE_SOURCES = ('README.md', 'STATUS.md', 'CHANGELOG.md', 'docs', 'reports', 'src/cs2map/data')
 # Curated images that data files point to (kit thumbnails verified in the game): never trimmed.
@@ -105,6 +106,34 @@ def _backups(root: Path, per_map: int, limit_bytes: int, dry_run: bool) -> dict:
     rest = _trim(survivors, limit_bytes, set(), dry_run)
     return {'files': rest['files'], 'mb': rest['mb'], 'removed': removed + rest['removed'],
             'freed_mb': round(freed / 2**20) + rest['freed_mb']}
+
+
+def trim_map_backups(s: Settings, folder: Path) -> int:
+    """After a save: keep the newest `backups_per_map` copies of this map within `backups_map_mb` (the newest
+    KEEP_MIN_BACKUPS always stay). A big map saved by many map_edit calls no longer fills the disk between the
+    hourly cleanups. Returns the number of copies removed."""
+    lim = limits(s)
+    stats = []
+    for p in folder.glob('*.vmap'):
+        try:
+            st = p.stat()
+            stats.append((st.st_mtime, st.st_size, p))
+        except OSError:
+            continue
+    stats.sort(reverse=True)
+    total = removed = 0
+    full = False
+    for i, (_, size, p) in enumerate(stats):
+        full = full or not (i < int(lim['backups_per_map']) and total + size <= lim['backups_map_mb'] * 2**20)
+        if i < KEEP_MIN_BACKUPS or not full:
+            total += size
+            continue
+        try:
+            p.unlink()
+            removed += 1
+        except OSError:
+            continue
+    return removed
 
 
 def _tmp(root: Path, hours: float, dry_run: bool) -> dict:

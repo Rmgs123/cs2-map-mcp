@@ -1,10 +1,19 @@
 """Geometry extension: bounded polygon modelling without changing the core Mesh."""
 from __future__ import annotations
 
+import hashlib
+import json
 import math
+import os
+import pickle
+import sqlite3
+import time
+from collections import OrderedDict
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from . import mesh
+from .config import PROJECT_ROOT
 from .mesh import Mesh, MeshError, _add, _sub, _scale, _dot, _cross, _norm
 
 EPS = 1e-4
@@ -95,8 +104,11 @@ def rings(outer, holes=()):
     for i,r in enumerate(result[1:],1):
         if not all(inside(p,result[0]) for p in r):
             raise MeshError('hole must lie strictly inside the outer ring')
+        mine=_edges(r)
         for other in result[:i]:
-            if any(intersects(a,b,c,d) for a,b in zip(r,r[1:]+r[:1]) for c,d in zip(other,other[1:]+other[:1])):
+            theirs=_edges(other)
+            if any(intersects(a,b,c,d) for a,b,ax0,ax1,ay0,ay1 in mine for c,d,cx0,cx1,cy0,cy1 in theirs
+                   if ax0<=cx1 and cx0<=ax1 and ay0<=cy1 and cy0<=ay1):
                 raise MeshError('rings intersect or touch')
         for other in result[1:i]:
             if inside(r[0],other) or inside(other[0],r):
@@ -104,28 +116,39 @@ def rings(outer, holes=()):
     return result
 
 
-def triangulate(outer, holes=()):
+def _edges(r):
+    """Edges of a ring with their EPS-padded bounding boxes (a cheap reject before intersects)."""
+    return [(c,d,min(c[0],d[0])-EPS,max(c[0],d[0])+EPS,min(c[1],d[1])-EPS,max(c[1],d[1])+EPS)
+            for c,d in zip(r,r[1:]+r[:1])]
+
+
+def triangulate(outer, holes=(), _rings=None):
     """Visible bridges followed by ear clipping; verify the resulting area."""
-    rr = rings(outer,holes)
+    rr = _rings or rings(outer,holes)
     polygon = rr[0][:]
+    hole_edges=[e for r in rr[1:] for e in _edges(r)]
     # Rightmost holes first prevents bridges from cutting unprocessed holes.
     for hole in sorted(rr[1:], key=lambda r:max(p[0] for p in r), reverse=True):
         h = max(range(len(hole)),key=lambda i:(hole[i][0],-hole[i][1]))
         a = hole[h]
-        candidates=[]
-        for i,b in enumerate(polygon):
-            if a==b:
-                continue
+        obstacles=_edges(polygon)+hole_edges
+        # The nearest visible vertex wins (ties: lowest index), so test candidates nearest first and
+        # stop at the first visible one instead of testing every vertex of the polygon.
+        chosen=None
+        for _,i in sorted((sum((a[k]-b[k])**2 for k in range(2)),i) for i,b in enumerate(polygon) if a!=b):
+            b=polygon[i]
             mid=((a[0]+b[0])/2,(a[1]+b[1])/2)
             if not inside(mid,rr[0]) or any(inside(mid,r) for r in rr[1:]):
                 continue
-            obstacles=[polygon,*rr[1:]]
-            if any(intersects(a,b,c,d) for r in obstacles for c,d in zip(r,r[1:]+r[:1]) if a not in (c,d) and b not in (c,d)):
+            x0,x1,y0,y1=min(a[0],b[0]),max(a[0],b[0]),min(a[1],b[1]),max(a[1],b[1])
+            if any(intersects(a,b,c,d) for c,d,cx0,cx1,cy0,cy1 in obstacles
+                   if cx0<=x1 and x0<=cx1 and cy0<=y1 and y0<=cy1 and a not in (c,d) and b not in (c,d)):
                 continue
-            candidates.append((sum((a[k]-b[k])**2 for k in range(2)),i))
-        if not candidates:
+            chosen=i
+            break
+        if chosen is None:
             raise MeshError('cannot triangulate hole: no visible bridge')
-        _,i=min(candidates)
+        i=chosen
         polygon=polygon[:i+1]+hole[h:]+hole[:h+1]+[polygon[i]]+polygon[i+1:]
     todo=polygon[:]; triangles=[]
     while len(todo)>3:
@@ -169,7 +192,7 @@ def planar_parts(points, holes=()):
     if not holes and all(cross2(rr[0][i-1],b,rr[0][(i+1)%len(rr[0])])>=-EPS for i,b in enumerate(rr[0])):
         return [points]
     lookup={q:p for r,rp in zip([points,*holes],projected) for p,q in zip(r,rp)}
-    return [[lookup[q] for q in t] for t in triangulate(projected[0],projected[1:])]
+    return [[lookup[q] for q in t] for t in triangulate(projected[0],projected[1:],rr)]
 
 
 def uv_options(points, spec):
@@ -208,24 +231,48 @@ def check_intersections(m):
             if _dot(_cross(_sub(p[1],p[0]),_sub(p[2],p[0])),_cross(_sub(p[1],p[0]),_sub(p[2],p[0])))<EPS*EPS:continue
             lo=tuple(min(q[k] for q in p) for k in range(3));hi=tuple(max(q[k] for q in p) for k in range(3))
             triangles.append((lo,hi,fi,indices,p))
-    triangles.sort(key=lambda t:t[0][0])
-    def pierces(a,b,tri):
-        e1,e2=_sub(tri[1],tri[0]),_sub(tri[2],tri[0]);direction=_sub(b,a)
+    # Sweep along the longest axis of the mesh (a long wall along y would overlap everything in x).
+    k0=max(range(3),key=lambda k:max((t[1][k] for t in triangles),default=0)-min((t[0][k] for t in triangles),default=0))
+    k1,k2=[k for k in range(3) if k!=k0]
+    triangles.sort(key=lambda t:t[0][k0])
+    # Plane of every triangle (unnormalised): an edge can only pierce a triangle when its ends lie on
+    # opposite sides of that plane, and only a triangle near the plane can be coplanar with it, so most
+    # pairs skip the exact tests below.
+    planes=[]
+    for lo,hi,fi,idx,p in triangles:
+        e1,e2=_sub(p[1],p[0]),_sub(p[2],p[0]);n=_cross(e1,e2)
+        planes.append((n[0],n[1],n[2],_dot(n,p[0]),math.sqrt(_dot(n,n)),e1,e2))
+    def pierces(a,b,tri,e1,e2):
+        direction=_sub(b,a)
         h=_cross(direction,e2);det=_dot(e1,h)
         if abs(det)<1e-9:return False
         s=_sub(a,tri[0]);u=_dot(s,h)/det;q=_cross(s,e1);v=_dot(direction,q)/det;t=_dot(e2,q)/det
         return EPS<t<1-EPS and u>EPS and v>EPS and u+v<1-EPS
-    for i,(lo,hi,fi,idx,p) in enumerate(triangles):
-        for lj,hj,fj,jdx,q in triangles[i+1:]:
-            if lj[0]>hi[0]+EPS:break
-            if fi==fj or any(hi[k]<lj[k]-EPS or hj[k]<lo[k]-EPS for k in (1,2)):continue
+    face_verts=[frozenset(f.verts) for f in m.faces]
+    normals={}
+    count=len(triangles)
+    for i in range(count):
+        lo,hi,fi,idx,p=triangles[i]
+        hx,hy,hz,ly,lz=hi[k0]+EPS,hi[k1],hi[k2],lo[k1],lo[k2]
+        verts=face_verts[fi]
+        pa,pb,pc,pd,plen,pe1,pe2=planes[i]
+        for j in range(i+1,count):
+            lj,hj,fj,jdx,q=triangles[j]
+            if lj[k0]>hx:break
+            if fi==fj or hy<lj[k1]-EPS or hj[k1]<ly-EPS or hz<lj[k2]-EPS or hj[k2]<lz-EPS:continue
             # Triangulated CSG caps may share a boundary vertex while their
             # projections overlap. This is a shared edge/corner, not a shell
             # self-intersection; disconnected shells are checked below.
-            if set(m.faces[fi].verts)&set(m.faces[fj].verts):continue
-            if any(pierces(a,b,q) for a,b in zip(p,p[1:]+p[:1])) or any(pierces(a,b,p) for a,b in zip(q,q[1:]+q[:1])):
+            if not verts.isdisjoint(face_verts[fj]):continue
+            qa,qb,qc,qd,qlen,qe1,qe2=planes[j]
+            sp=[qa*x+qb*y+qc*z-qd for x,y,z in p]   # p against the plane of q
+            sq=[pa*x+pb*y+pc*z-pd for x,y,z in q]   # q against the plane of p
+            if (not (min(sp)>0 or max(sp)<0) and any(pierces(a,b,q,qe1,qe2) for a,b in zip(p,p[1:]+p[:1]))) or (
+                    not (min(sq)>0 or max(sq)<0) and any(pierces(a,b,p,pe1,pe2) for a,b in zip(q,q[1:]+q[:1]))):
                 raise MeshError(f'self-intersecting surface between faces {fi} and {fj}; reduce profile size/path bends')
-            n=normal(p)
+            if max(abs(x) for x in sq)>2*EPS*plen:continue   # q is clearly off the plane of p
+            n=normals.get(i)
+            if n is None:n=normals[i]=normal(p)
             if all(abs(_dot(_sub(v,p[0]),n))<EPS for v in q):
                 u,v=basis(n);pp=[(_dot(x,u),_dot(x,v)) for x in p];qq=[(_dot(x,u),_dot(x,v)) for x in q]
                 if any(inside(x,qq) for x in pp) or any(inside(x,pp) for x in qq) or any(
@@ -283,7 +330,95 @@ def validate(m, closed=True):
     return m
 
 
+# Validated meshes by content: a map script that rebuilds a town re-sends the same buildings, and their
+# triangulation and self-intersection checks are the slow part of map_edit. Keyed by the spec, the material
+# and the source of the geometry code (a code change starts a new cache). In memory and in one SQLite file
+# under .local (one file: opening thousands of small files is slow on Windows).
+_CACHE_FILE=PROJECT_ROOT/'.local'/'cache'/'meshes.sqlite'
+_CACHE_MB=256
+_CACHE_MEMORY=4000
+_cache:'OrderedDict[str,bytes]'=OrderedDict()
+_cache_db=None
+_cache_writes=0
+_CODE=hashlib.sha1(b''.join(Path(f).read_bytes() for f in (__file__,mesh.__file__))).hexdigest()[:12]
+
+
+def _cache_key(spec, material):
+    try:
+        text=json.dumps([_CODE,spec,material],sort_keys=True,separators=(',',':'),allow_nan=False)
+    except (TypeError,ValueError):
+        return None
+    return hashlib.sha1(text.encode('utf-8')).hexdigest()
+
+
+def _db():
+    global _cache_db
+    if _cache_db is None:
+        try:
+            _CACHE_FILE.parent.mkdir(parents=True,exist_ok=True)
+            db=sqlite3.connect(str(_CACHE_FILE),timeout=5,check_same_thread=False,isolation_level=None)
+            db.execute('create table if not exists mesh(key text primary key, code text, used real, data blob)')
+            db.execute('delete from mesh where code<>?',(_CODE,))      # results of older geometry code
+            _cache_db=db
+        except sqlite3.Error:
+            _cache_db=False
+    return _cache_db or None
+
+
+def _cache_get(key):
+    blob=_cache.get(key)
+    if blob is None:
+        db=_db()
+        try:
+            row=db.execute('select data from mesh where key=?',(key,)).fetchone() if db else None
+        except sqlite3.Error:
+            row=None
+        if row is None:
+            return None
+        blob=_cache[key]=row[0]
+    _cache.move_to_end(key)
+    while len(_cache)>_CACHE_MEMORY:_cache.popitem(last=False)
+    try:
+        return pickle.loads(blob)
+    except Exception:
+        _cache.pop(key,None)
+        return None
+
+
+def _cache_put(key, value):
+    global _cache_writes
+    blob=pickle.dumps(value,protocol=pickle.HIGHEST_PROTOCOL)
+    _cache[key]=blob
+    while len(_cache)>_CACHE_MEMORY:_cache.popitem(last=False)
+    db=_db()
+    if not db:
+        return
+    try:
+        db.execute('insert or replace into mesh values(?,?,?,?)',(key,_CODE,time.time(),blob))
+        _cache_writes+=1
+        if _cache_writes%500==1:
+            # Size cap: the least recently written meshes go first.
+            total=db.execute('select coalesce(sum(length(data)),0) from mesh').fetchone()[0]
+            if total>_CACHE_MB*2**20:
+                db.execute('delete from mesh where key in (select key from mesh order by used limit '
+                           '(select count(*)/3 from mesh))')
+                db.execute('vacuum')
+    except sqlite3.Error:
+        pass
+
+
 def mesh_shape(spec, material):
+    key=_cache_key(spec,material)
+    if key:
+        cached=_cache_get(key)
+        if cached is not None:
+            return cached
+    out=_mesh_shape(spec,material)
+    if key:_cache_put(key,out)
+    return out
+
+
+def _mesh_shape(spec, material):
     keys(spec,{'vertices','faces'})
     vertices=[vector(p) for p in spec.get('vertices',[])]
     if not 3<=len(vertices)<=8192 or not spec.get('faces'):

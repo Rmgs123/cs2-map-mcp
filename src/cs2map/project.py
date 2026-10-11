@@ -80,6 +80,10 @@ class Project:
         self.jobs = JobManager(self.s.logs)
         self._lock = threading.RLock()
         self._tex_cache: dict[str, tuple[int, int]] = {}
+        # The map last saved by us, parsed from the bytes we wrote: (path, mtime_ns, size, document).
+        # Handed out once by load() while the file is unchanged, so a batch of map_edit calls on a big map
+        # reads and parses the file once instead of every call.
+        self._saved_map: tuple | None = None
         # map_edit operations added by extensions: name -> fn(project, vmap, op, refs) -> dict
         self.extra_ops: dict[str, Any] = {}
         self.preprocessors: list = []
@@ -161,6 +165,14 @@ class Project:
         p = self._map_file(name)
         if not p.exists():
             raise MapError(f'map {name!r} does not exist in addon {self.s.addon}; create it with map_create')
+        saved, self._saved_map = self._saved_map, None      # one use only: callers may change the map
+        if saved is not None and saved[0] == p:
+            try:
+                st = p.stat()
+                if (st.st_mtime_ns, st.st_size) == saved[1:3]:
+                    return VMap(saved[3], p)
+            except OSError:
+                pass
         return VMap.load(p)
 
     def _check_hammer(self, name: str, force: bool) -> dict:
@@ -178,7 +190,15 @@ class Project:
         target = self._map_file(name)
         ensure_inside(target, *writable_roots(self.s))
         hammer = self._check_hammer(name, force)
+        self._saved_map = None
         out = m.save(target, backup_dir=self.s.backups / 'maps')
+        written, m.written = getattr(m, 'written', None), None
+        if written is not None:
+            st = target.stat()
+            self._saved_map = (target, st.st_mtime_ns, st.st_size, written)
+        if out.get('backup'):
+            from . import housekeeping
+            housekeeping.trim_map_backups(self.s, Path(out['backup']).parent)
         if hammer['open']:
             out['warning'] = 'map is open in Hammer: reload it there before editing further'
         return out
