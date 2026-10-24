@@ -68,9 +68,9 @@
     },
     {
       "name": "certifi",
-      "version": "2026.7.22",
-      "sha256": "62f22742b58a1a33014a2b6b706588a8d7e2a88ae7bd1a6ebe8c992928483775",
-      "url": "https://files.pythonhosted.org/packages/0b/a7/71ac2cff56fec219ed242bb11b8efb69fcc4bec75db06fb7bfe35de520e6/certifi-2026.7.22-py3-none-any.whl"
+      "version": "2026.10.19",
+      "sha256": "42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b",
+      "url": "https://files.pythonhosted.org/packages/c4/51/29046e48f693c54e5b7412216d447a1d8362c9653148d98c02cdf65fa733/certifi-2026.10.19-py3-none-any.whl"
     },
     {
       "name": "cffi",
@@ -146,15 +146,15 @@
     },
     {
       "name": "fastmcp",
-      "version": "3.4.7",
-      "sha256": "e4e7698cb4af5bc667b1901685261fa2f3526dc73d243a461fca42500c8dbe56",
-      "url": "https://files.pythonhosted.org/packages/ac/14/6d950459cc831fa17fe2d1797926b6eb2d2f2af50f830e62d0c098cc1ec8/fastmcp-3.4.7-py3-none-any.whl"
+      "version": "3.4.10",
+      "sha256": "68f422db0a7c6228142663f17d9f79a5a12a509e1408a8ac207b3e442e166e38",
+      "url": "https://files.pythonhosted.org/packages/40/c4/72da20dfbfce1c99e3c70bc973e736744daf6d461de138f52f9aaa558959/fastmcp-3.4.10-py3-none-any.whl"
     },
     {
       "name": "fastmcp-slim",
-      "version": "3.4.7",
-      "sha256": "6c931a0089705f3f2935428ef9b2bc74ad94140adc64aab84d116d103e694b3a",
-      "url": "https://files.pythonhosted.org/packages/b4/97/e0e53642cd029a9a7635ae9c548f9f2cc995af5914e487b3df795664e4be/fastmcp_slim-3.4.7-py3-none-any.whl"
+      "version": "3.4.10",
+      "sha256": "f388941db8bdf38999e6c9d2536c4cd59a6571908d851cee2d10ee59f4e53532",
+      "url": "https://files.pythonhosted.org/packages/7c/28/1e0681b524191ee170f40e8e800fd3785084e12806fc46675c70d7f8fa43/fastmcp_slim-3.4.10-py3-none-any.whl"
     },
     {
       "name": "fuzzywuzzy",
@@ -308,9 +308,9 @@
     },
     {
       "name": "opentelemetry-api",
-      "version": "1.45.0",
-      "sha256": "80e068aba7cd56c8b58512d6a36f8d25cb1dfaa0c0a4cc1c938ccf9f362d9cb3",
-      "url": "https://files.pythonhosted.org/packages/44/b9/040d1a1c7836922828e6480cd2366bb8fe0ebf75b413d2bb51a9b0e7f78f/opentelemetry_api-1.45.0-py3-none-any.whl"
+      "version": "1.45.1",
+      "sha256": "b31553efa588ae44bc306f863c785c5333a9ecc091248c6ee68b4b6c87fdedfb",
+      "url": "https://files.pythonhosted.org/packages/1e/41/f7dcf80b81ee8e71c1a2b59f14208bc723edbd89ed027a73b175abf6348e/opentelemetry_api-1.45.1-py3-none-any.whl"
     },
     {
       "name": "packaging",
@@ -326,9 +326,9 @@
     },
     {
       "name": "pillow",
-      "version": "12.3.0",
-      "sha256": "fdafc9cce40277e0f7a0feabce0ee50dd2fa1800f3b38015e51296b5e814048d",
-      "url": "https://files.pythonhosted.org/packages/f1/e0/492879f69d94f91f60fc8cd05ba03650e9520afebb2fb7aa12777d7c7f38/pillow-12.3.0-cp314-cp314-win_amd64.whl"
+      "version": "13.0.0",
+      "sha256": "f7cbb7a64e7ec664775195e4f81923bc8a93d9451b963f844e59118f63147a7a",
+      "url": "https://files.pythonhosted.org/packages/50/e2/7ad17747517e4c813dca78257d6bb593466f8231baf1384bc98d92745edb/pillow-13.0.0-cp314-cp314-win_amd64.whl"
     },
     {
       "name": "platformdirs",

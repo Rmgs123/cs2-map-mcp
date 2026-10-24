@@ -9,6 +9,7 @@
 - Vehicles with passengers park (physics motion off) without a driver once they stand still on their wheels; riders are never held inside anything solid (another spot or out of a door), extra players are put out instead of standing in a moving body, getting off at speed uses a door with room or is refused, and only weapons hurt the driver and riders; `hurt`/`killed` log lines.
 - Riders are standing players held on their spots (accurate fire, crouch); hull traces never ignore entities parented to a vehicle (a driver could be put inside the body and crushed); a failed vehicle tick no longer stops its script; `hud.hint`/`hud.labels` translate the car panel; route test command `v9_control_<name>_route`; `script_test` releases held keys at the start.
 - `visual_check(limit)` and `summary.by_code`; `visual_phantom_floor` no longer flags narrow turned faces (sills, frames, curtains, cables).
+- Dependencies: security updates for every open advisory in the lock file — Pillow 13.0.0 (41 advisories against 12.3.0), certifi 2026.10.19 (drops the compromised emSign roots), fastmcp and fastmcp-slim 3.4.10 (authorization of transformed components), opentelemetry-api 1.45.1 (unbounded tracestate parsing).
 
 ## 1.0.0 — 2026-10-09 (phase 10)
 
