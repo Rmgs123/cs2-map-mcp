@@ -68,7 +68,7 @@ class Shells(unittest.TestCase):
 
     def test_many_aligned_windows_triangulate(self):
         from cs2map import meshops
-        # 25.10 (TC Mayak): an L elevation whose windows share a column bridged two holes to one corner.
+        # 25.10 (a shopping centre): an L elevation whose windows share a column bridged two holes to one corner.
         outer = [[0, 0], [900, 0], [900, 300], [500, 300], [500, 700], [0, 700]]
         holes = [[[250, 375], [370, 375], [370, 495], [250, 495]], [[350, 100], [430, 100], [430, 180], [350, 180]],
                  [[125, 25], [185, 25], [185, 105], [125, 105]], [[125, 125], [225, 125], [225, 205], [125, 205]]]

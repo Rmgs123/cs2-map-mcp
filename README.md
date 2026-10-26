@@ -13,7 +13,20 @@
 
 > **Version 1.0.** Every feature below was checked in the real game: built through MCP calls, compiled by Valve's tools, loaded in CS2 and looked at. Base commands cover almost everything a mapper does by hand; the quick generators of houses and streets have one look so far (Inferno-like), other looks come from your own styles.
 
-**Contents:** [Gallery](#gallery) · [How it works](#how-it-works) · [Install](#install) · [Prompts to start](#prompts-to-start) · [Your maps in CS2 and Hammer](#your-maps-in-cs2-and-hammer) · [Publish to the Workshop](#publish-your-map-to-the-steam-workshop) · [When something goes wrong](#when-something-goes-wrong) · [Feedback](#feedback) · [What it can do](#what-it-can-do) · [Tools](#tools)
+**Contents:** [From photos to a map](#version-11-from-photos-to-a-map) · [Gallery](#gallery) · [How it works](#how-it-works) · [Install](#install) · [Prompts to start](#prompts-to-start) · [Your maps in CS2 and Hammer](#your-maps-in-cs2-and-hammer) · [Publish to the Workshop](#publish-your-map-to-the-steam-workshop) · [When something goes wrong](#when-something-goes-wrong) · [Feedback](#feedback) · [What it can do](#what-it-can-do) · [Tools](#tools)
+
+## Version 1.1: from photos to a map
+
+*Left: phone photos of real streets. Right: the same spots in CS2, built by an AI agent through MCP tool calls from photos like these, a map outline and elevation data — terrain, lanes, buildings, fences, stairs and trees. Unedited in-game frames with baked light, cropped to the photo's format.*
+
+These are **one-shot examples**: each spot was built once from its photos and not reworked or polished afterwards. More passes (materials, details, wear) bring it closer.
+
+| | |
+| --- | --- |
+| ![A dirt lane along a sheet-metal fence: photo and the map](docs/images/photo_vs_map_1.jpg) | ![An overhanging floor over a passage: photo and the map](docs/images/photo_vs_map_2.jpg) |
+| A dirt lane with ruts along a sheet-metal fence and kerb stones | An overhanging floor with an arched band of windows over a passage |
+| ![The passage under the canopy: photo and the map](docs/images/photo_vs_map_3.jpg) | ![Stairs up from under the canopy: photo and the map](docs/images/photo_vs_map_4.jpg) |
+| The passage under the canopy: soffit, columns, a brick balustrade | Stairs up from under the canopy: blue handrail, a wire fence at the top |
 
 ## Gallery
 
@@ -76,6 +89,8 @@ Another CS2 path, addon name, Blender path or disk limits: copy `config/settings
 
 ## Prompts to start
 
+**Use the most capable model you have access to** (a current state-of-the-art model such as Claude Opus or the top GPT/Codex model). Map work means long plans, 3D reasoning and judging screenshots: stronger models make far fewer mistakes, and smaller ones need much more checking.
+
 Talk to your AI as you would to a level designer. A few prompts that work well:
 
 ```text
@@ -112,7 +127,7 @@ Tips: ask for frames from above, from the side and at eye level; ask it to save 
 - Your maps live in the project addon **`mcp_lab`** (change it in `config/settings.json`): sources in `…/Counter-Strike Global Offensive/content/csgo_addons/mcp_lab/maps/`, compiled maps in `…/game/csgo_addons/mcp_lab/maps/`.
 - The AI starts CS2 Workshop Tools by itself when it needs the game. To open the addon yourself: Steam → Counter-Strike 2 → **Launch CS2 Workshop Tools** → choose **mcp_lab** → Launch Tools. From the Asset Browser you can open any map in **Hammer**.
 - Edit a map in Hammer if you like; save and close it before the AI writes it again (it refuses to touch a map with unsaved changes). Every write keeps a backup (`map_backups` restores one).
-- **Backups.** Every map is kept compressed in tiers (latest copies, hourly, daily, weekly, pinned milestones) together with a snapshot of what builds it: `my/` (notes, styles, the AI's generator scripts in `my/maps/<map>/`, your photos) and the addon's own materials, models and scripts. Put them on another disk or a synced folder: `"backups_dir": "E:\\cs2map-backups"` in `config/settings.json` (`status` warns while they share a drive with the project). Without an AI client: `tools\backups.py` (see [REPAIR.md](REPAIR.md#3-backups)).
+- **Backups.** Every map is kept compressed in tiers (latest copies, hourly, daily, weekly, pinned milestones) together with a snapshot of what builds it: `my/` (notes, styles, the AI's generator scripts in `my/maps/<map>/`, your photos) and the addon's own materials, models and scripts. Put them on another disk or a synced folder: `"backups_dir": "D:\\Backups\\cs2map"` in `config/settings.json` (`status` warns while they share a drive with the project). Without an AI client: `tools\backups.py` (see [REPAIR.md](REPAIR.md#3-backups)).
 - Do not use the game window while the AI runs a `script_test`: it sends real keys and mouse input.
 
 ## Publish your map to the Steam Workshop

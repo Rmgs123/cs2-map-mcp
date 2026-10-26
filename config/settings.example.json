@@ -4,7 +4,7 @@
   "compile_threads": 0,
   "backups_dir": "",
   "backup_sources": [],
-  "note": "Copy to settings.json (setup.ps1 does it). Without settings.json CS2 is found through Steam and addon is mcp_lab. addon: the only CS2 addon this tool writes to. compile_threads 0 = all cores. blender: path to blender.exe (\"\" = search tools/, Steam libraries, Program Files). backups_dir: map copies and sources snapshots (\"\" = <project>/backups; best on another disk or in a synced folder such as OneDrive, e.g. \"E:\\\\cs2map-backups\"). backup_sources: more folders to snapshot besides my/ and the addon content. limits: disk caps; files named in README/docs/reports are never removed; map copies follow tiers (keep_last copies, hourly hours, daily days, weekly weeks) and caps in MB of compressed copies.",
+  "note": "Copy to settings.json (setup.ps1 does it). Without settings.json CS2 is found through Steam and addon is mcp_lab. addon: the only CS2 addon this tool writes to. compile_threads 0 = all cores. blender: path to blender.exe (\"\" = search tools/, Steam libraries, Program Files). backups_dir: map copies and sources snapshots (\"\" = <project>/backups; best on another disk or in a synced folder such as OneDrive, e.g. \"D:\\\\Backups\\\\cs2map\"). backup_sources: more folders to snapshot besides my/ and the addon content. limits: disk caps; files named in README/docs/reports are never removed; map copies follow tiers (keep_last copies, hourly hours, daily days, weekly weeks) and caps in MB of compressed copies.",
   "blender": "",
   "limits": {
     "screenshots_mb": 800,
