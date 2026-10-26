@@ -1,6 +1,6 @@
 # CS2 Map MCP — AI that builds Counter-Strike 2 maps
 
-[![Version](https://img.shields.io/badge/version-1.0.0-2ea44f)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-2ea44f)](https://github.com/Rmgs123/cs2-map-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d6)
 ![Python 3.14](https://img.shields.io/badge/python-3.14-3776ab)
@@ -112,6 +112,7 @@ Tips: ask for frames from above, from the side and at eye level; ask it to save 
 - Your maps live in the project addon **`mcp_lab`** (change it in `config/settings.json`): sources in `…/Counter-Strike Global Offensive/content/csgo_addons/mcp_lab/maps/`, compiled maps in `…/game/csgo_addons/mcp_lab/maps/`.
 - The AI starts CS2 Workshop Tools by itself when it needs the game. To open the addon yourself: Steam → Counter-Strike 2 → **Launch CS2 Workshop Tools** → choose **mcp_lab** → Launch Tools. From the Asset Browser you can open any map in **Hammer**.
 - Edit a map in Hammer if you like; save and close it before the AI writes it again (it refuses to touch a map with unsaved changes). Every write keeps a backup (`map_backups` restores one).
+- **Backups.** Every map is kept compressed in tiers (latest copies, hourly, daily, weekly, pinned milestones) together with a snapshot of what builds it: `my/` (notes, styles, the AI's generator scripts in `my/maps/<map>/`, your photos) and the addon's own materials, models and scripts. Put them on another disk or a synced folder: `"backups_dir": "E:\\cs2map-backups"` in `config/settings.json` (`status` warns while they share a drive with the project). Without an AI client: `tools\backups.py` (see [REPAIR.md](REPAIR.md#3-backups)).
 - Do not use the game window while the AI runs a `script_test`: it sends real keys and mouse input.
 
 ## Publish your map to the Steam Workshop
@@ -143,7 +144,7 @@ Your AI keeps a short log of real problems it met with this MCP — a tool error
 
 ## What it can do
 
-- **Maps without Hammer.** A lossless VMAP/DMX codec: 22 of 22 Valve maps round-trip byte for byte. Atomic batch edits, a backup before every write, and undo.
+- **Maps without Hammer.** A lossless VMAP/DMX codec: 22 of 22 Valve maps round-trip byte for byte. Atomic batch edits, tiered compressed backups of every map and its sources, and undo.
 - **Any shape.** Meshes with concave faces and holes, sweeps along paths and arcs, lathe forms, cutting openings, and `edit_mesh` — extrude, inset, bevel, subdivide, bend, twist, taper, noise, smooth, mirror on any mesh, with Hammer-like smoothed normals. Per-face material, UV, tint and two-material vertex blending.
 - **Quick builders.** Room-and-corridor layouts from a plan; an Inferno-like quarter: paving with sidewalks and stairs, house fronts with depth, arcades and loggias, wear and decals, street life from a prop atlas, the `inferno` light, a skyline; cheap districts for huge maps; terrain with streets, water to the horizon, skies.
 - **Your own styles and notes.** A local layer `my/` (never in git): the AI saves lessons, recipes and your own styles and reads them in the next chat; `"style":"my:<name>"` restyles the quick builders. Drop photos, models and sounds into `my/inbox` and the AI turns them into assets.
@@ -182,7 +183,7 @@ tools\python-env\Scripts\python.exe tools\mcp_call.py status '{}'     # call any
 tools\python-env\Scripts\python.exe tools\selfcheck.py                # after a CS2 update: every mechanic in the game
 ```
 
-A feature counts as done only after a real end-to-end check: MCP call → files → `resourcecompiler` exits cleanly → the map loads in CS2 → screenshots. Rules for agents: [AGENTS.md](AGENTS.md) · code layout: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/specs/](docs/specs/) · repairs: [REPAIR.md](REPAIR.md) · pull requests: [CONTRIBUTING.md](CONTRIBUTING.md) · changes: [CHANGELOG.md](CHANGELOG.md).
+A feature counts as done only after a real end-to-end check: MCP call → files → `resourcecompiler` exits cleanly → the map loads in CS2 → screenshots. Rules for agents: [AGENTS.md](AGENTS.md) · code layout: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/specs/](docs/specs/) · repairs: [REPAIR.md](REPAIR.md) · pull requests: [CONTRIBUTING.md](CONTRIBUTING.md) · changes: [releases](https://github.com/Rmgs123/cs2-map-mcp/releases).
 
 ## License and legal
 

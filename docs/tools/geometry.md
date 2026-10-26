@@ -22,8 +22,10 @@ sets collision to `none` and defaults baking off. Brush entities need solids.
 `mesh`: `vertices` XYZ, `faces` lists of indices or objects with `vertices`,
 `holes` (lists of index rings), `material`, `uv`. Planar concave faces and
 holes are triangulated; convex faces remain polygons. Face UV accepts
-`mode:world|box|planar`, `scale:[u,v]` units/texel (default .25), `rotate`
-degrees, `offset:[u,v]` texels, optional `u_axis` and `v_axis`.
+`mode:world|box|planar|wall`, `scale:[u,v]` units/texel (default .25) or `"auto"`
+(the material's real size), `rotate` degrees, `offset:[u,v]` texels, optional `u_axis` and
+`v_axis`. `wall`: u along the face's level edge, v straight down — bricks stay level on a wall
+turned to any angle.
 
 ```json
 {"op":"add_mesh","shape":{"shape":"mesh","solid":false,
@@ -154,7 +156,8 @@ check_map/visual_check, full build, opened game frames and physical routes.
 - `mesh` shapes are cached by content (in memory and in `.local/cache/meshes.sqlite`, 256 MB): replaying a
   batch of unchanged buildings skips their triangulation and checks.
 - `map_edit` reuses the map it has just written while the file is unchanged, so a series of calls on a
-  100 MB map reads it once. Every save still keeps a backup; a map keeps its newest copies within
-  `backups_per_map` and `backups_map_mb` (settings `limits`), and always the last three.
+  100 MB map reads it once. Every save still keeps a backup (compressed in the background: a 144 MB map
+  becomes ~16 MB and the save does not wait for it).
 - Builds: `fast` (~20 s on a town map) for shape and placement frames; `full` and cubemaps once the look matters.
-- Keep source data of a map (OSM extracts, drawn plans, heightmaps) out of `.local/tmp`: it is emptied after a day.
+- Keep source data of a map (generators, OSM extracts, drawn plans, heightmaps) in `my/maps/<map>/`: it is
+  backed up with every save; `.local/tmp` is emptied after a day.

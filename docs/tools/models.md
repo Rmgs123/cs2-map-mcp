@@ -115,9 +115,14 @@ obj.data.materials.append(mat)
 
 The driver keeps a unique `a_mat_<hex>` FBX token and remaps it to the checked VMAT. Each build stores author-space `.blend`, render FBX, separate collision FBXs, copied script and metadata under `models/mcp/<name>/sources/<id>/`. Previous ModelDocs remain in `history/`. ModelDoc uses `import_scale=0.0254` and a measured FBX axis/unit compensation so author-space units remain CS2 inches.
 
+## Levels of detail (`lods`)
+
+**CS2 does not switch these levels by distance now** (measured: `prop_static` and `prop_dynamic` at 500–3300 units always draw level 0; `sc_force_lod_level 1|2` shows the levels exist; stock CS2 models have no LOD groups), so `lods` saves nothing in today's game — keep triangle counts low instead. `model_build(..., lods=[{"switch":600,"reduce":0.4},{"switch":1500,"reduce":0.1}])` (also with `file`): from `switch` units away the model asks for a simpler copy. `reduce` keeps that share of the triangles (Blender Decimate, same materials); `"model":"<own model>"` takes a hand-made level built before with `model_build`. Up to 4 levels, distances growing. The result lists each level's triangles. A rebuild without `lods` keeps the levels the model had (`lods=[]` removes them). Collision always comes from the full model. Meant for big props repeated over a map (vehicles, trees, houses), should CS2 start using them.
+
 ## Other model tools
 
 - `model_build(name, file=..., scale="auto", collision="hull", surface="default", physics=None)`: FBX/OBJ/GLB/GLTF/BLEND through the same pipeline, including the optional physical body and fragmentation. Auto scale is 2.54 for FBX, 39.37 for glTF and .blend metres and 1 for OBJ; a positive number overrides it. A `.blend` is appended object by object; its scripts never run.
+- `model_build(name, file="models/mcp/<own>/<own>.vmdl", scale=1.2)`: a scaled copy of an own model under a new name — the same sources with render meshes, LOD levels, collision and LOD distances times `scale` (mass kept); nothing is exported again.
 - `model_preview(name, views=["front","side","top","iso"], size=512, reference=None)`: 1–4 unique views, size 64–2048; reference PNG/JPG creates a side-by-side composite. Output PNGs are under `screenshots/a_*`.
 - `model_info()`: addon models under `models/mcp`.
 - `model_info(name)`: saved metadata, parsed ModelDoc and source-file availability.
@@ -128,7 +133,14 @@ The driver keeps a unique `a_mat_<hex>` FBX token and remaps it to the checked V
 {"op":"add_model","model":"a_barrier","origin":[256,128,0],"angles":[0,90,0],"scale":1,"dynamic":false}
 ```
 
-`model` also accepts a full own/stock `.vmdl` path. `dynamic=true` creates `prop_dynamic`; otherwise it creates `prop_static`. Build assets first, add the prop, build the map with `full`, then call `game_screenshot` and open the images. Check collision by walking with `noclip 0`; `setpos` alone does not prove that movement is blocked.
+`model` also accepts a full own/stock `.vmdl` path. `dynamic=true` creates `prop_dynamic`; otherwise it creates `prop_static`.
+
+Looks: `skin` picks one of the model's material groups by name (a wrong name lists the real ones, e.g. `generic_tree_large_1` has `default` and `no_motion`); `tint` `[r,g,b]` multiplies the whole model's colour (leaves and bark alike: an orange tint makes an autumn-ish tree, but a stock tree has no autumn group to pick).
+
+```json
+{"op":"add_model","model":"models/cs_italy/foliage/tree/generic_tree_large_1.vmdl","origin":[600,128,0],"skin":"no_motion","tint":[255,190,120]}
+```
+ Build assets first, add the prop, build the map with `full`, then call `game_screenshot` and open the images. Check collision by walking with `noclip 0`; `setpos` alone does not prove that movement is blocked.
 
 ## By hand
 

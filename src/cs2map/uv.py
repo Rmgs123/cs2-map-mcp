@@ -58,7 +58,16 @@ def _normal(points):
     return _norm(n)
 
 
+STOCK_SIZES = Path(__file__).parent / 'data' / 'material_sizes.json'
+
+
 def _material_real_size(project, material: str):
+    try:
+        stock = json.loads(STOCK_SIZES.read_text(encoding='utf-8'))['sizes'].get(material)
+        if stock:
+            return float(stock[0]), float(stock[1])
+    except (OSError, ValueError, KeyError):
+        pass
     try:
         p = project.s.content_addon / material
         meta = p.with_suffix('.json')
@@ -69,6 +78,25 @@ def _material_real_size(project, material: str):
     except (OSError, ValueError, TypeError, json.JSONDecodeError):
         pass
     return None
+
+
+def units_per_texel(project, material: str):
+    """(u, v) world units per texel that show the material at its real size, or None when it is unknown."""
+    real = _material_real_size(project, material)
+    if not real:
+        return None
+    tw, th = project.texture_size(material)
+    return real[0] / max(1, tw), real[1] / max(1, th)
+
+
+def wall_axes(n):
+    """u along the face's level edge (left to right seen from outside), v straight down the face; None for a
+    floor or ceiling."""
+    u = _cross((0.0, 0.0, 1.0), n)
+    if math.sqrt(_dot(u, u)) < 0.1:
+        return None
+    u = _norm(u)
+    return u, _norm(_cross(u, n))
 
 
 def _selected_faces(points, faces: str | list[int], normal_by_face):
@@ -103,8 +131,8 @@ def apply_set_uv(project, node: Element, op: dict[str, Any]) -> dict:
     normals = [_normal(p) for p in points_by_face]
     selected = _selected_faces(points_by_face, op.get('faces', 'all'), normals)
     mode = op.get('mode', 'world')
-    if mode not in ('world', 'fit'):
-        raise OpError('mode must be world or fit')
+    if mode not in ('world', 'fit', 'wall'):
+        raise OpError('mode must be world, fit or wall')
     rotate = float(op.get('rotate', 0.0))
     offset = op.get('offset', [0.0, 0.0])
     if len(offset) != 2:
@@ -129,16 +157,16 @@ def apply_set_uv(project, node: Element, op: dict[str, Any]) -> dict:
     changed = 0
     for fi in sorted(selected):
         n = normals[fi]
-        u0, v0 = world_axes(n)
+        u0, v0 = (wall_axes(n) if mode == 'wall' else None) or world_axes(n)
         c, s = math.cos(math.radians(rotate)), math.sin(math.radians(rotate))
         u = _norm(tuple(c * u0[i] + s * v0[i] for i in range(3)))
         v = _norm(tuple(-s * u0[i] + c * v0[i] for i in range(3)))
         material = materials[int(material_indices[fi])]
         tw, th = project.texture_size(material)
         if scale_arg == 'auto':
-            real = _material_real_size(project, material)
+            real = units_per_texel(project, material)
             if real:
-                scale = (real[0] / max(1, tw), real[1] / max(1, th))
+                scale = real
             elif mode == 'fit':
                 scale = None
             else:

@@ -254,7 +254,8 @@ def _is_story_map(project, m) -> bool:
 
 def check_map(project, name: str) -> dict:
     """Return ``{ok, problems}`` for map *name* without modifying it."""
-    m = project.load(name)
+    from .terrain import expand_layers
+    m = expand_layers(project, project.load(name))
     problems: list[dict] = []
     meshes = list(_all_meshes(m))
     solids=[(n,b) for n,b in meshes if _is_solid_mesh(n)]
@@ -448,11 +449,24 @@ def check_map(project, name: str) -> dict:
              ('point_nav_walkable','info_player_terrorist','info_player_counterterrorist')]
     # A ramp is a surface a player could try to walk: bevels, rounded seats and small rocks are not (their steep
     # faces add up to less than a 32x32 footprint).
+    # add_bank: a slope nobody may walk up is the point, also the ground cut under it (two terrain cells around).
+    from . import builders, terrain
+    for found in builders.bank_bypass(m):
+        problems.append(_problem('warning','bank_walkable_around',found['id'],
+            f'players can walk around bank {found["id"]} from its foot to its top over ground under 45 degrees, '
+            f'up near {found["at"]}','Extend the bank (and its terrain cut) there, or close the way with a fence, '
+            'a wall or a player clip; a fence across it silences nothing here, so check by walking (route_test).'))
+    banks=[json.loads(n['cs2map_bank']).get('footprint') for n,_ in tris_by_mesh if 'cs2map_bank' in n]
+    def under_bank(tri):
+        x,y=sum(p[0] for p in tri)/3,sum(p[1] for p in tri)/3
+        return any(fp and (terrain.inside(x,y,fp) or terrain.nearest_path(x,y,fp+fp[:1])[0]<=128) for fp in banks)
     for node,ts in tris_by_mesh:
+        if 'cs2map_bank' in node:
+            continue
         steep=0.0
         for tri in ts:
             normal=_cross(_sub(tri[1],tri[0]),_sub(tri[2],tri[0]));length=math.sqrt(_dot(normal,normal))
-            if length and .05 < normal[2]/length < math.cos(math.radians(45)):
+            if length and .05 < normal[2]/length < math.cos(math.radians(45)) and not (banks and under_bank(tri)):
                 if any(abs(p[2]-sum(v[2] for v in tri)/3)<128 for _,p in anchors):
                     steep+=normal[2]/2
         if steep>=1024:

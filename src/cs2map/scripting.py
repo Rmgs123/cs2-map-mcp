@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import json
 import math
 import time
 import shutil
@@ -239,6 +240,63 @@ def script_write(project, name: str, code: str) -> dict:
     return out
 
 
+def script_reload(project, name: str, code: str) -> dict:
+    """script_write, then restart the point_script entities of the map loaded in CS2 that run this script (Kill and
+    ent_create with the same keys), without reloading the map (23.10: ~20 s map_workshop for every script change).
+
+    A loaded script keeps its compiled file open, so the new code first goes to a fresh copy
+    maps/scripts/mcp/<name>_live<n>.vjs that the restarted entities run; the map's own file is compiled again on
+    its next build or load. The state of the old script (counters, seats) is gone, as after a round restart."""
+    from . import game
+    try:
+        state = json.loads(game.LOADED.read_text(encoding='utf-8')) if game.LOADED.exists() else {}
+    except (OSError, ValueError):
+        state = {}
+    current = state.get('map')
+    if not current or game.session(project.s) is None:
+        out = script_write(project, name, code)
+        out['reload'] = 'no map of this addon is loaded in CS2: nothing to restart'
+        return out
+    base = f'maps/scripts/mcp/{_safe_name(name)}.vjs'
+    m = project.load(current)
+    ents = [e for e in m.entities('point_script')
+            if str(e['entity_properties'].get('cs_script', '')).replace('\\', '/').lower() == base]
+    out = script_write(project, name, code)
+    if not ents:
+        out['reload'] = f'the loaded map {current} runs no point_script with {base}'
+        return out
+    running = base
+    if not out.get('ok'):
+        # The loaded copy is locked: compile the same code under a new name the restarted entities run.
+        live = f'{_safe_name(name)}_live{time.time_ns() % 10**6}'
+        copy = script_write(project, live, code)
+        if not copy.get('ok'):
+            out['reload'] = 'not restarted: the code did not compile (see errors)'
+            return out
+        running = copy['cs_script']
+        out['live_copy'] = running
+    cmds, names = [], []
+    for e in ents:
+        kv = {k: str(a.value) for k, a in e['entity_properties'].attrs.items()}
+        target = kv.get('targetname')
+        if not target or any(c in target for c in '"{} '):
+            continue
+        kv['cs_script'] = running
+        pairs = ' '.join(f'"{k}" "{v}"' for k, v in kv.items()
+                         if k not in ('classname', 'origin', 'angles') and v and '"' not in v)
+        cmds += [f'ent_fire {target} Kill', f'ent_create point_script {{{pairs}}}']
+        names.append(target)
+    if not cmds:
+        out['reload'] = 'the point_script entities have no targetname: rebuild and reload the map instead'
+        return out
+    with game.exclusive():
+        printed = game.command(project.s, '\n'.join(cmds[0::2]), wait=0.3)
+        printed += game.command(project.s, '\n'.join(cmds[1::2]), wait=1.0)
+    out['reload'] = {'map': current, 'restarted': names, 'script': running,
+                     'console': [ln for ln in printed if ln.strip()][-8:]}
+    return out
+
+
 # A runtime-only point_script supplies authoritative player state on any map.
 # ent_create never changes the VMAP. The script and console callback live only
 # until the next map load; no user entity is killed or overwritten.
@@ -263,26 +321,67 @@ Instance.RegisterCheatCommand("c_mcp_quality_probe",(token)=>{
 '''
 
 
-def runtime_script(s) -> str:
-    """Prepare the small diagnostics script; compile only when its source changed."""
+# script_test {"spread": ...}: shots of the human player paired with their impacts by game time (the same tick):
+# an impact can arrive BEFORE its OnGunFire, so pairing by order gave a fake 73 deg error on a moving car (23.10).
+SPREAD_CODE = '''import { Instance } from "cs_script/point_script";
+let armed = false, shots = [], pending = [];
+const human = (w) => { try { const o = w && w.GetOwner(); const c = o && o.GetOriginalPlayerController(); return c && !c.IsBot() ? o : null; } catch (e) { return null; } };
+const r = (x) => Math.round(x * 100) / 100;
+function pair(s, p) {
+  const v = {x: p.x - s.eye.x, y: p.y - s.eye.y, z: p.z - s.eye.z};
+  const d = Math.hypot(v.x, v.y, v.z) || 1, a = s.dir.x * v.x + s.dir.y * v.y + s.dir.z * v.z;
+  if (s.hit && s.hit.dist <= d) return;                 // penetration: the first surface counts
+  const miss = Math.hypot(v.x - s.dir.x * a, v.y - s.dir.y * a, v.z - s.dir.z * a);
+  s.hit = {dist: d, deg: Math.acos(Math.max(-1, Math.min(1, a / d))) * 180 / Math.PI, miss};
+}
+Instance.OnGunFire((e) => {
+  const pawn = armed && human(e.weapon);
+  if (!pawn) return;
+  const t = Instance.GetGameTime(), eye = pawn.GetEyePosition(), q = pawn.GetEyeAngles(), v = pawn.GetAbsVelocity();
+  const p = q.pitch * Math.PI / 180, y = q.yaw * Math.PI / 180;
+  const s = {t, eye, dir: {x: Math.cos(p) * Math.cos(y), y: Math.cos(p) * Math.sin(y), z: -Math.sin(p)}, speed: Math.hypot(v.x, v.y)};
+  shots.push(s);
+  for (const x of pending) if (Math.abs(x.t - t) < 1e-4) pair(s, x.p);
+  pending = pending.filter((x) => Math.abs(x.t - t) >= 1e-4);
+});
+Instance.OnBulletImpact((e) => {
+  if (!armed || !human(e.weapon)) return;
+  const t = Instance.GetGameTime(), s = shots.find((x) => Math.abs(x.t - t) < 1e-4);
+  if (s) pair(s, e.position); else pending.push({t, p: e.position});
+});
+Instance.RegisterCheatCommand("c_mcp_spread_arm", (arg) => {
+  const on = arg.trim() !== "0";
+  if (!on) {
+    for (const s of shots) Instance.Msg("C_MCP_SPREADS " + JSON.stringify(s.hit ? {deg: r(s.hit.deg), miss: r(s.hit.miss), dist: Math.round(s.hit.dist), speed: Math.round(s.speed)} : {speed: Math.round(s.speed)}));
+    Instance.Msg("C_MCP_SPREAD done " + JSON.stringify({fired: shots.length, paired: shots.filter((s) => s.hit).length}));
+  }
+  armed = on; shots = []; pending = [];
+  Instance.Msg("C_MCP_SPREAD armed " + (on ? 1 : 0));
+});
+'''
+
+
+def runtime_script(s, name: str = 'c_mcp_runtime', code: str | None = None) -> str:
+    """Prepare a small runtime script (diagnostics, the spread probe); compile only when its source changed."""
     from .jobs import JobManager
     from . import compiler
-    rel = 'maps/scripts/mcp/c_mcp_runtime'
+    code = RUNTIME_CODE if code is None else code
+    rel = 'maps/scripts/mcp/' + name
     source, compiled = s.content_addon / (rel + '.js'), s.game_addon / (rel + '.vjs_c')
-    same = source.exists() and source.read_text(encoding='utf-8') == RUNTIME_CODE
+    same = source.exists() and source.read_text(encoding='utf-8') == code
     if same and compiled.exists() and compiled.stat().st_mtime >= source.stat().st_mtime:
         return rel + '.vjs'
     source.parent.mkdir(parents=True, exist_ok=True)
     if source.exists():
-        backup = s.backups / 'scripts' / f'c_mcp_runtime-{time.time_ns()}.js'
+        backup = s.backups / 'scripts' / f'{name}-{time.time_ns()}.js'
         backup.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, backup)
-    source.write_text(RUNTIME_CODE, encoding='utf-8', newline='\n')
+    source.write_text(code, encoding='utf-8', newline='\n')
     jobs = JobManager(s.logs)
     job = compiler.compile_assets(s, jobs, [source], force=True, timeout=40)
     state = jobs.wait(job.id, 45)
     if state.state != 'succeeded' or not state.result.get('ok') or not compiled.exists():
-        raise RuntimeError(f'cannot compile player diagnostics: {state}')
+        raise RuntimeError(f'cannot compile the runtime script {name}: {state}')
     return rel + '.vjs'
 
 
@@ -295,6 +394,13 @@ def add_script(project, m, op: dict, refs: dict) -> dict:
     kv['cs_script'] = f'maps/scripts/mcp/{name}.vjs'
     if op.get('targetname'):
         kv['targetname'] = str(op['targetname'])
+    if not kv.get('targetname'):
+        # script_write(reload=true) restarts the entity by name (25.10: unnamed scripts could not be restarted).
+        base, n = f'mcp_script_{name}', 1
+        kv['targetname'] = base
+        while m.entities(targetname=kv['targetname']):
+            n += 1
+            kv['targetname'] = f'{base}_{n}'
     # `// @fire <prefix> {...}` in the source: the shot engine's entities (HUD, beam rods, projectiles, sounds).
     source = project.s.content_addon / 'maps' / 'scripts' / 'mcp' / f'{name}.js'
     from . import fire as fire_engine, mechanics
@@ -323,7 +429,7 @@ def add_script(project, m, op: dict, refs: dict) -> dict:
 
 
 STEP_KINDS = {'cmd', 'say', 'fire', 'walk', 'go', 'press', 'wait', 'expect', 'shot', 'use', 'aim', 'hold', 'mouse', 'focus',
-              'click'}
+              'click', 'spread'}
 WAIT_AFTER = {'cmd', 'say', 'fire', 'press'}      # {"cmd": "...", "wait": 2}: seconds to wait after the action
 
 
@@ -351,7 +457,8 @@ def _test_steps(steps):
         raise ValueError('steps must be auto or a list of 1..128 actions')
     for step in steps:
         kind = _step_kind(step)
-        extra = {'within'} if kind == 'expect' else {'wait'} if kind in WAIT_AFTER else set()
+        extra = ({'within'} if kind == 'expect' else {'wait'} if kind in WAIT_AFTER else {'with'} if kind == 'use'
+                 else set())
         if set(step) - {kind, *extra}:
             raise ValueError(f'unknown fields in {kind} step')
         if kind in WAIT_AFTER and 'wait' in step:
@@ -371,6 +478,8 @@ def _test_steps(steps):
         elif kind == 'use':
             if value is not True:
                 raise ValueError('use must be true (E pressed for 0.15 s)')
+            if 'with' in step and step['with'] not in INPUT_KEYS:
+                raise ValueError(f'use "with" is a key held around the press, one of {sorted(INPUT_KEYS)} (e.g. duck)')
         elif kind == 'aim':
             if isinstance(value, str):
                 entity_name(value)
@@ -389,6 +498,13 @@ def _test_steps(steps):
             if (not isinstance(value, list) or len(value) != 2
                     or not all(isinstance(x, (int, float)) and not isinstance(x, bool) and 0 <= x <= 1 for x in value)):
                 raise ValueError('click is [x, y] in fractions of the game window (0..1; a HUD button in cursor mode)')
+        elif kind == 'spread':
+            if not isinstance(value, dict) or set(value) - {'shots', 'interval', 'max_deg'}:
+                raise ValueError('spread must be {"shots": 1..30, "interval": seconds, "max_deg": optional limit}')
+            _number(value.get('shots', 5), 'spread.shots', 1, 30)
+            _number(value.get('interval', .5), 'spread.interval', .05, 5)
+            if 'max_deg' in value:
+                _number(value['max_deg'], 'spread.max_deg', 0, 90)
         elif kind == 'focus':
             if not isinstance(value, bool):
                 raise ValueError('focus must be true (game window in front) or false (give focus back)')
@@ -453,7 +569,7 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
         raise ValueError('auto needs exactly one add_story in the map; use explicit steps otherwise')
     logpath = project.s.logs / f'script-test-{map}-{time.time_ns()}.json'
     focus_state = {}
-    lines, checks, shots, operations = _ConsoleTrace(), [], [], []
+    lines, checks, shots, operations, spreads = _ConsoleTrace(), [], [], [], []
     started = time.monotonic()
     deadline = started + timeout
     reason = None
@@ -562,6 +678,40 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
         elif focus_state.get('previous'):
             system.focus(focus_state.pop('previous'))
 
+    def spread(cfg):
+        rel = runtime_script(project.s, 'c_mcp_spread', SPREAD_CODE)
+        for attempt in range(2):
+            mark = len(lines)
+            command('c_mcp_spread_arm 1', 0.3)
+            if any('C_MCP_SPREAD armed 1' in x for x in lines[mark:]):
+                break
+            if attempt:
+                raise RuntimeError('spread: the probe script did not start')
+            # Lives until the next map load; the VMAP is not changed.
+            command(f'ent_create point_script {{ cs_script {rel} targetname c_mcp_spread }}', 0.6)
+        try:
+            for _ in range(int(cfg.get('shots', 5))):
+                hold('attack', .05)
+                pause(float(cfg.get('interval', .5)))
+            pause(.3)
+        finally:
+            mark = len(lines)
+            command('c_mcp_spread_arm 0', .5)
+        found = [json.loads(x.split('C_MCP_SPREADS ', 1)[1]) for x in lines[mark:] if 'C_MCP_SPREADS ' in x]
+        hits = [x for x in found if 'deg' in x]
+        result = {'fired': len(found), 'paired': len(hits), 'shots': found[:30]}
+        if hits:
+            result.update({'deg_mean': round(sum(x['deg'] for x in hits) / len(hits), 2),
+                           'deg_max': max(x['deg'] for x in hits),
+                           'miss_mean': round(sum(x['miss'] for x in hits) / len(hits), 1),
+                           'miss_max': max(x['miss'] for x in hits)})
+        spreads.append(result)
+        if 'max_deg' in cfg:
+            ok = bool(hits) and result['deg_max'] <= float(cfg['max_deg'])
+            checks.append({'expect': f'spread <= {cfg["max_deg"]} deg', 'ok': ok, 'seconds': 0})
+            if not ok:
+                raise RuntimeError(f'spread: {result.get("deg_max", "no paired shot")} deg over {cfg["max_deg"]}')
+
     def walk(pos):
         command('noclip 0', 0.15)
         command('setpos ' + ' '.join(str(float(c)) for c in pos), 0.4)
@@ -657,7 +807,7 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
                         remaining()
                         key = _step_kind(step)
                         value = step[key]
-                        if key in {'cmd', 'say', 'fire', 'press', 'walk', 'use', 'hold', 'aim', 'mouse', 'click'}:
+                        if key in {'cmd', 'say', 'fire', 'press', 'walk', 'use', 'hold', 'aim', 'mouse', 'click', 'spread'}:
                             cursor = len(lines)
                         if key == 'cmd':
                             command(value)
@@ -678,13 +828,31 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
                             driver.install()
                             issue=driver.go({'go':value})
                             if issue:
-                                raise RuntimeError(f'physical go failed: {issue} at {driver.state.get("pos")}')
+                                # 23.10: "failed: height at [x,y,z]" said nothing of the target or the blocker.
+                                st=driver.state or {};pos=st.get('pos') or [0,0,0];ob=st.get('obstacle') or {}
+                                left=math.dist(pos[:2],value[:2]) if len(value)>=2 else None
+                                blocker=(f'{ob.get("class") or "world"}{" " + ob["name"] if ob.get("name") else ""} '
+                                         f'(normal {[round(x, 2) for x in ob.get("normal", [])]})' if ob.get('hit') or ob.get('solid')
+                                         else 'nothing the trace saw')
+                                trail=[[round(x) for x in s.get('pos', [])] for s in driver.samples[-4:]]
+                                raise RuntimeError(f'physical go step {i} failed: {issue}; target {value}, reached '
+                                                   f'{[round(x, 1) for x in pos]}, {left:.0f} units left; blocked by '
+                                                   f'{blocker}; last positions {trail}')
                         elif key == 'wait':
                             pause(value)
                         elif key == 'expect':
                             cursor = expect(value, step.get('within', 5), cursor)
                         elif key == 'shot':
                             shot(value)
+                        elif key == 'use' and step.get('with'):
+                            # Ctrl+E (a crouched boarding): the other key is held around the press, then released.
+                            other = INPUT_KEYS[step['with']]
+                            try:
+                                command('+' + other, 0)
+                                pause(.35)
+                                hold('use', .15)
+                            finally:
+                                command('-' + other, 0.1)
                         elif key == 'use':
                             hold('use', .15)
                         elif key == 'hold':
@@ -697,6 +865,8 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
                             focus_window(value)
                         elif key == 'click':
                             click(value)
+                        elif key == 'spread':
+                            spread(value)
                         if key in WAIT_AFTER and 'wait' in step:
                             pause(step['wait'])
                         operations.append({'step': i, 'action': key, 'ok': True})
@@ -717,7 +887,7 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
     ok = reason is None and not errors and all(c['ok'] for c in checks)
     details = {'map': map, 'ok': ok, 'seconds': round(time.monotonic() - started, 2),
                'reason': reason, 'checks': checks, 'errors': errors, 'shots': shots,
-               'steps': operations, 'console': lines}
+               'steps': operations, 'spread': spreads, 'console': lines}
     logpath.parent.mkdir(parents=True, exist_ok=True)
     logpath.write_text(json.dumps(details, ensure_ascii=False, indent=2), encoding='utf-8')
     # Bound model-facing text independently of log volume or stage count.
@@ -729,6 +899,8 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
                 'errors': [x[:180] for x in errors[:3]], 'error_count': len(errors),
                 'shots': [{'name': s['name'], 'path': s['path']} for s in shots[:6]],
                 'shot_count': len(shots), 'log': str(logpath)})
+    if spreads:      # the summary of each spread step; every shot is in the log
+        out['spread'] = [{k: v for k, v in x.items() if k != 'shots'} for x in spreads[:4]]
     while len(json.dumps(out, ensure_ascii=False).encode('utf-8')) > 2048:
         if out['shots']:
             out['shots'].pop()

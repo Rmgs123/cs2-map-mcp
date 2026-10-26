@@ -79,12 +79,31 @@ class AddScript(unittest.TestCase):
             with patch('cs2map.weapons.ensure_hud'), patch('cs2map.fire.ensure_assets'):
                 out = scripting.add_script(project, m, {'op': 'add_script', 'name': 'tower', 'origin': [10, 20, 0]}, {})
             self.assertEqual(len(m.entities(classname='point_script')), 1)
+            self.assertEqual(len(m.entities(targetname='mcp_script_tower')), 1, 'named, so reload can restart it')
             self.assertEqual(len(m.entities(targetname='tower_hud')), 1)
             self.assertGreater(len(m.entities(targetname='tower_beam_0')), 0)
             self.assertGreater(out['fire']['tower'], 1)
             with patch('cs2map.weapons.ensure_hud'), patch('cs2map.fire.ensure_assets'), \
                     self.assertRaisesRegex(ValueError, 'already exists'):
                 scripting.add_script(project, m, {'op': 'add_script', 'name': 'tower', 'origin': [0, 0, 0]}, {})
+
+    def test_plain_script_twice_gets_two_names(self):
+        import tempfile
+        from pathlib import Path
+        from cs2map import scripting
+        from cs2map.config import load_settings
+        from cs2map.vmap import VMap
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            s = SimpleNamespace(content_addon=root / 'content', game_addon=root / 'game')
+            vjs = s.game_addon / 'maps/scripts/mcp/hello.vjs_c'
+            vjs.parent.mkdir(parents=True); vjs.write_bytes(b'x')
+            project = SimpleNamespace(s=s, catalog=SimpleNamespace(defaults=lambda cls: {}), resolve=None)
+            m = VMap.from_template(load_settings().cs2_path, 'empty')
+            for _ in range(2):
+                scripting.add_script(project, m, {'op': 'add_script', 'name': 'hello'}, {})
+            names = sorted(e['entity_properties'].get('targetname') for e in m.entities(classname='point_script'))
+            self.assertEqual(names, ['mcp_script_hello', 'mcp_script_hello_2'])
 
 
 if __name__ == '__main__':

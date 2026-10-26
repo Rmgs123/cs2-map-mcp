@@ -47,7 +47,7 @@ The result is `maps/prefabs/e_crate_corner.vmap` inside the configured addon.
 The selected nodes must be direct children of one parent. Their bounding-box
 centre becomes the prefab origin and all node origins are translated relative
 to that centre. Saving an existing prefab keeps a backup under
-`backups/maps/prefabs/`.
+`<backups>/maps/prefabs/`.
 
 Place copies with `map_edit`:
 

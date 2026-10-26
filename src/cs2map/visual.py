@@ -41,6 +41,7 @@ _DECORATIVE_MODEL = (
     "mcp_m/m9_ring/",            # race rings hang in the air on purpose (a drone flies through them)
 )
 _LAMP_MODEL = ("lamp", "light", "lantern", "fixture", "fluorescent")
+_PLANT_MODEL = ("tree", "bush", "hedge", "shrub", "plant", "foliage", "vegetation", "palm", "pine", "fern", "ivy")
 
 
 def _props(node: Element) -> dict[str, Any]:
@@ -217,6 +218,38 @@ def model_bounds(project, model: str) -> tuple[tuple[float, float, float], tuple
     return result
 
 
+def model_material_groups(project, model: str) -> list[str] | None:
+    """Names of a compiled model's material groups (what a prop's ``skin`` picks), or None when unreadable."""
+    rel = str(model or "").replace("\\", "/")
+    cache = getattr(project, "_material_groups", {})
+    if rel in cache:
+        return cache[rel]
+    got = _compiled_model(project, rel)
+    native = project.s.game_bin / "resourceinfo.exe"
+    if not got or not native.is_file():
+        return None
+    scratch = PROJECT_ROOT / ".local" / "scratch" / "Q" / "model_bounds"
+    scratch.mkdir(parents=True, exist_ok=True)
+    tmp = scratch / (hashlib.sha256(got[0]).hexdigest()[:24] + ".vmdl_c")
+    if not tmp.exists():
+        tmp.write_bytes(got[0])
+    try:
+        proc = subprocess.run([str(native), "-game", str(project.s.cs2_path / "game/csgo"), "-i", str(tmp), "-b", "DATA",
+                               "-baremode"], capture_output=True, timeout=20, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    out = proc.stdout.decode("utf-8-sig", errors="replace")
+    at = out.find("m_materialGroups")
+    if proc.returncode or at < 0:
+        return None
+    # The list ends where the next top-level member starts; group names are its m_name lines.
+    end = out.find("m_nDefaultMeshGroupMask", at)
+    names = re.findall(r'm_name = "([^"]*)"', out[at:end if end > 0 else None])
+    cache[rel] = names
+    project._material_groups = cache
+    return names
+
+
 def _model_bounds(project, model: str, origin=None, angles=None, scales=None):
     """Compatibility-shaped helper returning a transformed world AABB.
 
@@ -312,6 +345,77 @@ def _penetration(entry_bounds, triangles) -> str | None:
     return None
 
 
+def _plant(entry) -> bool:
+    return any(x in entry["model"].lower() for x in _PLANT_MODEL)
+
+
+def _core_box(entry):
+    """What of a plant is solid to the eye: a tree's trunk, a bush's base. Crowns and leaves grow through each
+    other and through fences (18.10, a big town map: 520 'nested' bushes in hedges, grass at walls)."""
+    lo, hi = entry["bounds"]
+    tree = any(x in entry["model"].lower() for x in ("tree", "palm", "pine", "maple", "oak", "willow"))
+    share = 0.12 if tree else 0.3
+    cx, cy = (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2
+    rx, ry = (hi[0] - lo[0]) * share / 2, (hi[1] - lo[1]) * share / 2
+    top = lo[2] + (hi[2] - lo[2]) * (0.4 if tree else 0.5)
+    return (cx - rx, cy - ry, lo[2]), (cx + rx, cy + ry, top)
+
+
+def _turned(entry) -> bool:
+    """Is a prop rotated off the world axes (its world box is then larger than the model)?"""
+    a = _vec(entry["node"].get("angles"))
+    return any(abs(((x + 45) % 90) - 45) > 0.5 for x in a)
+
+
+def _frame(entry):
+    """(origin, rotation columns, local box with the scale applied) of a placed model."""
+    origin = _vec(entry["node"].get("origin"))
+    angles = _vec(entry["node"].get("angles"))
+    scales = _vec(entry["node"].get("scales", (1, 1, 1)), (1.0, 1.0, 1.0))
+    axes = [structure._rotate(tuple(float(i == k) for i in range(3)), angles) for k in range(3)]
+    lo, hi = entry["local_bounds"]
+    box = (tuple(min(lo[k] * scales[k], hi[k] * scales[k]) for k in range(3)),
+           tuple(max(lo[k] * scales[k], hi[k] * scales[k]) for k in range(3)))
+    return origin, axes, box
+
+
+def _to_local(frame, point):
+    origin, axes, _ = frame
+    d = [point[i] - origin[i] for i in range(3)]
+    return tuple(sum(axes[k][i] * d[i] for i in range(3)) for k in range(3))
+
+
+def _obb_centre(frame):
+    origin, axes, (lo, hi) = frame
+    c = [(lo[k] + hi[k]) / 2 for k in range(3)]
+    return tuple(origin[i] + sum(axes[k][i] * c[k] for k in range(3)) for i in range(3))
+
+
+def _obb_depth(a, b) -> float:
+    """Smallest overlap of two placed models' oriented boxes over the 15 separating axes (< 0: apart)."""
+    fa, fb = _frame(a), _frame(b)
+
+    def corners(frame):
+        origin, axes, (lo, hi) = frame
+        return [tuple(origin[i] + sum(axes[k][i] * local[k] for k in range(3)) for i in range(3))
+                for local in itertools.product(*zip(lo, hi))]
+    ca, cb = corners(fa), corners(fb)
+    candidates = list(fa[1]) + list(fb[1])
+    for u in fa[1]:
+        for v in fb[1]:
+            c = checks._cross(u, v)
+            if checks._dot(c, c) > 1e-9:
+                candidates.append(c)
+    best = math.inf
+    for axis in candidates:
+        n = math.sqrt(checks._dot(axis, axis))
+        axis = [x / n for x in axis]
+        pa = [checks._dot(axis, p) for p in ca]
+        pb = [checks._dot(axis, p) for p in cb]
+        best = min(best, min(max(pa), max(pb)) - max(min(pa), min(pb)))
+    return best
+
+
 def _overlap(a, b, gap=0.0) -> bool:
     return all(a[0][i] < b[1][i] + gap and a[1][i] > b[0][i] - gap for i in range(3))
 
@@ -329,6 +433,13 @@ def _terrain_float_checks(m, props) -> list:
         if entry.get("class") != "prop_static" or entry.get("props", {}).get("parentname"):
             continue
         (lo, hi) = entry["bounds"]
+        if any(t in entry["model"].lower() for t in _PLANT_MODEL):
+            # A crown or a hedge's leaves overhang the ground they grow from (22.10: a 13 m maple "hung 136 units",
+            # hedges in a raised bed "floated" over the walk): only the trunk / base footprint counts.
+            share = 0.12 if any(t in entry["model"].lower() for t in ("tree", "palm", "pine", "maple", "oak")) else 0.5
+            cx, cy = (lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2
+            rx, ry = (hi[0] - lo[0]) * share / 2, (hi[1] - lo[1]) * share / 2
+            lo, hi = (cx - rx, cy - ry, lo[2]), (cx + rx, cy + ry, hi[2])
         for data in plans:
             (blo, bhi) = data["bounds"]
             if not (blo[0] <= lo[0] and hi[0] <= bhi[0] and blo[1] <= lo[1] and hi[1] <= bhi[1]):
@@ -337,7 +448,8 @@ def _terrain_float_checks(m, props) -> list:
             ground = [terrain.sample(data, x, y)["z"] for x, y in pts]
             gap = lo[2] - min(ground)
             # Only props that stand on this terrain (their base is near it) and hang more than 8 units somewhere.
-            if lo[2] < max(ground) + 24 and gap > 8:
+            # A bush's soft bottom may sit a hand above a slope; a crate or a bench may not.
+            if lo[2] < max(ground) + 24 and gap > (16 if _plant(entry) else 8):
                 out.append(checks.problem("warning", "visual_prop_floats_on_slope", entry["id"],
                     f"{entry['model']} at {_centre(entry['bounds'])}: its base hangs {gap:.0f} units above the lowest ground under it",
                     f"Lower it by at least {gap:.0f} units (rocks: also sink ~20% of their height), or use scatter, which grounds props on the footprint."))
@@ -431,7 +543,8 @@ def _visible_meshes(m):
 
 ZFIGHT_GAP = 0.25        # same-facing faces closer than this flicker against each other
 ZFIGHT_AREA = 16.0       # square units of overlap worth reporting
-ZFIGHT_LIMIT = 20
+ZFIGHT_CELL = 128.0      # candidate faces share a cell seen from above
+ZFIGHT_COS = math.cos(math.radians(2.0))     # ...and face the same way within 2 degrees
 
 
 def _faces(node):
@@ -443,7 +556,8 @@ def _faces(node):
     index = []
     face_data = md.get('faceData')
     for st in (face_data.get('streams', []) if face_data is not None else []):
-        if str(st.get('name', '')).startswith('materialindex'):
+        # The stream's own name is its DMX element name; the attribute is standardAttributeName (as in uv.py).
+        if str(st.get('standardAttributeName') or st.get('name') or '').startswith('materialindex'):
             index = st['data']
     data_of = md.get('faceDataIndices') or []
     for fi, start in enumerate(md['faceEdgeIndices']):
@@ -537,22 +651,17 @@ def _inside2(point, poly):
     return True
 
 
-def _pressed(buckets, n, d, d2, u, v, shared):
-    """Is the overlap covered by an opposite-facing face lying on (or just in front of) both faces?
+def _basis(n):
+    u = structure._cross(n, (0, 0, 1) if abs(n[2]) < 0.9 else (1, 0, 0))
+    ul = math.sqrt(sum(x * x for x in u))
+    u = [x / ul for x in u]
+    return u, structure._cross(n, u)
 
-    Such faces (a skin's back against its wall, an end cap against a neighbour) are never visible.
-    """
-    key = tuple(round(-x, 2) for x in n)
-    cu = sum(q[0] for q in shared) / len(shared)
-    cv = sum(q[1] for q in shared) / len(shared)
-    for od, _, pts, _, _ in buckets.get(key, []):
-        # the opposite face's plane along n is -od; it must sit within 0.3 in front of the nearer face
-        if not d2 - 0.05 <= -od <= d2 + 0.3:
-            continue
-        poly = [(sum(q[k] * u[k] for k in range(3)), sum(q[k] * v[k] for k in range(3))) for q in pts]
-        if _inside2((cu, cv), poly):
-            return True
-    return False
+
+def _project(points, u, v):
+    poly = [(points[i][0] * u[0] + points[i][1] * u[1] + points[i][2] * u[2],
+             points[i][0] * v[0] + points[i][1] * v[1] + points[i][2] * v[2]) for i in range(len(points))]
+    return poly[::-1] if _area(poly) < 0 else poly
 
 
 def _buried(point, visible, skip):
@@ -565,78 +674,161 @@ def _buried(point, visible, skip):
     return False
 
 
+def _under_terrain(point, plans) -> bool:
+    """Is a point more than a unit under an add_terrain surface (faces seen only from below the ground)?"""
+    from . import terrain
+    for data in plans:
+        (lo, hi) = data['bounds']
+        if lo[0] <= point[0] <= hi[0] and lo[1] <= point[1] <= hi[1]:
+            try:
+                return point[2] < terrain.sample(data, point[0], point[1])['z'] - 1.0
+            except Exception:
+                return False
+    return False
+
+
 def _zfight_checks(m, visible):
-    """Faces of different meshes that lie in one plane, face the same way and overlap."""
-    buckets = {}
+    """Faces of different meshes and materials that face the same way and lie within ZFIGHT_GAP of each other
+    where they overlap.
+
+    Candidates share a 128-unit cell seen from above and face the same way within 2 degrees (numpy, per cell).
+    The gap is measured where they overlap - the overlap's corners on face A to the plane of face B - never by
+    comparing each face's own plane distance: far from the origin a normal difference of 0.005 moves that by
+    tens of units (false pairs 8 units apart, real pairs missed). Hidden pairs are skipped: pressed against an
+    opposite face just in front of both, inside a third body, or under the terrain. One problem per mesh pair
+    (its largest overlap), all of them (visual_check limits what it shows, summary.by_code counts all)."""
+    import numpy as np
+    from . import terrain
+    faces = []
     for node, _, _ in visible:
+        nid = node.get('nodeID')
         for points, mat in _faces(node):
             if 'tools' in mat or 'water' in mat or any(h in mat for h in _HELPER_MATERIALS):
                 continue
             plane = _plane(points)
-            if plane is None:
+            if plane is not None:
+                faces.append((nid, mat, points, plane[0], plane[1]))
+    if len(faces) < 2:
+        return []
+    normals = np.array([f[3] for f in faces])
+    dists = np.array([f[4] for f in faces])
+    # Per-face boxes, centres and radii from one flat array of corners (no Python loop per face).
+    counts = np.array([len(f[2]) for f in faces])
+    starts = np.concatenate([[0], np.cumsum(counts)[:-1]])
+    corners = np.array([q for f in faces for q in f[2]], dtype=float)
+    lows = np.minimum.reduceat(corners, starts, axis=0)
+    highs = np.maximum.reduceat(corners, starts, axis=0)
+    centres = np.add.reduceat(corners, starts, axis=0) / counts[:, None]
+    radii = np.maximum.reduceat(np.linalg.norm(corners - np.repeat(centres, counts, axis=0), axis=1), starts)
+    node_ids = np.array([f[0] if f[0] is not None else -1 for f in faces])
+    mat_index = {name: i for i, name in enumerate(sorted({f[1] for f in faces}))}
+    mat_ids = np.array([mat_index[f[1]] for f in faces])
+    grid: dict[tuple, list[int]] = {}
+    cells = np.floor(np.stack([lows[:, :2], highs[:, :2]], axis=1) / ZFIGHT_CELL).astype(np.int64)
+    single = (cells[:, 0, 0] == cells[:, 1, 0]) & (cells[:, 0, 1] == cells[:, 1, 1])
+    one = np.nonzero(single)[0]
+    if len(one):
+        keys = cells[one, 0, 0] * 4_000_003 + cells[one, 0, 1]
+        order = np.argsort(keys, kind='stable')
+        sk = keys[order]
+        cuts = np.nonzero(np.diff(sk))[0] + 1
+        for group in np.split(one[order], cuts):
+            k0 = group[0]
+            grid[(int(cells[k0, 0, 0]), int(cells[k0, 0, 1]))] = group.tolist()
+    for k in np.nonzero(~single)[0].tolist():
+        (i0, j0), (i1, j1) = cells[k]
+        for i in range(i0, i1 + 1):
+            for j in range(j0, j1 + 1):
+                grid.setdefault((i, j), []).append(k)
+    plans = terrain.plans(m)
+    seen: set[tuple[int, int]] = set()
+    worst: dict[tuple, tuple] = {}
+    for ks in grid.values():
+        if len(ks) < 2:
+            continue
+        idx = np.array(ks)
+        cn = normals[idx]
+        for r0 in range(0, len(ks), 512):           # rows in chunks: a crowded cell stays small in memory
+            rows = slice(r0, min(len(ks), r0 + 512))
+            dots = cn[rows] @ cn.T
+            cand = dots > ZFIGHT_COS
+            cand &= np.arange(len(ks))[None, :] > np.arange(rows.start, rows.stop)[:, None]
+            cand &= node_ids[idx][rows][:, None] != node_ids[idx][None, :]
+            cand &= mat_ids[idx][rows][:, None] != mat_ids[idx][None, :]
+            if not cand.any():
                 continue
-            n, d = plane
-            buckets.setdefault(tuple(round(x, 2) for x in n), []).append((d, node.get('nodeID'), points, n, mat))
-    found, pairs = [], set()
-    for faces in buckets.values():
-        faces.sort(key=lambda f: f[0])
-        count = len(faces)
-        for i in range(count):
-            d, nid, pts, n, mat = faces[i]
-            a = None
-            for j in range(i + 1, count):
-                d2, nid2, pts2, _, mat2 = faces[j]
-                if d2 - d > ZFIGHT_GAP:
-                    break
-                pair = (min(nid, nid2), max(nid, nid2))
-                # Same material with our world-projected UVs draws the same pixels: no visible flicker.
-                if nid2 == nid or pair in pairs or mat2 == mat:
+            # B's centre near A's plane: its corners spread at most radius * sin(2 degrees) around it.
+            off = np.abs(cn[rows] @ centres[idx].T - dists[idx][rows][:, None])
+            cand &= off <= ZFIGHT_GAP + 0.5 + radii[idx][None, :] * 0.035
+            if not cand.any():
+                continue
+            lo, hi = lows[idx], highs[idx]
+            for k in range(3):
+                cand &= lo[rows, k][:, None] <= hi[:, k][None, :] + ZFIGHT_GAP
+                cand &= lo[:, k][None, :] <= hi[rows, k][:, None] + ZFIGHT_GAP
+            for a, b in zip(*np.nonzero(cand)):
+                ka, kb = ks[rows.start + a], ks[b]
+                if (ka, kb) in seen:
                     continue
-                if a is None:       # projection of face i, computed once for all its partners
-                    u = structure._cross(n, (0, 0, 1) if abs(n[2]) < 0.9 else (1, 0, 0))
-                    ul = math.sqrt(sum(x * x for x in u))
-                    u = [x / ul for x in u]
-                    v = structure._cross(n, u)
-                    a = [(sum(q[k] * u[k] for k in range(3)), sum(q[k] * v[k] for k in range(3))) for q in pts]
-                    if _area(a) < 0:
-                        a = a[::-1]
-                    abox = (min(q[0] for q in a), max(q[0] for q in a), min(q[1] for q in a), max(q[1] for q in a))
-                # sum() of a tuple: the same compensated float sum as before, without a generator per vertex.
-                b = [(sum((q[0] * u[0], q[1] * u[1], q[2] * u[2])), sum((q[0] * v[0], q[1] * v[1], q[2] * v[2])))
-                     for q in pts2]
-                if (max(q[0] for q in b) <= abox[0] or min(q[0] for q in b) >= abox[1]
-                        or max(q[1] for q in b) <= abox[2] or min(q[1] for q in b) >= abox[3]):
-                    continue        # projections apart: no shared area
-                if _area(b) < 0:
-                    b = b[::-1]
-                shared = _clip(a, b)
-                overlap = abs(_area(shared)) if len(shared) >= 3 else 0.0
-                if overlap >= ZFIGHT_AREA and _pressed(buckets, n, d, d2, u, v, shared):
-                    continue          # both faces are pressed against an opposite face: never seen
-                if overlap >= ZFIGHT_AREA:
-                    su = sum(q[0] for q in shared) / len(shared)
-                    sv = sum(q[1] for q in shared) / len(shared)
-                    c = tuple(round(n[k] * d + u[k] * su + v[k] * sv, 1) for k in range(3))
-                    if _buried(tuple(c[k] + n[k] * 0.5 for k in range(3)), visible, {nid, nid2}):
-                        continue      # both faces are inside a third body (a post's foot in the floor): never seen
-                    pairs.add(pair)
-                    gap = d2 - d
-                    effect = (f'{gap:.2f} units apart: they flicker' if gap > 1e-3
-                              else 'exactly coplanar: one hides the other or they flicker')
-                    found.append((gap > 1e-3, overlap, checks.problem('warning', 'visual_z_fighting', nid,
-                        f'meshes {nid} and {nid2} overlap in one plane near {c} '
-                        f'({mat.rsplit("/", 1)[-1]} vs {mat2.rsplit("/", 1)[-1]}, {overlap:.0f} sq units, {effect})',
-                        'Join them edge to edge, sink one at least 1 unit behind the other, or remove the duplicate; '
-                        'use decals or sign_create for labels and stains.')))
-    found.sort(key=lambda f: (not f[0], -f[1]))       # near-coplanar first, then the largest
-    return [f[2] for f in found[:ZFIGHT_LIMIT]]
+                seen.add((ka, kb))
+                found = _zfight_pair(faces, ka, kb, ks, normals, visible, plans)
+                if found is None:
+                    continue
+                pair = (min(faces[ka][0], faces[kb][0]), max(faces[ka][0], faces[kb][0]))
+                if pair not in worst or found[1] > worst[pair][1]:
+                    worst[pair] = found
+    found = sorted(worst.values(), key=lambda f: (not f[0], -f[1]))      # near-coplanar first, then the largest
+    return [f[2] for f in found]
+
+
+def _zfight_pair(faces, ka, kb, cell, normals, visible, plans):
+    """(not exactly coplanar, overlap area, problem) for one candidate face pair, or None."""
+    nid, mat, pts, n, d = faces[ka]
+    nid2, mat2, pts2, n2, d2 = faces[kb]
+    dist = [n[0] * q[0] + n[1] * q[1] + n[2] * q[2] - d for q in pts2]
+    if min(dist) > ZFIGHT_GAP + 2 or max(dist) < -ZFIGHT_GAP - 2:
+        return None                                   # B lies well off A's plane
+    u, v = _basis(n)
+    a, b = _project(pts, u, v), _project(pts2, u, v)
+    shared = _clip(a, b)
+    overlap = abs(_area(shared)) if len(shared) >= 3 else 0.0
+    if overlap < ZFIGHT_AREA:
+        return None
+    corners = [[n[k] * d + u[k] * su + v[k] * sv for k in range(3)] for su, sv in shared]
+    gap = max(abs(n2[0] * c[0] + n2[1] * c[1] + n2[2] * c[2] - d2) for c in corners)
+    if gap > ZFIGHT_GAP:
+        return None
+    su = sum(q[0] for q in shared) / len(shared)
+    sv = sum(q[1] for q in shared) / len(shared)
+    c = tuple(round(n[k] * d + u[k] * su + v[k] * sv, 1) for k in range(3))
+    # Pressed against an opposite-facing face just in front of both (a skin's back on its wall): never seen.
+    for kc in cell:
+        n3 = normals[kc]
+        if n[0] * n3[0] + n[1] * n3[1] + n[2] * n3[2] > -ZFIGHT_COS:
+            continue
+        _, _, pts3, _, d3 = faces[kc]
+        ahead = -(n3[0] * c[0] + n3[1] * c[1] + n3[2] * c[2] - d3)
+        if -0.05 <= ahead <= ZFIGHT_GAP + 0.3 and _inside2((su, sv), _project(pts3, u, v)):
+            return None
+    front = tuple(c[k] + n[k] * 0.5 for k in range(3))
+    if _buried(front, visible, {nid, nid2}) or _under_terrain(front, plans):
+        return None                                   # inside a third body or under the ground: never seen
+    effect = (f'{gap:.2f} units apart: they flicker' if gap > 1e-3
+              else 'exactly coplanar: one hides the other or they flicker')
+    problem = checks.problem('warning', 'visual_z_fighting', nid,
+        f'meshes {nid} and {nid2} overlap in one plane near {c} facing {[round(x, 2) for x in n]} '
+        f'({mat.rsplit("/", 1)[-1]} vs {mat2.rsplit("/", 1)[-1]}, {overlap:.0f} sq units, {effect})',
+        'Join them edge to edge, sink one at least 1 unit behind the other, or remove the duplicate; '
+        'use decals or sign_create for labels and stains.')
+    problem.update({'ids': [nid, nid2], 'at': list(c), 'gap': round(gap, 3)})
+    return gap > 1e-3, overlap, problem
 
 
 FLAT_MODEL = 4.0          # a model this thin is a pane, panel or sheet
 FLAT_GAP = 0.3            # ...and lying this close to a surface it flickers against it
 
 
-def _flat_model_checks(props, visible, limit=ZFIGHT_LIMIT):
+def _flat_model_checks(props, visible, limit=20):
     """Thin models (glass panes, shutters, sheets) lying in the plane of a mesh face.
 
     Their visible side is in that plane, so they z-fight with the surface behind
@@ -842,14 +1034,30 @@ class _TriGrid:
     original order, so a caller filtering them gets exactly what a scan of the whole list would give."""
     CELL = 256.0
 
-    def __init__(self, entries):
+    def __init__(self, entries, lows=None, highs=None):
+        import numpy as np
         self.entries = entries
         self.cells = {}
         c = self.CELL
-        for i, (_, lo, hi, *_rest) in enumerate(entries):
-            for gx in range(math.floor(lo[0] / c), math.floor(hi[0] / c) + 1):
-                for gy in range(math.floor(lo[1] / c), math.floor(hi[1] / c) + 1):
+        if lows is None:
+            lows = np.array([e[1] for e in entries], dtype=float).reshape(-1, 3)
+            highs = np.array([e[2] for e in entries], dtype=float).reshape(-1, 3)
+        g0 = np.floor(lows[:, :2] / c).astype(np.int64)
+        g1 = np.floor(highs[:, :2] / c).astype(np.int64)
+        single = np.all(g0 == g1, axis=1)
+        one = np.nonzero(single)[0]
+        if len(one):                      # most entries fill one cell: grouped with one sort, not a loop
+            keys = g0[one, 0] * 4_000_003 + g0[one, 1]
+            order = np.argsort(keys, kind='stable')
+            cuts = np.nonzero(np.diff(keys[order]))[0] + 1
+            for group in np.split(one[order], cuts):
+                self.cells[(int(g0[group[0], 0]), int(g0[group[0], 1]))] = group.tolist()
+        for i in np.nonzero(~single)[0].tolist():
+            for gx in range(g0[i, 0], g1[i, 0] + 1):
+                for gy in range(g0[i, 1], g1[i, 1] + 1):
                     self.cells.setdefault((gx, gy), []).append(i)
+        for key in self.cells:
+            self.cells[key].sort()
 
     def near(self, x0, x1, y0, y1):
         c = self.CELL
@@ -868,20 +1076,26 @@ def _phantom_checks(m, meshes):
         rooms = [bounds] if bounds else []
     if not rooms:
         return []
-    solid = []
-    for _, bound, tris in meshes:
-        for tri in tris:
-            lo = [min(p[i] for p in tri) for i in range(3)]
-            hi = [max(p[i] for p in tri) for i in range(3)]
-            solid.append((tri, lo, hi, checks._cross(checks._sub(tri[1], tri[0]), checks._sub(tri[2], tri[0]))[2] > 1e-6))
-    grid = _TriGrid(solid)
+    render_only = _render_only_meshes(m)
+    if not render_only:
+        return []
+    import numpy as np
+    tris = [tri for _, _, ts in meshes for tri in ts]
+    if not tris:
+        return []
+    arr = np.array(tris, dtype=float)
+    lows, highs = arr.min(axis=1), arr.max(axis=1)
+    e1, e2 = arr[:, 1] - arr[:, 0], arr[:, 2] - arr[:, 0]
+    up = (e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]) > 1e-6
+    solid = list(zip(tris, lows.tolist(), highs.tolist(), up.tolist()))
+    grid = _TriGrid(solid, lows, highs)
 
     def room_at(point, below=8.0):
         return next((r for r in rooms if r[0][0] <= point[0] <= r[1][0] and r[0][1] <= point[1] <= r[1][1]
                      and r[0][2] - below <= point[2] <= r[1][2]), None)
 
     problems = []
-    for node in _render_only_meshes(m):
+    for node in render_only:
         floors = walls = 0
         where = None
         for points, mat in _faces(node):
@@ -922,13 +1136,15 @@ def _phantom_checks(m, meshes):
                 if min(hi[2], base + 72) - max(lo[2], base) < 48:
                     continue          # above head height or too low to block anyone
                 # Backed on either side: a skin in front of a wall, or the back face of one pressed against it.
-                probe = (c[0], c[1], max(lo[2], base) + 24)
+                # A panel sloping down a bank is not at lo + 24 over its middle: there its own centre is probed too.
+                probes = [(c[0], c[1], max(lo[2], base) + 24), tuple(c)]
                 # A hit within PHANTOM_BACKING of the probe lies in a triangle whose box is that close.
                 reach = PHANTOM_BACKING + 1
-                near = [e[0] for e in boxed if all(e[1][k] <= probe[k] + reach and e[2][k] >= probe[k] - reach
-                                                   for k in range(3))]
-                if not any((hit := checks._ray(probe, d, t)) is not None and hit <= PHANTOM_BACKING
-                           for d in (tuple(-x for x in n), tuple(n)) for t in near):
+                if not any(any((hit := checks._ray(probe, d, e[0])) is not None and hit <= PHANTOM_BACKING
+                               for d in (tuple(-x for x in n), tuple(n))
+                               for e in boxed if all(e[1][k] <= probe[k] + reach and e[2][k] >= probe[k] - reach
+                                                     for k in range(3)))
+                           for probe in probes):
                     walls += 1
                     where = where or tuple(round(v, 1) for v in c)
         if floors:
@@ -1072,7 +1288,38 @@ class _FloorGrid:
         return checks._floor(point, self.cells.get(key, []), max_drop)
 
 
-def _has_support(entry, meshes, props, grid=None):
+class _NearGrid:
+    """Every triangle bucketed by 128-unit XY cells: what lies near a box is found without scanning the map."""
+    CELL = 128.0
+
+    def __init__(self, triangles):
+        self.cells = {}
+        c = self.CELL
+        for tri in triangles:
+            for i in range(int(math.floor(min(p[0] for p in tri) / c)), int(math.floor(max(p[0] for p in tri) / c)) + 1):
+                for j in range(int(math.floor(min(p[1] for p in tri) / c)), int(math.floor(max(p[1] for p in tri) / c)) + 1):
+                    self.cells.setdefault((i, j), []).append(tri)
+
+    def near(self, box):
+        c = self.CELL
+        seen, out = set(), []
+        for i in range(int(math.floor(box[0][0] / c)), int(math.floor(box[1][0] / c)) + 1):
+            for j in range(int(math.floor(box[0][1] / c)), int(math.floor(box[1][1] / c)) + 1):
+                for tri in self.cells.get((i, j), ()):
+                    if id(tri) not in seen:
+                        seen.add(id(tri))
+                        out.append(tri)
+        return out
+
+
+def _box_tris(tris, box):
+    """Triangles whose own box touches `box` (a cheap filter before exact or transformed tests)."""
+    return [t for t in tris if not (min(p[0] for p in t) > box[1][0] or max(p[0] for p in t) < box[0][0] or
+                                    min(p[1] for p in t) > box[1][1] or max(p[1] for p in t) < box[0][1] or
+                                    min(p[2] for p in t) > box[1][2] or max(p[2] for p in t) < box[0][2])]
+
+
+def _has_support(entry, meshes, props, grid=None, tri_grid=None):
     lo, hi = entry["bounds"]
     grid = grid or _FloorGrid([t for _, _, ts in meshes for t in ts])
     # Five samples make a narrow crate on a broad floor reliable, while still
@@ -1086,6 +1333,13 @@ def _has_support(entry, meshes, props, grid=None):
             floor.append(z)
     if floor and max(abs(lo[2] - z) for z in floor) <= SUPPORT_GAP:
         return True, "floor"
+    # A wall or ceiling face within the contact tolerance of the model's box holds it (18.10: an air conditioner
+    # 1 unit off a diagonal facade was "floating": the facade mesh's world box was nowhere near it).
+    near = ([lo[k] - CONTACT_TOLERANCE for k in range(3)], [hi[k] + CONTACT_TOLERANCE for k in range(3)])
+    candidates = (tri_grid.near(near) if tri_grid is not None
+                  else [tri for _, bound, tris in meshes if _overlap(bound, near) for tri in tris])
+    if any(_tri_box(tri, near) for tri in _box_tris(candidates, near)):
+        return True, "wall_or_ceiling"
     for other in [*meshes, *[(None, p["bounds"], []) for p in props if p is not entry]]:
         bound = other[1]
         # Side/ceiling contact: overlap on the two transverse axes and a
@@ -1126,7 +1380,131 @@ def _inside(bounds, room, margin=0):
     return all(bounds[0][i] >= room[0][i] + margin and bounds[1][i] <= room[1][i] - margin for i in range(3))
 
 
-def _audit(project, m) -> list[dict]:
+TERRAIN_NEAR = 48.0     # a mesh whose top lies this close to the ground stands on it (roads, plazas, slabs)
+TERRAIN_AIR = 3.0       # more air than this under a ground mesh's edge shows from the side
+BAR_WIDTH = 24.0        # tops narrower than this on average are rails, bars and caps carried by something else
+
+
+def _vertical_hits(x, y, tris):
+    """z of every triangle a vertical line at (x, y) crosses."""
+    out = []
+    for a, b, c in tris:
+        d = (b[0] - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (b[1] - a[1])
+        if abs(d) < 1e-9:
+            continue
+        u = ((x - a[0]) * (c[1] - a[1]) - (c[0] - a[0]) * (y - a[1])) / d
+        v = ((b[0] - a[0]) * (y - a[1]) - (x - a[0]) * (b[1] - a[1])) / d
+        if u < -1e-6 or v < -1e-6 or u + v > 1 + 1e-6:
+            continue
+        out.append(a[2] + u * (b[2] - a[2]) + v * (c[2] - a[2]))
+    return out
+
+
+def _terrain_mesh_checks(m, meshes) -> list:
+    """Meshes lying on an add_terrain surface (roads, plazas, slabs): ground poking through the top, or air under
+    them (22.10: the user found ribbons up to 3.6 m over the ground and grass through slabs by eye).
+
+    Each upward face is sampled at its centre and near its corners against the terrain's own surface. A top
+    under the ground everywhere is a buried part (fine); one partly under it is the ground poking through. The
+    bottom under a sample is the mesh's lowest crossing there."""
+    from . import terrain
+    plans = terrain.plans(m)
+    if not plans:
+        return []
+    out = []
+    def carried(nid, bound) -> bool:
+        """Another mesh under this one's footprint standing from the ground up against its underside (walls under
+        a roof, a block under a landing, posts under a slab): the air beside it is the overhang of a structure. A
+        neighbour (a road beside a slab) ends at the slab's top, not under its bottom, and does not count."""
+        for other, ob, _ in meshes:
+            if other.get("nodeID") == nid or ob[1][2] - ob[0][2] < 16:
+                continue
+            if ob[1][0] <= bound[0][0] or ob[0][0] >= bound[1][0] or ob[1][1] <= bound[0][1] or ob[0][1] >= bound[1][1]:
+                continue
+            g = ground((ob[0][0] + ob[1][0]) / 2, (ob[0][1] + ob[1][1]) / 2)
+            if g is not None and ob[0][2] <= g + 8 and bound[0][2] - 4 <= ob[1][2] <= bound[0][2] + 2:
+                return True
+        return False
+
+    def ground(x, y):
+        for data in plans:
+            (lo, hi) = data["bounds"]
+            if lo[0] <= x <= hi[0] and lo[1] <= y <= hi[1]:
+                try:
+                    return terrain.sample(data, x, y)["z"]
+                except Exception:
+                    return None
+        return None
+
+    for node, bound, tris in meshes:
+        g0 = ground((bound[0][0] + bound[1][0]) / 2, (bound[0][1] + bound[1][1]) / 2)
+        if g0 is None or bound[0][2] > g0 + TERRAIN_NEAR * 3 or bound[1][2] < g0 - TERRAIN_NEAR:
+            continue
+        tops = []
+        for tri in tris:
+            n = checks._cross(checks._sub(tri[1], tri[0]), checks._sub(tri[2], tri[0]))
+            ln = math.sqrt(checks._dot(n, n))
+            if ln > 1e-9 and n[2] / ln > 0.7:
+                tops.append(tri)
+        if not tops or len(tops) > 4000:
+            continue                                   # no top, or the terrain itself / a huge mesh
+        # Mean width of the tops: a rail, a bar or a wall cap (posts or a wall carry it; nobody stands there, as in
+        # the phantom floor check) is not a slab whose edge should touch down.
+        length = sum(max(math.dist(t[i], t[(i + 1) % 3]) for i in range(3)) for t in tops)
+        area = sum(math.sqrt(checks._dot(n, n)) / 2 for n in (checks._cross(checks._sub(t[1], t[0]), checks._sub(t[2], t[0]))
+                                                              for t in tops))
+        bar = bool(length) and 2 * area / length < BAR_WIDTH
+        cells: dict = {}                               # the mesh's triangles by 64-unit cells, for vertical lines
+        for tri in tris:
+            for i in range(int(math.floor(min(p[0] for p in tri) / 64)), int(math.floor(max(p[0] for p in tri) / 64)) + 1):
+                for j in range(int(math.floor(min(p[1] for p in tri) / 64)), int(math.floor(max(p[1] for p in tri) / 64)) + 1):
+                    cells.setdefault((i, j), []).append(tri)
+        through, air, on_ground, under, total = [], [], 0, 0, 0
+        for tri in tops[:600]:
+            c = [sum(p[k] for p in tri) / 3 for k in range(3)]
+            for q in [c] + [[p[k] + (c[k] - p[k]) * 0.2 for k in range(3)] for p in tri]:
+                g = ground(q[0], q[1])
+                if g is None:
+                    continue
+                total += 1
+                if abs(q[2] - g) < 0.05:
+                    on_ground += 1                     # the terrain's own face
+                    continue
+                if q[2] - g > TERRAIN_NEAR:
+                    continue                           # a raised floor (a terrace, a bridge): not on the ground
+                if g > q[2] + 1.0:
+                    under += 1
+                    through.append((g - q[2], q))
+                    continue
+                near = cells.get((int(math.floor(q[0] / 64)), int(math.floor(q[1] / 64))), [])
+                hits = [z for z in _vertical_hits(q[0], q[1], near) if z < q[2] - 0.5]
+                if hits and min(hits) - g > TERRAIN_AIR:
+                    air.append((min(hits) - g, q))
+        if not total or on_ground > 0.8 * total:
+            continue
+        nid = node.get("nodeID")
+        if len(through) >= 2 and under < 0.9 * total:
+            depth, q = max(through)
+            out.append(checks.problem("warning", "visual_terrain_through_floor", nid,
+                f"the ground pokes {depth:.1f} units through the top of mesh {nid} near {[round(x) for x in q]}",
+                "Lower the terrain under the mesh (add_terrain flatten or its heightmap) or raise the mesh; the ground "
+                "must stay under a road, plaza or slab"))
+        # 25.10, a big town map: a shed roof by the uphill ground "hung" over the air its walls stand in.
+        if len(air) >= 2 and not bar and not carried(nid, bound):
+            gap, q = max(air)
+            out.append(checks.problem("warning", "visual_floats_over_terrain", nid,
+                f"mesh {nid} hangs {gap:.1f} units above the ground near {[round(x) for x in q]} (air under it)",
+                "Lower the mesh or raise the ground to its underside; sink a slab's edge 2+ units into the ground"))
+    return out
+
+
+def _in_box(bounds, box, margin=64.0) -> bool:
+    """Does a world box touch the zone [[x0, y0], [x1, y1]] (seen from above, with a margin for neighbours)?"""
+    return (bounds[0][0] <= box[1][0] + margin and bounds[1][0] >= box[0][0] - margin and
+            bounds[0][1] <= box[1][1] + margin and bounds[1][1] >= box[0][1] - margin)
+
+
+def _audit(project, m, box=None) -> list[dict]:
     problems: list[dict] = []
     meshes = _solid_meshes(m)
     triangles = [tri for _, _, ts in meshes for tri in ts]
@@ -1150,6 +1528,13 @@ def _audit(project, m) -> list[dict]:
     props = [p for p in props if p["bounds"][1][2] >= map_floor - 256]
 
     visible = _visible_meshes(m)
+    if box is not None:
+        # One zone of a big map (18.10): only what touches it is audited, a margin keeps its neighbours.
+        meshes = [x for x in meshes if _in_box(x[1], box)]
+        visible = [x for x in visible if x[1] and _in_box(x[1], box)]
+        props = [p for p in props if _in_box(p["bounds"], box)]
+        triangles = [tri for _, _, ts in meshes for tri in ts]
+    problems.extend(_terrain_mesh_checks(m, meshes))
     problems.extend(_worldtext_checks(m, visible))
     problems.extend(_foundation_checks(m, visible, meshes))
     problems.extend(_zfight_checks(m, visible))
@@ -1199,13 +1584,14 @@ def _audit(project, m) -> list[dict]:
 
     # Props must have a nearby floor, wall, ceiling or existing prop support.
     grid = _FloorGrid(triangles)
+    tri_grid = _NearGrid(triangles)
     for entry in props:
         model_lower = entry["model"].lower()
         if any(token in model_lower for token in _DECORATIVE_MODEL):
             continue
         if entry["bounds"][1][2] < map_floor - 256:
             continue  # switchable-light carriers parked far below the map
-        ok, support = _has_support(entry, meshes, props, grid)
+        ok, support = _has_support(entry, meshes, props, grid, tri_grid)
         if not ok and entry["bounds"][0][2] > map_floor + SUPPORT_GAP:
             problems.append(checks.problem("warning", "visual_floating_prop", entry["id"],
                 f"{entry['model']} at {_centre(entry['bounds'])} has no floor/wall support; bottom is {entry['bounds'][0][2]:.1f} units above the map floor",
@@ -1213,24 +1599,39 @@ def _audit(project, m) -> list[dict]:
 
     # Prop/brush and prop/prop deep intersections.  Base contact with a floor
     # is intentionally accepted; only penetration on two axes is reported.
+    import numpy as np
+    mesh_lo = np.array([b[0] for _, b, _ in meshes], dtype=float).reshape(-1, 3)
+    mesh_hi = np.array([b[1] for _, b, _ in meshes], dtype=float).reshape(-1, 3)
+    prop_lo = np.array([e["bounds"][0] for e in props], dtype=float).reshape(-1, 3)
+    prop_hi = np.array([e["bounds"][1] for e in props], dtype=float).reshape(-1, 3)
     for i, entry in enumerate(props):
-        for node, bound, tris in meshes:
-            if any(token in entry["model"].lower() for token in ("boat", "lamp", "lantern", "gaspipes", "/pipe")):
-                continue
-            if not _overlap(entry["bounds"], bound):
-                continue
+        skip = any(token in entry["model"].lower() for token in ("boat", "lamp", "lantern", "gaspipes", "/pipe"))
+        plo, phi = np.array(entry["bounds"][0]), np.array(entry["bounds"][1])
+        touching = [] if skip or not meshes else np.nonzero(np.all(plo < mesh_hi, axis=1) & np.all(phi > mesh_lo, axis=1))[0]
+        for node, bound, tris in (meshes[k] for k in touching):
             d = _depth(entry["bounds"], bound)
             if min(d) > INTERSECTION_DEPTH:
-                why = _penetration(entry["bounds"], tris)
+                if _plant(entry):
+                    core = _core_box(entry)
+                    why = _penetration(core, tris) if _overlap(core, bound) and min(_depth(core, bound)) > 0 else None
+                elif _turned(entry):
+                    # The mesh in the model's own frame: a car turned 133 degrees no longer "cuts into" a planter
+                    # a metre away because its world box is that much larger (18.10).
+                    frame = _frame(entry)
+                    why = _penetration(frame[2], [[_to_local(frame, p) for p in tri]
+                                                  for tri in _box_tris(tris, entry["bounds"])])
+                else:
+                    why = _penetration(entry["bounds"], tris)
                 if why is None:
                     continue
                 problems.append(checks.problem("warning", "visual_prop_intersection", entry["id"],
                     f"{entry['model']} at {_centre(entry['bounds'])} cuts into solid mesh {node.get('nodeID')} ({why})",
                     "Move the model out of the wall or up onto the surface; leave only a small mounting contact (<= 12 units)."))
                 break
-        for other in props[i + 1:]:
-            if not _overlap(entry["bounds"], other["bounds"]):
-                continue
+        later = np.nonzero(np.all(plo < prop_hi[i + 1:], axis=1) & np.all(phi > prop_lo[i + 1:], axis=1))[0]             if i + 1 < len(props) else []
+        for other in (props[i + 1 + k] for k in later):
+            if _plant(entry) and _plant(other):
+                continue          # bushes in a hedge, grass under a tree
             # A model set into another on purpose (glass in its frame) carries the host's id.
             if (str(entry["node"].get("cs2map_inset", "")) == str(other["id"])
                     or str(other["node"].get("cs2map_inset", "")) == str(entry["id"])):
@@ -1238,9 +1639,26 @@ def _audit(project, m) -> list[dict]:
             d = _depth(entry["bounds"], other["bounds"])
             a_center = tuple((entry["bounds"][0][k] + entry["bounds"][1][k]) / 2 for k in range(3))
             b_center = tuple((other["bounds"][0][k] + other["bounds"][1][k]) / 2 for k in range(3))
-            nested = (_inside((a_center, a_center), other["bounds"]) or
-                      _inside((b_center, b_center), entry["bounds"]))
-            if min(d) > 24.0 or nested:
+            if _plant(entry) or _plant(other):
+                a_box = _core_box(entry) if _plant(entry) else entry["bounds"]
+                b_box = _core_box(other) if _plant(other) else other["bounds"]
+                if not _overlap(a_box, b_box):
+                    continue
+                d2 = _depth(a_box, b_box)
+                ac = tuple((a_box[0][k] + a_box[1][k]) / 2 for k in range(3))
+                bc = tuple((b_box[0][k] + b_box[1][k]) / 2 for k in range(3))
+                nested = _inside((ac, ac), b_box) or _inside((bc, bc), a_box)
+                deep = min(d2) > 24.0
+            elif _turned(entry) or _turned(other):
+                fa, fb = _frame(entry), _frame(other)
+                ac, bc = _to_local(fb, _obb_centre(fa)), _to_local(fa, _obb_centre(fb))
+                nested = _inside((ac, ac), fb[2]) or _inside((bc, bc), fa[2])
+                deep = _obb_depth(entry, other) > 24.0
+            else:
+                nested = (_inside((a_center, a_center), other["bounds"]) or
+                          _inside((b_center, b_center), entry["bounds"]))
+                deep = min(d) > 24.0
+            if deep or nested:
                 problems.append(checks.problem("warning", "visual_prop_overlap", entry["id"],
                     f"{entry['model']} at {_centre(entry['bounds'])} is nested in {other['model']} (overlap {tuple(round(x,1) for x in d)} units; ids {entry['id']},{other['id']})",
                     "Separate the two model AABBs or remove the duplicate prop; do not hide one model inside another."))
@@ -1317,11 +1735,19 @@ def _audit(project, m) -> list[dict]:
     return problems
 
 
-def visual_check(project, name: str, limit: int = 200) -> dict:
+def visual_check(project, name: str, limit: int = 200, box=None) -> dict:
     """Audit a map for conservative visual authoring problems. The list shows `limit` problems (errors
-    first); summary.by_code counts all of them, so a big map does not return a huge answer."""
-    m = project.load(name)
-    problems = _audit(project, m)
+    first); summary.by_code counts all of them, so a big map does not return a huge answer. box =
+    [[x0, y0], [x1, y1]] audits one zone (seen from above)."""
+    if box is not None:
+        try:
+            (x0, y0), (x1, y1) = ((float(v) for v in corner) for corner in box)
+        except (TypeError, ValueError):
+            raise ValueError('box must be [[x0, y0], [x1, y1]] (a zone seen from above)') from None
+        box = [[min(x0, x1), min(y0, y1)], [max(x0, x1), max(y0, y1)]]
+    from .terrain import expand_layers
+    m = expand_layers(project, project.load(name))
+    problems = _audit(project, m, box)
     by_code: dict[str, int] = {}
     for p in problems:
         by_code[p["code"]] = by_code.get(p["code"], 0) + 1

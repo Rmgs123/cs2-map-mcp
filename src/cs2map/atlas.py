@@ -22,7 +22,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from . import blender_run, resource
-from .config import PROJECT_ROOT, ensure_inside
+from .config import PROJECT_ROOT, ensure_inside, vrf_cli
 
 CACHE = PROJECT_ROOT / '.local' / 'cache' / 'props'
 INDEX = CACHE / 'index.json'
@@ -31,7 +31,7 @@ SHEETS = CACHE / 'sheets'
 TMP = PROJECT_ROOT / '.local' / 'tmp' / 'props'
 NOTES = PROJECT_ROOT / '.local' / 'props' / 'notes.jsonl'
 CATALOG = PROJECT_ROOT / 'src' / 'cs2map' / 'data' / 'props' / 'catalog.jsonl'
-VRF = PROJECT_ROOT / 'tools' / 'vrf-cli-20.0' / 'Source2Viewer-CLI.exe'
+VRF = vrf_cli()
 SCRIPT = PROJECT_ROOT / 'src' / 'cs2map' / 'blender' / 'prop_atlas.py'
 
 INDEX_VERSION = 1

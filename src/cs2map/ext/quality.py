@@ -5,9 +5,18 @@ from .. import checks, compiler, lighting, playtest, game
 
 
 def run_lighting_build(project, name: str, preset: str = 'full', cubemaps: bool = True, timeout: int = 1800) -> dict:
-    """Synchronous orchestration used by the MCP tool and direct integration tests."""
+    """Synchronous orchestration used by the MCP tool and direct integration tests: unloads the map from CS2 like
+    map_build, then waits for the whole build (job_status alone returns after 50 s, and a short-lived server
+    would end the job with it) before baking the cubemaps."""
+    import time
+    released = project._release_compiled_map(name)
     job = compiler.build_map(project.s, project.jobs, name, preset, timeout)
-    result = project.job_status(job.id, timeout, 30)
+    deadline = time.monotonic() + timeout + 60
+    result = project.job_status(job.id, 50, 30)
+    while result['state'] == 'running' and time.monotonic() < deadline:
+        result = project.job_status(job.id, 50, 30)
+    if released:
+        result['note'] = 'the map was loaded in CS2; the game was switched to the idle map so it could be rebuilt'
     if result['state'] != 'succeeded' or not result['result'].get('ok'):
         return {'map':name,'build':result,'cubemaps':None,'ok':False}
     cube = compiler.build_cubemaps(project.s,name, min(600,timeout)) if cubemaps else None

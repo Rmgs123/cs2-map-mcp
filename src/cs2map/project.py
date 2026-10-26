@@ -25,6 +25,7 @@ TRIGGER_CLASSES = {'func_buyzone', 'func_bomb_target', 'func_hostage_rescue', 'p
 
 
 DRY_RUN = ContextVar('cs2map_map_edit_dry_run', default=False)
+MAX_REPORTED_FAILURES = 20      # a map_edit names at most this many failed operations
 # Settings for one call that works on another addon (a release addon: game tools with map="<addon>/<map>").
 ADDON_SETTINGS = ContextVar('cs2map_addon_settings', default=None)
 
@@ -87,6 +88,8 @@ class Project:
         # map_edit operations added by extensions: name -> fn(project, vmap, op, refs) -> dict
         self.extra_ops: dict[str, Any] = {}
         self.preprocessors: list = []
+        from . import meshops, uv
+        meshops.UNITS_PER_TEXEL = lambda material: uv.units_per_texel(self, material)
 
     def register_preprocessor(self, fn) -> None:
         """Rewrite every map_edit operation before it runs: fn(project, vmap, op, refs) -> op.
@@ -142,7 +145,20 @@ class Project:
                'node': str(node) if node else None,
                'source2viewer': VRF.is_file(),
                'jobs_running': self.jobs.running(), 'recent_jobs': self.jobs.recent(3)}
-        from . import mylayer
+        from . import backups, mylayer
+        try:
+            out['backups'] = backups.summary(self.s)
+        except OSError as e:
+            out['backups'] = {'folder': str(self.s.backups), 'error': str(e)}
+        try:
+            cards = system.gpus()
+            rt = [system.ray_tracing(c) for c in cards]
+            out['gpu'] = {'names': cards, 'ray_tracing': True if any(rt) else (False if rt and all(x is False for x in rt) else None)}
+            if out['gpu']['ray_tracing'] is False:
+                out['gpu']['note'] = ('no GPU with hardware ray tracing found: baked light (map_build full/final, '
+                                      'lighting_build) will fail; build with preset nav (bots, no baked light) or fast')
+        except (OSError, AttributeError):
+            pass
         if mylayer.feedback_count():
             out['feedback'] = f'{mylayer.feedback_count()} entries in my/feedback.md (problems for the MCP author)'
         if running:
@@ -191,14 +207,11 @@ class Project:
         ensure_inside(target, *writable_roots(self.s))
         hammer = self._check_hammer(name, force)
         self._saved_map = None
-        out = m.save(target, backup_dir=self.s.backups / 'maps')
+        out = m.save(target, backup_dir=self.s.backups / 'maps', settings=self.s)   # trimmed by the worker
         written, m.written = getattr(m, 'written', None), None
         if written is not None:
             st = target.stat()
             self._saved_map = (target, st.st_mtime_ns, st.st_size, written)
-        if out.get('backup'):
-            from . import housekeeping
-            housekeeping.trim_map_backups(self.s, Path(out['backup']).parent)
         if hammer['open']:
             out['warning'] = 'map is open in Hammer: reload it there before editing further'
         return out
@@ -212,6 +225,10 @@ class Project:
             target = self._map_file(name)
             if target.exists() and not overwrite:
                 raise MapError(f'map {name} already exists (use overwrite=true to replace it; a backup is kept)')
+            if target.exists() and system.hammer_state(target)['open']:
+                # map_create has no force (25.10: the shared message sent callers to a parameter it lacks).
+                raise MapError(f'map {name} is open in Hammer: close it there first, or build the new version '
+                               'under another name')
             m = VMap.from_template(self.s.cs2_path, template)
             maptypes.store(m, kind)
             saved = self.save(m, name)
@@ -250,18 +267,40 @@ class Project:
         return {**m.summary(), 'type': maptypes.stored(m), 'total_matching': len(nodes), 'offset': offset,
                 'nodes': nodes[offset:offset + limit]}
 
-    def map_backups(self, name: str) -> dict:
-        folder = self.s.backups / 'maps' / name
-        files = sorted(folder.glob('*.vmap'), reverse=True) if folder.is_dir() else []
-        return {'map': name, 'backups': [{'id': f.stem, 'bytes': f.stat().st_size} for f in files[:50]]}
+    def map_backups(self, name: str, pin: str | None = None) -> dict:
+        """Copies of a map, newest first, with the backups folder; pin=<label> keeps the map as it is now and
+        the current sources as a milestone that is never trimmed."""
+        from . import backups
+        check_name(name, 'map name')
+        if pin:
+            path = self._map_file(name)
+            if not path.is_file():
+                raise MapError(f'map {name} does not exist')
+            if not isinstance(pin, str) or not 0 < len(pin.strip()) <= 80:
+                raise MapError('pin: a label of 1-80 characters, e.g. "market square done"')
+            copy = backups.copy_live(self.s, path, self.s.backups / 'maps', kind='pin', pin=pin.strip())
+            return {'pinned': copy.name.split('.')[0], 'label': pin.strip(), **backups.listing(self.s, name, 5)}
+        return backups.listing(self.s, name)
 
-    def map_restore(self, name: str, backup_id: str, force: bool = False) -> dict:
-        src = self.s.backups / 'maps' / name / f'{backup_id}.vmap'
-        if not re.fullmatch(r'[\d-]+', backup_id) or not src.exists():
-            raise MapError(f'no backup {backup_id} for map {name}; see map_backups')
+    def map_restore(self, name: str, backup_id: str, force: bool = False, sources: bool = False) -> dict:
+        """Put a copy back (the current file is backed up first); sources=True also writes the sources of that
+        moment into restored/<id>/ (the live folders are not touched)."""
+        from . import backups, dmx
+        check_name(name, 'map name')
+        try:
+            entry = backups.find(self.s, name, backup_id)
+        except backups.BackupError as e:
+            raise MapError(str(e)) from None
         with self._lock:
-            m = VMap.load(src)
-            return {'restored': backup_id, **self.save(m, name, force)}
+            m = VMap(dmx.loads(backups.read_copy(entry)), None)
+            out = {'restored': backup_id, **self.save(m, name, force)}
+        if sources:
+            stamp = entry['meta'].get('sources')
+            if not stamp:
+                out['sources'] = 'this copy has no sources snapshot (made by 1.0 or without settings)'
+            else:
+                out['sources'] = backups.restore_sources(self.s, stamp)
+        return out
 
     # -- texture sizes (for correct UV scale) --------------------------------------------------
     def texture_size(self, material: str) -> tuple[int, int]:
@@ -305,18 +344,37 @@ class Project:
             m = self.load(name)
             refs: dict[str, int] = {}
             results = []
+            batch = self._replace_batch(m, operations[0]) if isinstance(operations[0], dict) and \
+                operations[0].get('op') == 'replace_batch' else None
+            if batch:
+                results.append(batch['result'])
+                operations = operations[1:]
             token = DRY_RUN.set(bool(dry_run))       # operations that write resources skip them in a dry run
+            failed: list[str] = []
             try:
+                # Every operation runs even after a failure, so one call names all the broken ones (25.10: a batch
+                # of 400 meshes took 8 runs, one error each). Nothing is saved when any fails.
                 for i, op in enumerate(operations):
                     try:
                         result = self._apply(m, op, refs)
                         self._keep_ref(m, op, result)
                         results.append(result)
                     except (OpError, MeshError, MapError, KeyError, ValueError, TypeError) as e:
-                        raise OpError(f'operation #{i} ({op.get("op") if isinstance(op, dict) else op!r}) failed: '
-                                      f'{e}. Nothing was saved.') from None
+                        kind = op.get('op') if isinstance(op, dict) else repr(op)
+                        ref = f' ref {op["ref"]}' if isinstance(op, dict) and op.get('ref') else ''
+                        failed.append((f'#{i} ({kind}{ref})', str(e)))
+                        if len(failed) >= MAX_REPORTED_FAILURES:
+                            break
             finally:
                 DRY_RUN.reset(token)
+            if len(failed) == 1:
+                raise OpError(f'operation {failed[0][0]} failed: {failed[0][1]}. Nothing was saved.')
+            if failed:
+                more = f' (stopped after {MAX_REPORTED_FAILURES})' if len(failed) >= MAX_REPORTED_FAILURES else ''
+                raise OpError(f'{len(failed)} operations failed{more}; a later one may fail only because of an '
+                              'earlier one: ' + ' | '.join(f'{w}: {e}' for w, e in failed) + '. Nothing was saved.')
+            if batch:
+                batch['result']['tagged'] = self._tag_batch(m, batch['tag'], batch['before'])
             out: dict[str, Any] = {'map': name, 'applied': len(results), 'results': results, 'refs': refs}
             if dry_run:
                 m.to_bytes()   # full encode + parse check
@@ -327,6 +385,51 @@ class Project:
             return out
 
     REF_KEY = 'cs2map_ref'
+    BATCH_KEY = 'cs2map_batch'
+
+    def _replace_batch(self, m: VMap, op: dict) -> dict:
+        """{"op": "replace_batch", "tag": "market"} as the FIRST operation: the nodes an earlier call made with this
+        tag are removed, and every node this call makes gets it. One generator's part of a big map is redone in
+        place instead of rebuilding the map from all its batches (18/23.10: 4 min for a change in one zone)."""
+        tag = op.get('tag')
+        if set(op) - {'op', 'tag'} or not isinstance(tag, str) or not re.fullmatch(r'\w{1,64}', tag):
+            raise OpError('replace_batch: {"op": "replace_batch", "tag": "<letters, digits, _>"} as the first operation')
+        removed = 0
+
+        def prune(parent: Element) -> None:
+            nonlocal removed
+            kids = parent.get('children', [])
+            keep = []
+            for c in kids:
+                if isinstance(c, Element) and c.get(self.BATCH_KEY) == tag:
+                    removed += 1 + sum(1 for _ in m.iter_nodes(c))
+                    continue
+                keep.append(c)
+                if isinstance(c, Element):
+                    prune(c)
+            if len(keep) != len(kids):
+                parent['children'] = keep
+        prune(m.world)
+        m._node_ids = m._ref_ids = None
+        before = {n['nodeID'] for n in m.iter_nodes() if 'nodeID' in n}
+        return {'tag': tag, 'before': before, 'result': {'op': 'replace_batch', 'tag': tag, 'removed': removed}}
+
+    def _tag_batch(self, m: VMap, tag: str, before: set) -> int:
+        """Tag the roots of the subtrees this batch made (their children go with them)."""
+        tagged = 0
+
+        def walk(parent: Element, parent_new: bool) -> None:
+            nonlocal tagged
+            for c in parent.get('children', []):
+                if not isinstance(c, Element):
+                    continue
+                new = 'nodeID' in c and c['nodeID'] not in before
+                if new and not parent_new:
+                    c.set(self.BATCH_KEY, 'string', tag)
+                    tagged += 1
+                walk(c, new)
+        walk(m.world, False)
+        return tagged
 
     @classmethod
     def _keep_ref(cls, m: VMap, op: Any, result: Any) -> None:
@@ -541,12 +644,13 @@ class Project:
         vpk_file = self.s.compiled_map(name)
 
         def locked() -> bool:
+            # Opening for writing succeeds on a loaded map: CS2 shares write, not delete (25.10: three full builds
+            # failed at their final "Write ...vpk Failed!"). file_in_use asks for what the replace needs.
             if not vpk_file.exists():
                 return False
             try:
-                with open(vpk_file, 'r+b'):
-                    return False
-            except PermissionError:
+                return system.file_in_use(vpk_file)
+            except OSError:
                 return True
 
         if not locked():
@@ -706,12 +810,32 @@ class Project:
             out['warning'] = note
         return out
 
+    CONSOLE_FULL = 60       # longer console output is summarised; the whole text goes to logs/
+
     def game_command(self, command: str, wait: float = 1.5, focus: bool = False) -> dict:
         wait = min(max(wait, 0.2), 20)
         if focus:
             with game.exclusive(), game.focused():
-                return {'output': game.command(self.s, command, wait)}
-        return {'output': game.command(self.s, command, wait)}
+                return self._console_answer(command, game.command(self.s, command, wait))
+        return self._console_answer(command, game.command(self.s, command, wait))
+
+    def _console_answer(self, command: str, lines: list[str]) -> dict:
+        """Short console output as it is; a long one (a map load prints ~300 lines, 23.10) as a summary: errors,
+        script messages, the map and the tail, with the whole text in a log file."""
+        if len(lines) <= self.CONSOLE_FULL:
+            return {'output': lines}
+        import time as _time
+        log = self.s.logs / f'console-{_time.strftime("%Y%m%d-%H%M%S")}-{_time.time_ns() % 10**6}.txt'
+        log.parent.mkdir(parents=True, exist_ok=True)
+        log.write_text('\n'.join(lines), encoding='utf-8')
+        err = re.compile(r'\berror\b|\bfailed\b|exception|missing|not found|cannot|can\'t', re.I)
+        script = re.compile(r'cs_script|point_script|\.vjs|S_[A-Z]+ |MCP_|\[script\]', re.I)
+        loaded = re.compile(r'map_workshop|changelevel|spawngroup|Loading map|loaded spawngroup|Host_NewGame', re.I)
+        def pick(rx, n):
+            return [ln for ln in lines if rx.search(ln)][:n]
+        return {'summary': {'lines': len(lines), 'errors': pick(err, 15), 'script': pick(script, 15),
+                            'map': pick(loaded, 4), 'tail': lines[-8:]},
+                'log': str(log), 'hint': 'long output summarised; the whole text is in log'}
 
     def game_screenshot(self, map: str | None = None, views: list[dict] | str | None = None, name: str | None = None,
                         pos: list[float] | None = None, ang: list[float] | None = None, hide_hud: bool = True,
@@ -719,6 +843,9 @@ class Project:
         from .config import check_name
         shots = views if isinstance(views, list) and views else [{'name': name or 'view', 'pos': pos, 'ang': ang}]
         for v in shots:
+            # Names become file names: "Mid-View 2" -> "mid_view_2" instead of a refusal (10.10).
+            if isinstance(v, dict) and v.get('name'):
+                v['name'] = re.sub(r'[^a-z0-9_]+', '_', str(v['name']).lower()).strip('_')[:64] or 'view'
             check_name(str(v.get('name') or 'view'), 'view name')
             if v.get('grep'):
                 try:
@@ -741,6 +868,10 @@ class Project:
         result = game.views(self.s, map, shots, hide_hud, deadline=deadline)
         out = {'map': result.get('map'), 'reloaded': result.get('reloaded'),
                'shots': [_compact_shot(x) for x in result.get('shots', [])]}
+        if result.get('rejected'):
+            out['rejected'] = result['rejected']
+            out['hint'] = ('some frames were rejected (listed); the others are fine. Retake the rejected views; a '
+                           'Steam notification or the user at the game can spoil a frame')
         if wants_preview:
             target = map or result.get('map')
             frame = next((x.get('path') for x in result.get('shots', []) if x.get('name') == wants_preview[0]), None)

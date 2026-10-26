@@ -110,9 +110,59 @@ def _write_params(params: dict[str, Any] | None) -> Path:
     return path
 
 
+def _lod_request(project, name: str, lods) -> list[dict]:
+    """Checked LOD levels: [{switch, reduce} | {switch, model}]. None keeps what the model had (a rebuild must not
+    drop hand-set LODs, 14.10); [] removes them."""
+    if lods is None:
+        try:
+            return json.loads((_model_dir(project.s, name) / 'model.json').read_text(encoding='utf-8')).get('lod_request', [])
+        except (OSError, ValueError):
+            return []
+    if not isinstance(lods, list) or len(lods) > 4:
+        raise ModelError('lods: up to 4 levels [{"switch": distance, "reduce": 0.5} or {"switch": d, "model": name}]')
+    out, last = [], 0.0
+    for lod in lods:
+        if not isinstance(lod, dict) or set(lod) - {'switch', 'reduce', 'model'} or ('reduce' in lod) == ('model' in lod):
+            raise ModelError('each LOD is {"switch": distance, "reduce": 0.02..0.95} or {"switch": distance, "model": '
+                             'an own model built before (hand-made level)}')
+        switch = lod.get('switch')
+        if isinstance(switch, bool) or not isinstance(switch, (int, float)) or not last < switch <= 32768:
+            raise ModelError('LOD switch distances must grow, each above the last and at most 32768 units')
+        last = float(switch)
+        if 'reduce' in lod:
+            r = lod['reduce']
+            if isinstance(r, bool) or not isinstance(r, (int, float)) or not .02 <= r <= .95:
+                raise ModelError('LOD reduce is the share of triangles kept, 0.02..0.95')
+            out.append({'switch': last, 'reduce': float(r)})
+        else:
+            check_name(lod['model'], 'LOD model')
+            meta = _model_dir(project.s, lod['model']) / 'model.json'
+            if lod['model'] == name or not meta.is_file():
+                raise ModelError(f'LOD model {lod["model"]!r}: build it first with model_build (not this model itself)')
+            out.append({'switch': last, 'model': lod['model']})
+    return out
+
+
+def _lod_parts(project, name: str, request: list[dict], metadata: dict) -> list[dict]:
+    """Each level's mesh file, triangles and remaps (an own model's level brings its materials)."""
+    made = {f['level']: f for f in metadata.get('lod_files', [])}
+    base = metadata.get('render_file', f'models/mcp/{name}/{name}.fbx')
+    parts = []
+    for level, lod in enumerate(request, 1):
+        if 'reduce' in lod:
+            f = made[level]
+            parts.append({'switch': lod['switch'], 'file': str(PurePosixPath(base).with_name(f['file'])),
+                          'tris': f['tris'], 'remaps': []})
+        else:
+            other = json.loads((_model_dir(project.s, lod['model']) / 'model.json').read_text(encoding='utf-8'))
+            parts.append({'switch': lod['switch'], 'file': other['render_file'], 'tris': other.get('tris', 0),
+                          'remaps': other.get('remaps', []), 'model': lod['model']})
+    return parts
+
+
 def _run_blender_model(project, mode: str, name: str, script_or_source: str | Path,
                        collision: str, params: dict[str, Any] | None, physics=None,
-                       weapon: dict | None = None) -> tuple[Job, Path, dict]:
+                       weapon: dict | None = None, lods: list[dict] | None = None) -> tuple[Job, Path, dict]:
     if collision not in ("hull", "mesh", "none"):
         raise ModelError("collision must be 'hull', 'mesh', or 'none'")
     out_dir = _model_dir(project.s, name) / 'sources' / uuid.uuid4().hex[:12]
@@ -120,6 +170,7 @@ def _run_blender_model(project, mode: str, name: str, script_or_source: str | Pa
     out_fbx = out_dir / f"{name}.fbx"
     values = dict(params or {})
     values['__cs2map_physics'] = physics or {}
+    values['__cs2map_lods'] = [[i, lod['reduce']] for i, lod in enumerate(lods or [], 1) if 'reduce' in lod]
     if weapon:
         values['__cs2map_weapon'] = True
     param_file = _write_params(values)
@@ -212,10 +263,20 @@ def _make_vmdl(project, name: str, metadata: dict, collision: str, surface: str,
     out_dir.mkdir(parents=True, exist_ok=True)
     fbx_rel = metadata.get('render_file', f"models/mcp/{name}/{name}.fbx")
     vmats, remaps = _materials_for_model(project, metadata, surface, name)
+    lods = metadata.get('lods', [])
+    meshes = [(name, fbx_rel)] + [(f'{name}_lod{i}', lod['file']) for i, lod in enumerate(lods, 1)]
     children: list[dict] = [{"_class": "RenderMeshList", "children": [{
-        "_class": "RenderMeshFile", "name": name, "filename": fbx_rel,
+        "_class": "RenderMeshFile", "name": mesh_name, "filename": file,
         "import_scale": 0.0254, "import_filter": {"exclude_by_default": False, "exception_list": []}
-    }]}]
+    } for mesh_name, file in meshes]}]
+    if lods:
+        # One group per level, switched by distance (the layout resourcecompiler accepted for an own SUV, 14.10).
+        children.append({'_class': 'LODGroupList', 'children': [
+            {'_class': 'LODGroup', 'name': f'lod{i}', 'switch_threshold': float(switch),
+             'mesh_references': [{'mesh_name': mesh_name, 'copy_and_simplify': False}]}
+            for i, ((mesh_name, _), switch) in enumerate(zip(meshes, [0.0] + [lod['switch'] for lod in lods]))]})
+        seen = {r['from'] for r in remaps}
+        remaps = remaps + [r for lod in lods for r in lod['remaps'] if r['from'] not in seen and not seen.add(r['from'])]
     if remaps:
         children.append({"_class": "MaterialGroupList", "children": [{
             "_class": "DefaultMaterialGroup", "remaps": remaps,
@@ -344,8 +405,15 @@ def _result(project, name: str, metadata: dict, collision: str, surface: str, vm
         compile_public['missing_assets'] = compile_result['missing_assets'][:8]
     if metadata.get('implicit_collision') and not metadata.get('weapon'):
         result['warnings'].append('collision uses render geometry; provide simpler *_col meshes for large props')
+    if metadata.get('lods'):
+        result['lods'] = [{'switch': lod['switch'], 'tris': lod['tris'], **({'model': lod['model']} if 'model' in lod
+                                                                            else {})} for lod in metadata['lods']]
+        # Measured 25.10: CS2 draws level 0 at every distance (prop_static and prop_dynamic, 500-3300 units).
+        result["warnings"].append("CS2 does not switch LOD levels by distance now (measured 25.10): the levels "
+                                  "save nothing in today's game; keep the full model's triangles low")
     if result["tris"] > 50000:
-        result["warnings"].append("more than 50,000 triangles: author LODs or simplify before filling a map with this model")
+        result["warnings"].append("more than 50,000 triangles: simplify before filling a map with this model "
+                                  "(CS2 does not switch LOD levels by distance)")
     data = {**metadata, **result, 'surface': surface, 'name': name}
     data['blender_materials'] = metadata.get('materials', [])
     (_model_dir(project.s, name) / 'model.json').write_text(json.dumps(data, indent=2), encoding='utf-8')
@@ -354,7 +422,7 @@ def _result(project, name: str, metadata: dict, collision: str, surface: str, vm
 
 def model_build(project, name: str, script: str | None = None, template: str | None = None,
                 params: dict[str, Any] | None = None, collision: str = "hull", surface: str = "default",
-                physics: dict | None = None, weapon: dict | str | None = None) -> dict:
+                physics: dict | None = None, weapon: dict | str | None = None, lods: list | None = None) -> dict:
     """Build a model from an inline/path Blender script or a stock template (weapon: on a stock gun's skeleton)."""
     if weapon is not None:
         from . import weapon_rig
@@ -363,8 +431,10 @@ def model_build(project, name: str, script: str | None = None, template: str | N
             raise ModelError('a weapon model takes no physics: the stock weapon entity carries it')
     physics = _physics_options(physics, collision)
     _writable_model_dir(project.s, name)
-    if surface not in materials.SURFACES:
-        raise ModelError(f'surface must be one of {materials.SURFACES}')
+    try:
+        surface = materials.surface_name(surface)
+    except ValueError as e:
+        raise ModelError(str(e)) from None
     if params is not None and not isinstance(params, dict):
         raise ModelError('params must be a JSON object')
     if script and template:
@@ -377,7 +447,10 @@ def model_build(project, name: str, script: str | None = None, template: str | N
     if not script:
         template = "crate"
         script = str(TEMPLATES_DIR / "crate.py")
-    state, _, metadata = _run_blender_model(project, "build", name, script, collision, params, physics, weapon)
+    request = [] if weapon else _lod_request(project, name, lods)
+    state, _, metadata = _run_blender_model(project, "build", name, script, collision, params, physics, weapon, request)
+    metadata['lod_request'] = request
+    metadata['lods'] = _lod_parts(project, name, request, metadata)
     if physics is not None:
         metadata['physics'] = physics
     if weapon:
@@ -397,7 +470,7 @@ def model_build(project, name: str, script: str | None = None, template: str | N
 
 def model_import(project, name: str, file: str, scale: str | float = "auto",
                  collision: str = "hull", surface: str = "default", physics: dict | None = None,
-                 weapon: dict | str | None = None) -> dict:
+                 weapon: dict | str | None = None, lods: list | None = None) -> dict:
     """Normalize an FBX/OBJ/GLB import and build its CS2 model asset (weapon: on a stock gun's skeleton)."""
     if weapon is not None:
         from . import weapon_rig
@@ -406,8 +479,15 @@ def model_import(project, name: str, file: str, scale: str | float = "auto",
             raise ModelError('an imported weapon needs weapon.grip [x,y,z] (inches after import; see model_preview)')
     physics = _physics_options(physics, collision)
     _writable_model_dir(project.s, name)
-    if surface not in materials.SURFACES:
-        raise ModelError(f'surface must be one of {materials.SURFACES}')
+    try:
+        surface = materials.surface_name(surface)
+    except ValueError as e:
+        raise ModelError(str(e)) from None
+    own = re.fullmatch(r'models/(mcp[a-z0-9_]*)/([a-z0-9_]+)/\2\.vmdl', str(file).replace('\\', '/'))
+    if own:
+        if physics is not None or weapon is not None or lods is not None or collision != 'hull':
+            raise ModelError('a scaled copy keeps the model\'s own collision, physics and LODs: pass only scale')
+        return _scaled_copy(project, name, own.group(0), scale)
     source = Path(file)
     if not source.is_file():
         raise ModelError(f"model file not found: {file}")
@@ -420,7 +500,11 @@ def model_import(project, name: str, file: str, scale: str | float = "auto",
             raise ModelError("scale must be 'auto' or a positive number") from None
         if not math.isfinite(scale) or scale <= 0 or scale > 1e6:
             raise ModelError("scale must be between 0 and 1000")
-    state, _, metadata = _run_blender_model(project, "import", name, source, collision, {"scale": scale}, physics, weapon)
+    request = [] if weapon else _lod_request(project, name, lods)
+    state, _, metadata = _run_blender_model(project, "import", name, source, collision, {"scale": scale}, physics,
+                                            weapon, request)
+    metadata['lod_request'] = request
+    metadata['lods'] = _lod_parts(project, name, request, metadata)
     if physics is not None:
         metadata['physics'] = physics
     if weapon:
@@ -431,6 +515,64 @@ def model_import(project, name: str, file: str, scale: str | float = "auto",
     _result(project, name, metadata, collision, surface, vmdl, compiled)
     preview = model_preview(project, name, ['iso'], 512).get('preview')
     return _result(project, name, metadata, collision, surface, vmdl, compiled, preview)
+
+
+def _scaled_copy(project, name: str, rel: str, scale) -> dict:
+    """An own model `scale` times bigger under a new name: the same FBX sources with every import_scale (render
+    meshes, LOD levels, collision, fragments) and LOD distance multiplied, nothing re-exported (23.10: the
+    a 1.2x SUV was a hand-edited copy). rel: models/mcp*/<name>/<name>.vmdl in the addon (also the
+    generated vehicle bodies of models/mcp_v)."""
+    source = PurePosixPath(rel).stem
+    if isinstance(scale, bool) or not isinstance(scale, (int, float)) or not math.isfinite(scale) or not .05 <= scale <= 20:
+        raise ModelError('a scaled copy needs scale 0.05..20 (a number, not "auto")')
+    if source == name:
+        raise ModelError('a scaled copy needs a new name')
+    folder = ensure_inside(project.s.content_addon / PurePosixPath(rel).parent, project.s.content_addon)
+    try:
+        header, doc = kv3.loads((folder / f'{source}.vmdl').read_text(encoding='utf-8'))
+    except (OSError, ValueError) as e:
+        raise ModelError(f'own model {rel} not found: build it first ({e})') from None
+    try:
+        meta = json.loads((folder / 'model.json').read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        meta = {}                       # generated vehicle bodies (models/mcp_v) keep no model.json
+    if meta.get('weapon'):
+        raise ModelError('weapon models are not scaled copies: rebuild with weapon.scale')
+
+    def walk(node):
+        if isinstance(node, dict):
+            if isinstance(node.get('import_scale'), (int, float)):
+                node['import_scale'] = node['import_scale'] * scale
+            if node.get('_class') == 'LODGroup':
+                node['switch_threshold'] = float(node['switch_threshold']) * scale
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+    walk(doc)
+    out_dir = _writable_model_dir(project.s, name)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    vmdl = out_dir / f'{name}.vmdl'
+    if vmdl.exists():
+        (out_dir / 'history').mkdir(exist_ok=True)
+        shutil.copy2(vmdl, out_dir / 'history' / f'{uuid.uuid4().hex[:12]}.vmdl')
+    vmdl.write_text(kv3.dumps(doc, header=header), encoding='utf-8')
+    compiled = _compile_model(project, vmdl, [])
+    data = {**meta, 'name': name, 'scaled_from': source, 'scale': scale, 'lod_request': [],
+            'bounds': [[c * scale for c in corner] for corner in meta.get('bounds') or [[0, 0, 0], [0, 0, 0]]],
+            'lods': [{**lod, 'switch': lod['switch'] * scale} for lod in meta.get('lods', [])]}
+    result = {'ok': bool(compiled.get('ok')), 'model': f'models/mcp/{name}/{name}.vmdl', 'scaled_from': source,
+              'scale': scale, 'bounds': data['bounds'], 'tris': meta.get('tris', 0),
+              'compile': {k: compiled.get(k) for k in ('ok', 'exit_code', 'log', 'output')}, 'warnings': []}
+    if compiled.get('errors'):
+        result['compile']['errors'] = compiled['errors'][:8]
+    if meta.get('physics'):
+        result['warnings'].append('mass is kept from the source model: pass a physics mass in the entity if it '
+                                  'should change')
+    data.update({k: v for k, v in result.items() if k not in ('warnings',)})
+    (out_dir / 'model.json').write_text(json.dumps(data, indent=2), encoding='utf-8')
+    return result
 
 
 def _model_source(project, name: str) -> Path:

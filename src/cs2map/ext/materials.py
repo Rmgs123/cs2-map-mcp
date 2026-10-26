@@ -34,6 +34,9 @@ def _reference_build(project, name: str, image: str, region=None, quad=None, rea
                      surface='concrete', roughness=None, metalness=0.0, alpha='none') -> dict:
     check_name(name, 'material name')
     source = textures.load(image, region, quad)
+    crop = {'source_px': list(source.size)}
+    if region is not None:
+        crop['region'] = [int(round(float(v))) for v in region]
     source = textures.delight(source)
     analysis = textures.tile_analysis(source)
     source = textures.make_tileable(source, method='auto')
@@ -63,7 +66,11 @@ def _reference_build(project, name: str, image: str, region=None, quad=None, rea
            'repeat_score': textures.repeat_score(source),
            **textures.band_analysis(source),
            'tile_mode': analysis['mode'], 'period': analysis['period'],
-           'compile': compile_result}
+           **crop, 'compile': compile_result}
+    if min(crop['source_px']) < 256:
+        out['warning'] = (f'the source crop is only {crop["source_px"][0]}x{crop["source_px"][1]} px: the texture '
+                          'will look blurry in the game; use a closer or larger photo (512+ px across), or '
+                          'material_create with a pattern in the colours of the photo')
     if compile_result.get('result'):
         out['compile_result'] = compile_result['result']
     return out
@@ -143,7 +150,15 @@ def register(mcp, project):
         norm = str(base).replace('\\', '/').removesuffix('_c')
         if norm.startswith('materials/') and project.game.exists(norm + '_c'):
             folder = project.s.logs.parent / '.local' / 'textures'
-            return vtex.export(project.game, norm, folder)['maps']
+            maps = vtex.export(project.game, norm, folder)['maps']
+            if 'color' not in maps:
+                # 18.10: a bare KeyError 'color'. Blend and layered materials keep their colour in layer slots.
+                found = ', '.join(sorted(maps)) or 'none that can be exported'
+                raise ValueError(f'{base} has no single colour texture to tint (its maps: {found}); it is probably a '
+                                 'blend or layered material. Take a one-layer base, e.g. '
+                                 'materials/cs_italy/hpe_plaster_tint_light.vmat, or find one with '
+                                 'asset_search(kind="material") and material_preview')
+            return maps
         p = Path(norm)
         if not p.is_absolute():
             p = project.s.content_addon / norm
@@ -295,7 +310,13 @@ def register(mcp, project):
         project.map_edit(map_name, ops)
         build = project.map_build(map_name, 'full')
         state = _wait_build(project, build['job'])
-        out = {'map': map_name, 'materials': materials_list, 'build': state}
+        out = {'map': map_name, 'materials': materials_list, 'build': state,
+               'note': f'{map_name} is loaded in CS2 for the shots: a map you were looking at there is replaced'}
+        if not state.get('result', {}).get('ok'):
+            # 10.10: VRAD3 hung the GPU twice on this gallery; unbaked light still shows colour and detail.
+            out['full_build_failed'] = {k: state.get(k) for k in ('state', 'log')}
+            state = _wait_build(project, project.map_build(map_name, 'fast')['job'])
+            out['build'], out['light'] = state, 'fast build without baked light (the full bake failed)'
         if state.get('result', {}).get('ok'):
             try:
                 shots = [{'name': f'{map_name}_stand_{i}', 'pos': [x, y - 650, 208], 'ang': [0, 90, 0]}

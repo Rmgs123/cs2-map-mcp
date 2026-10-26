@@ -21,7 +21,7 @@ Attach a compiled script with `map_edit`:
 {"op":"add_script","name":"round_log","origin":[0,0,8],"ref":"script"}
 ```
 
-The operation creates `point_script` with `cs_script = maps/scripts/mcp/round_log.vjs`. The source must already have been compiled. A minimal script is:
+The operation creates `point_script` with `cs_script = maps/scripts/mcp/round_log.vjs` and `targetname` `mcp_script_round_log` (or your `targetname`). The source must already have been compiled. `script_write(name, code, reload=true)` on a map loaded in CS2 restarts its named `point_script` entities with the new code, without reloading the map (script state starts over). A minimal script is:
 
 ```js
 import { Instance } from "cs_script/point_script";
@@ -46,6 +46,7 @@ The full API with comments is in the CS2 install: `content/csgo_addons/cs_script
 | `{"click":[0.43,0.52]}` | a real left click at that point of the game window (fractions): HUD buttons in cursor mode (section `ui`) |
 | `{"expect":"regex","within":3}` | a console line after the previous action |
 | `{"shot":"name"}` | a frame of what the player sees now (no noclip; vehicle and drone cameras stay) |
+| `{"spread":{"shots":5,"interval":0.5,"max_deg":1}}` | fire that many single shots where the view points and pair each with its first impact by game tick (an impact can come before its gun-fire event): the result's `spread` gives `deg_mean/max` and `miss_mean/max` (units off the view line), every shot in the log; `max_deg` makes it a check. Riders of a moving vehicle: measured 0.2° parked, ~0.75° at 330 u/s (the ~1.4-tick lag) |
 | `{"press":"button"}`, `{"fire":"name input"}`, `{"say":"text"}`, `{"wait":2}`, `{"focus":true}` | button Press, entity input, chat, pause, window focus |
 
 Mechanics print telemetry on a cheat command `<name>_state <token>` (e.g. `d8_control_drone1_state t1`, `v9_control_jeep_state t1`, `t9_turret_gun1_state t1`, `m9_range_state t1`, `w9_rail_state`): position, HP, camera, the player's pawn and the last 8 events — `expect` the token. Several keys at once: `{"cmd":"+sprint"}` then `hold` another key, `{"cmd":"-sprint"}` after.

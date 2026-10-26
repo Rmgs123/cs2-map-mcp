@@ -103,10 +103,12 @@ class Hang(unittest.TestCase):
 class InputSteps(unittest.TestCase):
     def test_new_steps_are_validated_before_anything_runs(self):
         good = [{'use': True}, {'aim': [1, 2, 3]}, {'aim': 'my_bot'}, {'hold': {'key': 'attack', 'seconds': .9}},
-                {'mouse': {'dx': 40, 'dy': -5}}, {'focus': True}, {'focus': False}]
+                {'mouse': {'dx': 40, 'dy': -5}}, {'focus': True}, {'focus': False},
+                {'spread': {'shots': 5, 'interval': .4, 'max_deg': 1}}]
         self.assertEqual(scripting._test_steps(good), good)
         for bad in ({'hold': {'key': 'x'}}, {'hold': {'key': 'use', 'seconds': 99}}, {'use': 1}, {'mouse': {'dx': 9999}},
-                    {'mouse': {'dz': 1}}, {'focus': 'yes'}, {'aim': [1, 2]}, {'use': True, 'aim': [1, 2, 3]}):
+                    {'mouse': {'dz': 1}}, {'focus': 'yes'}, {'aim': [1, 2]}, {'use': True, 'aim': [1, 2, 3]},
+                    {'spread': {'shots': 99}}, {'spread': {'target': [1, 2, 3]}}, {'spread': 5}):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 scripting._test_steps([bad])
         self.assertIn('-attack', scripting.RELEASE)                               # every held key has its release

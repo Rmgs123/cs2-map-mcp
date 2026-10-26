@@ -13,7 +13,7 @@ What to do when something in CS2 Map MCP breaks: where to look, the usual causes
 | `logs/script-test-<map>-*.json`, `logs/route-test-*` | every step, console line and frame of a play test (the tool answer is a summary) |
 | `game_crash_report` | the newest CS2 minidump: exception code, module, the console tail from the dump |
 | `check_map`, `visual_check` | static problems with a machine code, a node id and a suggested fix |
-| `map_backups(name)` | copies made before every save; `restore=<id>` rolls back |
+| `map_backups(name)` | compressed copies of the map with their sources snapshots; `restore=<id>` rolls back (see Backups) |
 
 ## 2. Common failures
 
@@ -36,9 +36,39 @@ What to do when something in CS2 Map MCP breaks: where to look, the usual causes
 | The release addon misses a file in the game | the file name is built at run time, so the release could not find it | name the asset in the map or script literally, run `map_build(name, "release")` again and check `game_screenshot(map="<map>/<map>")` |
 | Bots stand still | no nav mesh (`nav_areas` 0) | build with `full`; check that spawns stand on walkable floor |
 | Blender not found or times out | Blender missing or an untested version; a heavy script | `setup.ps1` shows what it found; split heavy models; the timeout is 180 s |
+| A frame shows a Steam toast ("X is playing ...") | Steam in-game notifications | Steam → Settings → In Game: turn notifications off while the agent takes frames; retake the view |
 | Prop previews fail | Source2Viewer CLI missing | `setup.ps1 -Apply` offers the download |
 
-## 3. After a CS2 update
+## 3. Backups
+
+Every map is kept in the backups folder (settings `backups_dir`, default `<project>/backups`): before each save, and once more after a session (the periodic pass every 30 minutes copies maps changed since their newest backup, Hammer saves included). Copies are compressed with zstd (a 144 MB map takes ~16 MB) and kept in tiers: the newest three, one per hour for 24 hours, one per day for 14 days, one per week for 8 weeks (settings `limits`: `backups_keep_last`, `backups_hourly`, `backups_daily`, `backups_weekly`, caps `backups_map_mb` and `backups_mb`), and pinned milestones forever. Each copy points to a snapshot of the sources: `my/` (with the generators in `my/maps/<map>/`), the addon's content without its map files, and the folders in `backup_sources`. A source file is stored once, whatever the number of snapshots. Copy and snapshot ids are UTC times (`YYYYMMDD-HHMMSS-micro`), so a time-zone change keeps their order.
+
+- **Put the folder on another physical disk or a synced folder** (OneDrive, Dropbox): one failing disk must not take the maps and their backups together. `status` → `backups.warning` says when they share a drive. Moving `backups_dir` moves the old `<project>/backups` there on the next start.
+- **Roll back** with `map_backups(name, restore=<id>)`; `sources=true` writes that moment's sources into `restored/<id>/` (the live folders are never overwritten: compare and copy what you need).
+- **Without an AI client** (the server does not start, the chat is gone):
+
+```powershell
+.\tools\python-env\Scripts\python.exe tools\backups.py status
+.\tools\python-env\Scripts\python.exe tools\backups.py list <map>
+.\tools\python-env\Scripts\python.exe tools\backups.py restore <map> <id> --sources
+.\tools\python-env\Scripts\python.exe tools\backups.py pin <map> "before the big change"
+```
+
+- The store is plain files: `maps/<map>/<stamp>.vmap.zst` (any zstd tool unpacks it), `sources/snapshots/*.json.zst` (lists of files) and `sources/objects/` (file contents by SHA-256). A save that a dead process left half done (`<addon>/maps/.cs2map_pending/`) is finished on the next start.
+
+## 4. Security updates of the Python packages
+
+```powershell
+.\tools\python-env\Scripts\python.exe tools\dependencies.py audit                 # known advisories (OSV, online)
+.\tools\python-env\Scripts\python.exe tools\dependencies.py bump pillow 13.0.1     # what would change
+.\tools\python-env\Scripts\python.exe tools\dependencies.py bump pillow 13.0.1 --apply
+```
+
+A bump downloads the wheel for Python 3.14 on Windows x64, checks its SHA-256 against PyPI and updates
+`config/requirements.lock.txt`, `config/dependency-wheels.json` and `tools/wheels` together (the old wheel goes to
+`_to_delete/`). Then run `setup.ps1 -Apply`, `pip check` and the tests.
+
+## 5. After a CS2 update
 
 Updates can rename models, change the FGD or the scripting API. Run the quick self-check:
 
@@ -50,11 +80,11 @@ Updates can rename models, change the FGD or the scripting API. Run the quick se
 
 It builds `mcp_selfcheck` (a layout with a door and a button, an `edit_mesh` detail, a story, a drone, a car, a turret, a shooting gallery, a railgun on its AWP base, an ability zone, a HUD theme), runs `check_map` and a full build, plays one short scenario per mechanic with real input and takes overview frames. The report `logs/selfcheck-<time>.json` (with a contact sheet) lists every step and scenario and what changed since the previous report. Do not use the game window while it plays. If an area fails, read its spec in `docs/specs/` ("Pitfalls") and fix it as below. The map and scenarios live in `src/cs2map/data/selfcheck/`.
 
-## 4. Fixing a part of the MCP (for AI agents)
+## 6. Fixing a part of the MCP (for AI agents)
 
 1. **Find the area.** The guide section names the operation; `docs/ARCHITECTURE.md` maps operations to modules (`src/cs2map/<area>.py`, `src/cs2map/ext/<area>.py`); the spec `docs/specs/<area>.md` explains how it works and what was learned the hard way.
 2. **Reproduce cheaply.** A minimal batch with `dry_run: true`, then a small test map. Use `tools/mcp_call.py <tool> @args.json` to run the new code on a fresh server (your chat's MCP server runs the code loaded at its start).
 3. **Fix in the code, not in one map.** A defect found on a map is fixed in the tool, its checks or the guide, so no map gets it again; then rebuild the map from its batch.
 4. **Test.** Add a unit test next to the area's tests (`tests/test_<area>*.py`), run `python -m tests.run -k <Area>`, then the full suite.
 5. **Verify in the game.** Build (`full` when bots or nav matter), load, `script_test` with real input or `game_screenshot`; open the frames and look at them. A fix is not done before this.
-6. **Update the docs.** The guide section (examples must pass dry run), the spec's "Pitfalls" if you learned something, and one line in `CHANGELOG.md`.
+6. **Update the docs.** The guide section (examples must pass dry run) and the spec's "Pitfalls" if you learned something.

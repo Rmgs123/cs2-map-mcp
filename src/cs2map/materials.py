@@ -13,7 +13,20 @@ from .config import Settings, check_name, ensure_inside
 
 SURFACES = ('concrete', 'brick', 'metal', 'wood', 'dirt', 'grass', 'gravel', 'sand', 'tile', 'glass', 'plaster',
             'rock', 'carpet', 'rubber', 'plastic', 'cardboard', 'mud', 'snow', 'water', 'default')
-PATTERNS = ('solid', 'noise', 'bricks', 'tiles', 'planks', 'checker', 'stripes', 'plaster')
+# Names models reach for that CS2 has no surface for: Valve's own asphalt materials use "concrete".
+SURFACE_ALIASES = {'asphalt': 'concrete', 'stone': 'rock', 'ceramic': 'tile', 'porcelain': 'tile'}
+
+
+def surface_name(surface: str) -> str:
+    """A CS2 surface property (footsteps, impacts) for a name or an alias; ValueError lists the choices."""
+    name = SURFACE_ALIASES.get(surface, surface)
+    if name not in SURFACES:
+        raise ValueError(f'surface must be one of {", ".join(SURFACES)} (or {", ".join(SURFACE_ALIASES)}), '
+                         f'got {surface!r}')
+    return name
+
+
+PATTERNS = ('solid', 'noise', 'bricks', 'tiles', 'planks', 'checker', 'stripes', 'plaster', 'rubble', 'cobbles')
 
 
 def _rgb(c, default=(128, 128, 128)) -> np.ndarray:
@@ -56,9 +69,49 @@ def _noise(size: int, scale: float, seed: int, octaves: int = 4) -> np.ndarray:
     return out / total
 
 
+def _counts(count, default_x: int, default_y: int) -> tuple[int, int]:
+    """count: one number (rows; across follows the pattern) or [across, down] per tile."""
+    if count is None:
+        return default_x, default_y
+    if isinstance(count, (list, tuple)):
+        if len(count) != 2:
+            raise ValueError('count must be a number or [across, down], e.g. [12, 28]')
+        x, y = (int(v) for v in count)
+    else:
+        x, y = None, int(count)
+    if (x is not None and not 1 <= x <= 256) or not 1 <= y <= 256:
+        raise ValueError('count must be 1..256 per direction')
+    return x, y
+
+
+def _stones(size, k, seed, jitter, stretch):
+    """Tiling Voronoi stones on a k x k grid of jittered seeds: (gap F2 - F1 in cells, nearest stone id)."""
+    rng = np.random.default_rng(seed)
+    pts = np.stack([np.arange(k)[None, :].repeat(k, 0) + 0.5 + rng.uniform(-jitter / 2, jitter / 2, (k, k)),
+                    np.arange(k)[:, None].repeat(k, 1) + 0.5 + rng.uniform(-jitter / 2, jitter / 2, (k, k))], -1)
+    yy, xx = (np.mgrid[0:size, 0:size] + 0.5) / size * k
+    cx, cy = np.floor(xx).astype(int), np.floor(yy).astype(int)
+    d1 = np.full((size, size), np.inf)
+    d2 = np.full((size, size), np.inf)
+    ids = np.zeros((size, size), int)
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            gx, gy = cx + dx, cy + dy
+            px = pts[gy % k, gx % k, 0] + (gx - gx % k)
+            py = pts[gy % k, gx % k, 1] + (gy - gy % k)
+            d = np.hypot((px - xx) / stretch, py - yy)
+            closer = d < d1
+            d2 = np.where(closer, d1, np.minimum(d2, d))
+            ids = np.where(closer, (gy % k) * k + gx % k, ids)
+            d1 = np.minimum(d1, d)
+    return d2 - d1, ids
+
+
 def generate(pattern: str, size: int = 512, color=None, color2=None, mortar=None, seed: int = 1,
-             count: int | None = None, variation: float = 0.15) -> tuple[Image.Image, np.ndarray]:
-    """Return (colour image, height map 0..1) for a procedural pattern. All patterns tile."""
+             count: int | list | None = None, variation: float = 0.15, joint: float | None = None,
+             palette: list | None = None) -> tuple[Image.Image, np.ndarray]:
+    """Return (colour image, height map 0..1) for a procedural pattern. All patterns tile. count: rows, or
+    [across, down] (bricks [12, 28]: 12 bricks across, 28 courses)."""
     if pattern not in PATTERNS:
         raise ValueError(f'pattern must be one of {PATTERNS}')
     if size not in (64, 128, 256, 512, 1024, 2048):
@@ -78,17 +131,18 @@ def generate(pattern: str, size: int = 512, color=None, color2=None, mortar=None
         img = c2 + (c1 - c2) * t[..., None]
         height = t
     elif pattern == 'checker':
-        k = count or 8
-        mask = ((np.floor(xx * k) + np.floor(yy * k)) % 2)[..., None]
+        kx, ky = _counts(count, 8, 8)
+        kx = kx or ky
+        mask = ((np.floor(xx * kx) + np.floor(yy * ky)) % 2)[..., None]
         img = c1 * mask + c2 * (1 - mask)
     elif pattern == 'stripes':
-        k = count or 8
-        mask = (np.floor(xx * k) % 2)[..., None]
+        kx, ky = _counts(count, 8, 8)
+        mask = (np.floor(xx * (kx or ky)) % 2)[..., None]
         img = c1 * mask + c2 * (1 - mask)
     elif pattern == 'bricks':
-        rows = count or 8
-        cols = max(1, rows // 2)
-        gap = 0.06
+        cols, rows = _counts(count, None, 8)
+        cols = cols or max(1, rows // 2)
+        gap = max(0.06, 1.5 * rows / size)           # mortar at least ~1.5 px: fine courses kept their joints
         ry = yy * rows
         row = np.floor(ry)
         rx = xx * cols + 0.5 * (row % 2)
@@ -101,16 +155,36 @@ def generate(pattern: str, size: int = 512, color=None, color2=None, mortar=None
         img = np.where(joint[..., None], cm, brick)
         height = np.where(joint, 0.0, 1.0)
     elif pattern == 'tiles':
-        k = count or 4
-        gap = 0.03
-        fx, fy = (xx * k) % 1, (yy * k) % 1
-        joint = (fx < gap) | (fy < gap)
-        tone = rng.uniform(-1, 1, (k, k))
-        t = tone[np.floor(yy * k).astype(int) % k, np.floor(xx * k).astype(int) % k]
+        kx, ky = _counts(count, 4, 4)
+        kx = kx or ky
+        gap = max(0.03, 1.5 * ky / size)
+        fx, fy = (xx * kx) % 1, (yy * ky) % 1
+        joint = (fx < gap * kx / ky) | (fy < gap)      # the same mortar width both ways
+        tone = rng.uniform(-1, 1, (ky, kx))
+        t = tone[np.floor(yy * ky).astype(int) % ky, np.floor(xx * kx).astype(int) % kx]
         img = np.where(joint[..., None], cm, c1 * (1 + variation * t)[..., None])
         height = np.where(joint, 0.0, 1.0)
+    elif pattern in ('rubble', 'cobbles'):
+        # 25.10: a rubble wall from a small photo crop was blurry; stones drawn here stay sharp at any size.
+        k = _counts(count, None, 6 if pattern == 'rubble' else 10)[1]
+        if not 2 <= k <= 64:
+            raise ValueError('count (stones across) must be 2..64')
+        width = float(joint if joint is not None else (.14 if pattern == 'rubble' else .09))
+        if not 0.01 <= width <= .5:
+            raise ValueError('joint (mortar width, share of a stone) must be 0.01..0.5')
+        gap, ids = _stones(size, k, seed, .85 if pattern == 'rubble' else .55, 1.5 if pattern == 'rubble' else 1.0)
+        colors = [_rgb(c) for c in palette] if palette else [c1, c2]
+        if not 1 <= len(colors) <= 16:
+            raise ValueError('palette: 1..16 colours')
+        pick = rng.integers(0, len(colors), k * k)
+        tone = rng.uniform(-1, 1, k * k)
+        stone = np.stack(colors)[pick[ids]] * (1 + variation * tone[ids])[..., None]
+        edge = np.clip(gap / width, 0, 1)
+        img = np.where((edge < 1e-3)[..., None], cm, stone * (0.75 + 0.25 * np.sqrt(edge))[..., None])
+        img = np.where((gap < width * 0.5)[..., None], cm, img)
+        height = np.clip((gap - width * 0.5) / (width * 2), 0, 1) ** 0.5 * (0.85 + 0.15 * n)
     elif pattern == 'planks':
-        k = count or 6
+        k = _counts(count, 6, 6)[1]
         gap = 0.02
         fy = (yy * k) % 1
         plank = np.floor(yy * k)
@@ -131,6 +205,20 @@ def normal_from_height(height: np.ndarray, strength: float = 2.0) -> Image.Image
     length = np.sqrt(dx * dx + dy * dy + nz * nz)
     n = np.stack([-dx / length, dy / length, nz / length], -1)   # DirectX-style green (Source 2)
     return Image.fromarray(((n * 0.5 + 0.5) * 255).astype(np.uint8), 'RGB')
+
+
+def photo_palette(image: str, region=None, colors: int = 5) -> list[list[int]]:
+    """The main colours of a photo region ([x0, y0, x1, y1] px), darkest first: stones in the photo's colours."""
+    from . import textures
+    if not isinstance(colors, int) or not 2 <= colors <= 12:
+        raise ValueError('palette_from.colors must be 2..12')
+    src = textures.load(image, region, None).convert('RGB')
+    src.thumbnail((256, 256))
+    q = src.quantize(colors, method=Image.Quantize.MEDIANCUT)
+    pal = q.getpalette()[:colors * 3]
+    used = sorted(q.getcolors(), reverse=True)
+    out = [pal[i * 3:i * 3 + 3] for _, i in used]
+    return sorted(out, key=sum)
 
 
 def _pow2(img: Image.Image, max_size: int = 2048) -> Image.Image:
@@ -284,8 +372,7 @@ def create(s: Settings, name: str, image: str | None = None, pattern: dict | Non
         alpha = 'translucent'
     if kind == 'emissive':
         self_illum = True
-    if surface not in SURFACES:
-        raise ValueError(f'surface must be one of {SURFACES}')
+    surface = surface_name(surface)
     if not 0 <= roughness <= 1 or not 0 <= metalness <= 1:
         raise ValueError('roughness and metalness must be in 0..1')
     if alpha not in ('none', 'test', 'translucent'):
@@ -313,6 +400,8 @@ def create(s: Settings, name: str, image: str | None = None, pattern: dict | Non
         p = dict(pattern or {'pattern': 'noise'})
         if color is not None:
             p['color'] = color
+        if 'palette_from' in p:
+            p['palette'] = photo_palette(**p.pop('palette_from'))
         color_img, height = generate(p.pop('pattern', 'noise'), **p)
     image_tint = color if image and kind == 'emissive' and color is not None else tint
     if image_tint is not None and kind != 'glass':

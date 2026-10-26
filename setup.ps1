@@ -102,10 +102,10 @@ else {
 
 # 4. Source2Viewer CLI (stock prop previews) ---------------------------------------------------------------------
 Say '4. Source2Viewer CLI'
-if (Test-Path (Join-Path $Root 'tools\vrf-cli-20.0\Source2Viewer-CLI.exe')) { Say '  ok: tools\vrf-cli-20.0' 'Green' }
+if (Test-Path (Join-Path $Root 'tools\vrf-cli-20.1\Source2Viewer-CLI.exe')) { Say '  ok: tools\vrf-cli-20.1' 'Green' }
 else {
     Say '  not found (asset_search kind=prop previews need it)' 'Yellow'
-    if ($Apply -and (Ask '  Download Source2Viewer CLI 20.0 (~40 MB) from GitHub?')) { Get-Archive 'vrf-cli' }
+    if ($Apply -and (Ask '  Download Source2Viewer CLI 20.1 (~53 MB) from GitHub?')) { Get-Archive 'vrf-cli' }
 }
 
 # 5. Node.js (optional: script syntax checks, mechanics tests) ---------------------------------------------------
@@ -124,7 +124,7 @@ Say '7. Local layer my/'
 if ($Apply) {
     $myDir = & $Py -c "from cs2map import mylayer; print(mylayer.ensure())"
     Say "  ok: $myDir (put your photos, models and sounds into its inbox folder)" 'Green'
-} else { Say '  would create my/notes, my/styles, my/recipes, my/inbox' 'Yellow' }
+} else { Say '  would create my/notes, my/styles, my/recipes, my/inbox, my/maps' 'Yellow' }
 
 # 8. Self-check -------------------------------------------------------------------------------------------------
 Say '8. Server status'

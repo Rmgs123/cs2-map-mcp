@@ -1,0 +1,9 @@
+{
+ "_about": "Real size in units (inches) of one tile of stock materials, measured on their textures; scale:\"auto\" in set_uv and face uv uses it. Own materials keep theirs in <material>.json.",
+ "sizes": {
+  "materials/shared_base/brick/brick_soviet_white_01a.vmat": [
+   123,
+   123
+  ]
+ }
+}

@@ -15,6 +15,7 @@ from .project import OpError
 
 PLAN_KEY = 'cs2map_terrain'
 STREET_KEY = 'cs2map_street'
+JUNCTION_KEY = 'cs2map_junction'
 DEFAULTS = {'grass': 'materials/nature/hr_c/hr_grass_dirt_blend_001.vmat',
             'dirt': 'materials/de_overpass/nature/dirt_ground_1.vmat',
             'rock': 'materials/de_overpass/nature/rock_pile_1.vmat',
@@ -191,7 +192,52 @@ def plan(project,op):
             def update(x,y,z):
                 d=nearest_path(x,y,poly+poly[:1])[0]; w=1 if inside(x,y,poly) or d<1e-5 else 0 if falloff==0 else 1-smooth(d/falloff)
                 return z+w*(target-z)
-        else:raise OpError(f'unknown terrain op {kind!r}; hill/valley/ridge/plateau/noise/flatten')
+        elif kind=='bank':
+            # Cuts the ground on the low side under a steep face (add_bank dresses it): 64-unit cells cannot hold
+            # 60 degrees on their own, and an uncut gentle slope would cover the face (t11_builders, 25.10).
+            # The face goes down to the lower level: the lowest ground within `width` of the path, per section.
+            keys(spec,common|{'path','side','angle','verge','sink','width'},kind)
+            pts=path(spec.get('path'),z=True); side=spec.get('side','right')
+            if side not in ('left','right'):raise OpError('bank side is where the lower ground is: left or right')
+            rise=math.tan(math.radians(number(spec.get('angle',60),'angle',46,85)))
+            verge=number(spec.get('verge',24),'verge',0,256); sink=number(spec.get('sink',8),'sink',2,64)
+            width=number(spec.get('width',512),'width',64,4096)
+            sign=1 if side=='left' else -1; angle=math.degrees(math.atan(rise))
+            def ground_at(x,y):
+                return sample(data,min(hi[0],max(lo[0],x)),min(hi[1],max(lo[1],y)))['z']
+            # Per segment, every 32 units: the top (the ground on the line, or the path's z) and the lower level.
+            tops,lows=[],[]
+            for a,b in zip(pts,pts[1:]):
+                ln=math.dist(a[:2],b[:2]); nx,ny=-sign*(b[1]-a[1])/ln,sign*(b[0]-a[0])/ln; n=max(1,math.ceil(ln/32))
+                at=[[a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n] for k in range(n+1)]
+                tops.append([round(a[2]+(b[2]-a[2])*k/n if len(a)==3 and len(b)==3 else ground_at(*q),4) for k,q in enumerate(at)])
+                lows.append([min(ground_at(q[0]+nx*r,q[1]+ny*r) for r in range(0,int(width)+1,16)) for q in at])
+            # add_bank over this cut takes its tops from here: the face then lies exactly `sink` above the cut.
+            data.setdefault('bank_cuts',[]).append({'path':[v[:2] for v in pts],'side':side,'tops':tops,
+                                                     'angle':angle,'verge':verge,'sink':sink})
+            def along(rows,i,t):
+                row=rows[i]; k=t*(len(row)-1); k0=min(len(row)-2,int(k)); return row[k0]+(k-k0)*(row[k0+1]-row[k0])
+            def update(x,y,z):
+                d,i,t,_=nearest_path(x,y,pts); a,b=pts[i],pts[i+1]; ln=math.dist(a[:2],b[:2])
+                u=((x-a[0])*(b[0]-a[0])+(y-a[1])*(b[1]-a[1]))/ln
+                past=max(-u if i==0 else 0,u-ln if i==len(pts)-2 else 0)
+                cross=sign*((b[0]-a[0])*(y-a[1])-(b[1]-a[1])*(x-a[0]))
+                if cross<=0 or cross/ln>width:return z                               # the upper side, or too far
+                d=cross/ln                                   # square to the line past the ends, as at the end section
+                low=along(lows,i,t); top=along(tops,i,t)-sink; toe=verge+max(0,top-low)/rise
+                if past>0:
+                    # Past an end the cut climbs away at the same angle: the bank turns the corner into the ground
+                    # and its end section stays buried (a straight cut showed a flat end wall, t11_builders 25.10).
+                    # The lowered yard rises there too, gently (about 27 degrees), into the uncut ground.
+                    plane=top-max(0,d-verge)*rise+past*rise; low+=past*.5
+                elif d>toe-cell*math.sqrt(2) and d>verge:
+                    # Within a cell before the toe the ground drops to the lower level at once: a grid triangle from
+                    # the face down to the level would otherwise rise through the face near the toe (teeth, 25.10).
+                    plane=low
+                else:
+                    plane=top-max(0,d-verge)*rise
+                return min(z,max(low,plane))
+        else:raise OpError(f'unknown terrain op {kind!r}; hill/valley/ridge/plateau/noise/flatten/bank')
         data['heights']=[[round(update(x,y,data['heights'][i][j]),4) for j,y in enumerate(ys)] for i,x in enumerate(xs)]
     values=[z for row in data['heights'] for z in row]
     thickness=number(op.get('thickness',32),'thickness',1,1024)
@@ -238,6 +284,12 @@ def plans(m,key=PLAN_KEY):
                 data['bounds']=[[v[i]+delta[i] for i in (0,1)] for v in data['bounds']]
                 data['heights']=[[z+delta[2] for z in row] for row in data['heights']]
                 data['bottom']+=delta[2]; data['height_range']=[z+delta[2] for z in data['height_range']]
+                for cut in data.get('bank_cuts',[]):
+                    cut['path']=[[x+delta[0],y+delta[1]] for x,y in cut['path']]
+                    cut['tops']=[[z+delta[2] for z in row] for row in cut['tops']]
+            elif key==JUNCTION_KEY:
+                data['polygon']=[[v[i]+delta[i] for i in (0,1)] for v in data['polygon']]
+                data['cuts']=[[[v[i]+delta[i] for i in (0,1)] for v in tri] for tri in data['cuts']]
             else:
                 data['path']=[[v[i]+delta[i] for i in (0,1,2)] for v in data['path']]
                 for surface in data.get('surfaces',[]):
@@ -292,8 +344,68 @@ def commit(m,op,nm,nodes,metadata,key,refs):
     return group['nodeID']
 
 
+def layer_node(m, rel):
+    """A CMapPrefab that pulls another vmap into the compiled world (the fields of a prefab Hammer saves; the
+    compiler reads targetMapPath, verified 25.10 on t11_layer)."""
+    from .dmx import Element
+    node=Element('CMapPrefab','')
+    m._node_common(node)
+    m._transform(node,(0.0,0.0,0.0),(0.0,0.0,0.0),(1.0,1.0,1.0))
+    for key,kind,value in (('targetMapPath','string',rel),('targetName','string',''),('fixupEntityNames','bool',True),
+                           ('useTargetNameAsPrefix','bool',False),('loadIfNested','bool',True),('visexclude','bool',False),
+                           ('loadAtRuntime','bool',False),('variableOverrideNames','string_array',[]),
+                           ('variableOverrideValues','string_array',[]),('editorOnly','bool',False),('force_hidden','bool',False)):
+        node.set(key,kind,value)
+    return node
+
+
+def _write_layer(project,m,name,nodes):
+    """The terrain meshes in their own file maps/prefabs/e_<map>_<terrain>.vmap: a map save no longer rewrites
+    them (10.10: a 257x291 terrain made every save of the town map 48 MB)."""
+    from .project import DRY_RUN
+    from .vmap import VMap
+    if m.path is None:
+        raise OpError('layer:true needs a saved map (map_create first)')
+    stem=f'e_{Path(m.path).stem}_{name}'
+    path=project.s.content_addon/'maps'/'prefabs'/f'{stem}.vmap'
+    rel=f'maps/prefabs/{stem}.vmap'
+    if DRY_RUN.get():
+        return rel
+    target=VMap.from_template(project.s.cs2_path,'empty')
+    target.world['children']=[]
+    target.doc.root['isprefab']=True
+    for key in ('m_ReferencedMeshSnapshots','nodeInstanceData'):
+        if key in target.doc.root:target.doc.root[key]=[]
+    group=target.new_group(f'terrain:{name}')
+    for n in nodes:target.attach(n,group)
+    target.attach(group)
+    target._reassign_ids([group])
+    path.parent.mkdir(parents=True,exist_ok=True)
+    target.save(path,backup_dir=project.s.backups/'maps'/'prefabs',settings=project.s)
+    return rel
+
+
+def expand_layers(project,m):
+    """In memory only (checks): put the content of every layer prefab of this addon into the map, so
+    visual_check and check_map see layered terrain as if it were inline. Never save the result."""
+    from .vmap import VMap
+    for node in list(m.iter_nodes()):
+        if node.type!='CMapPrefab':continue
+        rel=str(node.get('targetMapPath') or '')
+        path=project.s.content_addon/rel
+        if not rel.startswith('maps/prefabs/') or not path.is_file():continue
+        layer=VMap.load(path)
+        for child in list(layer.world['children']):
+            clone=layer.clone(child)
+            m._reassign_ids([clone])
+            m.attach(clone,m.parent_of(node))
+    return m
+
+
 def add_terrain(project,m,op,refs):
-    data=plan(project,op)
+    layer=op.get('layer',False)
+    if not isinstance(layer,bool):raise OpError('layer must be true or false')
+    data=plan(project,{k:v for k,v in op.items() if k!='layer'})
     if any(v['name']==data['name'] for v in plans(m)):raise OpError('terrain name already exists; delete its group and replay')
     mats=op.get('materials',{})
     keys(mats,{'grass','dirt','rock','sides','blend'},'materials')
@@ -333,8 +445,13 @@ def add_terrain(project,m,op,refs):
                 blend_node(node,weight)
             nodes.append(node)
     data.update({'materials':effective,'blend':blend,'blend_material':blendmat,'steep_fraction':steep/total,'mesh_ids':[n['nodeID'] for n in nodes]})
+    if layer:
+        data['layer']=_write_layer(project,m,data['name'],nodes)
+        data['mesh_ids']=[]
+        nodes=[layer_node(m,data['layer'])]
     gid=commit(m,op,data['name'],nodes,data,PLAN_KEY,refs)
     return {'op':'add_terrain','id':gid,'name':data['name'],'ids':data['mesh_ids'],'chunks':len(nodes),'cells':[nx,ny],
+            **({'layer':data['layer']} if layer else {}),
             'height_range':data['height_range'],'steep_fraction':round(steep/total,4),'material_faces':material_faces,'blend':blend}
 
 

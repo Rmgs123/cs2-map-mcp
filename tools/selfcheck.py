@@ -57,6 +57,19 @@ async def run(args: list[str]) -> dict:
                     data = json.loads(res.content[0].text)
                 return data
 
+            async def vrf_reads_own_model():
+                """Source2Viewer-CLI must read a model compiled by this CS2 (23.10: VRF 20.0 failed on KV3 type 26)."""
+                sys.path.insert(0, str(ROOT / 'src'))
+                from cs2map.config import load_settings, vrf_cli
+                models = sorted((load_settings().game_addon / 'models' / 'mcp').glob('*/*.vmdl_c'),
+                                key=lambda f: f.stat().st_mtime)
+                if not vrf_cli().is_file() or not models:
+                    raise Failed('Source2Viewer-CLI or a compiled own model is missing (setup.ps1 -Apply)')
+                proc = subprocess.run([str(vrf_cli()), '-i', str(models[-1]), '-b', 'DATA'], capture_output=True,
+                                      text=True, timeout=120)
+                if proc.returncode or 'Exception' in proc.stdout + proc.stderr:
+                    raise Failed(f'Source2Viewer-CLI cannot read {models[-1].name}: update it (config/tool-sources.json)')
+
             async def step(name: str, coro):
                 t = time.monotonic()
                 print(f'{name} ...', flush=True)
@@ -77,6 +90,7 @@ async def run(args: list[str]) -> dict:
                     if not cs2.get('found') or not cs2.get('workshop_tools'):
                         raise Failed('CS2 with Workshop Tools not found (status)')
                     await step('assets', call('assets_prepare', {'kind': 'railgun'}))
+                    await step('vrf', vrf_reads_own_model())
                     await step('map_create', call('map_create', {'name': MAP, 'template': 'empty', 'overwrite': True,
                                                                  'type': 'sandbox'}))
                     ops = json.loads((DATA / 'map.json').read_text(encoding='utf-8'))

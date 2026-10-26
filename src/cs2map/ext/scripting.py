@@ -11,6 +11,11 @@ def register(mcp, project):
         return scripting.script_write(project, name, code)
 
     @mcp.tool()
+    def script_reload(name: str, code: str) -> dict:
+        """script_write, then restart that script in the map loaded in CS2 without reloading the map."""
+        return scripting.script_reload(project, name, code)
+
+    @mcp.tool()
     def script_api(query: str = '', limit: int = 20) -> dict:
         """Search installed point_script.d.ts. Exact class/interface names return the entire commented body."""
         return scripting.script_api(project, query, limit)

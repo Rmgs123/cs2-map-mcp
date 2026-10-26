@@ -6,10 +6,8 @@ saves in Hammer as well.
 """
 from __future__ import annotations
 
-import datetime as _dt
 import os
 import random
-import shutil
 import uuid
 from pathlib import Path
 from typing import Any, Iterator, Sequence
@@ -407,27 +405,25 @@ class VMap:
         data = dmx.dumps(self.doc)
         return data, dmx.loads(data)   # self-check: the file we write must parse
 
-    def save(self, path: Path | None = None, backup_dir: Path | None = None) -> dict[str, Any]:
-        """Write the map (atomically).  An existing file is first copied to backup_dir."""
+    def save(self, path: Path | None = None, backup_dir: Path | None = None, settings=None) -> dict[str, Any]:
+        """Write the map (atomically).  An existing file is first backed up into backup_dir/<map>/ (compressed
+        in the background, with a sources snapshot when `settings` is given: backups.py)."""
+        from . import backups
         target = Path(path or self.path or '')
         if not target.name:
             raise MapError('no path to save to')
         data, written = self._encode()
         target.parent.mkdir(parents=True, exist_ok=True)
-        backup = None
-        if target.exists() and backup_dir is not None:
-            stamp = _dt.datetime.now().strftime('%Y%m%d-%H%M%S-%f')
-            backup = Path(backup_dir) / target.stem / f'{stamp}.vmap'
-            backup.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(target, backup)
+        job = backups.stage(target, Path(backup_dir)) if backup_dir is not None else None
         tmp = target.with_name(target.name + '.tmp')
         with open(tmp, 'wb') as f:
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, target)
+        backups.submit(job, settings)
         self.path = target
         # The self-check parse is exactly what loading the new file gives: keep it, so the next load of an
         # unchanged file can skip reading and parsing it again (Project.load).
         self.written = written
-        return {'path': str(target), 'bytes': len(data), 'backup': str(backup) if backup else None}
+        return {'path': str(target), 'bytes': len(data), 'backup': job['stamp'] if job else None}

@@ -66,6 +66,16 @@ class Physics(unittest.TestCase):
                           'material':kind,'health':25})
             self.assertEqual(self.m.node(r['id'])['entity_properties']['material'], value)
 
+    def test_bulletproof_breakable_layer(self):
+        r=self.apply({'op':'add_breakable','targetname':'pane','mins':[200,0,0],'maxs':[202,64,128],'bulletproof':True})
+        pane=self.m.node(r['id'])
+        layer=self.m.entities(targetname='pane_bulletproof')[0]
+        self.assertEqual(self.m.classname(layer),'func_breakable')    # a func_brush is not re-created on restart
+        self.assertEqual(layer['entity_properties']['spawnflags'],'1')
+        c=pane['connectionsData'][0]
+        self.assertEqual((c['outputName'],c['targetName'],c['inputName']),('OnBreak','pane_bulletproof','Kill'))
+        self.assertEqual(layer['origin'],(201.,32.,64.))               # inside the pane, across its thin axis
+
     def test_zones_and_ladder(self):
         for kind,params in [('push',{'speed':700}),('teleport',{'destination':[100,200,8]}),
                             ('hurt',{'damage':20}),('gravity',{'gravity':.25})]:

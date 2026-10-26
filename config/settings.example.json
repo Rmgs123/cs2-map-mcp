@@ -2,14 +2,20 @@
   "cs2_path": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Counter-Strike Global Offensive",
   "addon": "mcp_lab",
   "compile_threads": 0,
-  "note": "Copy to settings.json (setup.ps1 does it). Without settings.json CS2 is found through Steam and addon is mcp_lab. addon: the only CS2 addon this tool writes to. compile_threads 0 = all cores. blender: path to blender.exe (\"\" = search tools/, Steam libraries, Program Files). limits: disk caps applied hourly at server start; files named in README/docs/reports are never removed.",
+  "backups_dir": "",
+  "backup_sources": [],
+  "note": "Copy to settings.json (setup.ps1 does it). Without settings.json CS2 is found through Steam and addon is mcp_lab. addon: the only CS2 addon this tool writes to. compile_threads 0 = all cores. blender: path to blender.exe (\"\" = search tools/, Steam libraries, Program Files). backups_dir: map copies and sources snapshots (\"\" = <project>/backups; best on another disk or in a synced folder such as OneDrive, e.g. \"E:\\\\cs2map-backups\"). backup_sources: more folders to snapshot besides my/ and the addon content. limits: disk caps; files named in README/docs/reports are never removed; map copies follow tiers (keep_last copies, hourly hours, daily days, weekly weeks) and caps in MB of compressed copies.",
   "blender": "",
   "limits": {
     "screenshots_mb": 800,
     "logs_mb": 200,
     "logs_files": 3000,
-    "backups_mb": 1500,
-    "backups_per_map": 15,
+    "backups_mb": 4000,
+    "backups_map_mb": 1000,
+    "backups_keep_last": 3,
+    "backups_hourly": 24,
+    "backups_daily": 14,
+    "backups_weekly": 8,
     "backups_other_mb": 300,
     "tmp_hours": 24
   }

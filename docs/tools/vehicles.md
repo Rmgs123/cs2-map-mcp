@@ -49,6 +49,7 @@ Put `origin` on the ground (+10 is fine: it settles on its wheels). The first re
 | `door` | `{at:[-8,66,0], radius:62}`: where the driver's feet must be for E (body frame) |
 | `exits` | the stock car's five points: body-frame points tried in order when the driver leaves |
 | `size` | `[236,116]`: body length and width (run-over hits, crash probe, passengers) |
+| `scale` | 1: a bigger or smaller body — every body-frame length (wheels, seat, door, exits, size, passengers, stand-in place, cameras, suspension travel) times it, once; pair it with a scaled copy of the body `model_build(name="van_xl", file="models/mcp/van/van.vmdl", scale=1.2)` |
 | `passengers` | none: a hollow body players ride in, `{floor, roof, doors:[{at, radius, spots}], hint:{board, ride, drive}}` (below) |
 
 ## Own bodies: a bus
@@ -60,7 +61,7 @@ A long hollow body (verified with a 590-unit bus on a test field and on a town m
 `hud`: `title`, `hint` (the key line) and `labels` (`kmh`, `crawl`, `exit`, `blocked`, `air`: the words of the status line) translate the driver's panel.
 
 ```json
-{"op":"add_controllable","name":"bus","kind":"car",
+{"op":"add_controllable","name":"bus","kind":"car","model":"models/mcp/bus/bus.vmdl",
  "origin":[0,0,8],"health":1000,"mass":5000,"speed":560,"accel":180,"steer":{"max":34,"fast":10,"rate":70,"return":120},
  "wheels":{"positions":[[144,61],[144,-61],[-144,61],[-144,-61]],"radius":27,"z":27},"suspension":{"stiffness":30,"damping":16},
  "seat":[238,37,50],"pilot":{"scale":1,"at":[236,37,24]},"door":{"at":[226,-24,24],"radius":40},"reach":140,
@@ -70,7 +71,7 @@ A long hollow body (verified with a 590-unit bus on a test field and on a town m
  "camera":{"forward":0,"up":72,"pilot":true,"chase":{"forward":-620,"up":230},"start":"chase"}}
 ```
 
-Give the bus its own `model` and `wheel_model` (here the stock ones keep the example runnable). Breakable windows are `func_breakable` boxes parented to the body (`parentname` `v9_<name>_body`), authored at the body's spawn pose; E on them counts as E on the body.
+`models/mcp/bus/bus.vmdl` is your own hollow body, 590×140, +x forward, the floor at 24 (a `model_build` script or file; give it its own `wheel_model` too). The recipe must fit the model: `add_controllable` refuses a `size`, `seat`, door or passenger spot outside the body model's bounds — this recipe on the stock car (204×84) put the riders in the air beside a small car and their shots went 10° wide. Breakable windows are `func_breakable` boxes parented to the body (`parentname` `v9_<name>_body`), authored at the body's spawn pose; E on them counts as E on the body.
 
 ## In game
 
@@ -91,8 +92,19 @@ A route without a driver (cheat): `v9_control_<name>_route x1,y1,x2,y2,...[,spee
 
 ## Limits
 
-One driver; network play is not tested. Wheels have no collision (the suspension carries the body; the body's own collision starts 24 units above the ground). The driver stand-in is half size inside the dark cabin.
+One driver; network play is not tested. Wheels have no collision (the suspension carries the body; the body's own collision starts 24 units above the ground). The driver stand-in is half size inside the dark cabin. Window panes on a body: one face each with a glass material (a closed glass box seen from inside stacks four tinted layers and looks black).
 
 ## By hand
 
 `prop_physics_override` with convex hulls (no tyres), `PhysicsBodyMarkup` mass and `prop_data` damage scales; non-solid `prop_dynamic` wheels parented to it; HUD, damage filter and stand-in like the drone. In the script, every tick: cast rays down along the body from each wheel (centre, ±0.55 radius) and take the highest required wheel centre; fit a plane to the wheels' lifts (an unsupported wheel asks for −18 at lower weight); set `Teleport({angles, velocity, angularVelocity:0})` toward it, adding `800*dt*support` to z (the engine applies gravity after the script); add the slope's gravity along the ground yourself and limit the tyre force to `0.85 × g × cos(slope)`. Move wheels with `Move` only when their pose changes.
+
+### Riders in a low cabin (a car, not a bus)
+
+`passengers` needs standing room (a cabin over 72 units). For a small car there is no option yet; these rules were measured in CS2 for a 4-seat SUV:
+
+- **Riders cannot stand in it.** The engine never crouches a player for a script: a standing player put into a lower cabin is stuck (crush damage every tick, a light car rolls over). Board with a crouch (Ctrl+E: `script_test` step `{"use":true,"with":"duck"}`); under a roof lower than a standing hull the engine keeps the crouch by itself, also at 80 km/h.
+- **Player hulls are world-axis boxes.** In a body turned by θ a 32×32 hull spans 16·(|cos θ|+|sin θ|): at 45° keep a circle of r = 22.6 around each seat free of body collision, plus the one-tick lead (speed/64, 13.7 units at 875 u/s) and ~3 units above heads and below feet. Two riders closer than 45.3 units overlap at some headings (side by side 32.6 apart: 11°–79°) and stall the car, even with `mp_solid_teammates 0`: in a small car only diagonal seats are safe for two free riders.
+- **Their floor is not the body.** A plate in the body's collision put the car down on it. Use a player-only clip `func_brush` (`toolsplayerclip`, `Solidity` 2) parented to the body; a parented `func_brush` dies with the body at a round restart and is not re-created: unparent it in `OnBeginRoundRestart` and parent it again in the new round. Hold riders one tick ahead (spot + body velocity·dt, velocity 0).
+- **Visible occupants who do not shoot** (what worked): keep each occupant the real player, crouched, parented to the body, `MoveType` NONE: their own hitboxes sit in the windows, so shots through a window hurt them. Give the feet a non-parented player clip teleported with the body each tick (foot IK skips the parent). Keep the view within ±50° of the heading (the body turns to the view). Empty every gun while seated (`SetClipAmmo(0)`, `SetReserveAmmo(0)`, give it back on exit) and remove grenades thrown from a seat (`OnGrenadeThrow`).
+- **Eye angles of a parented pawn:** `GetEyeAngles` is world space, `SetEyeAngles` is relative to the parent. Set relative yaws (forward = 0) and unparent before restoring world angles; test every vehicle parked at a non-zero heading (at yaw 0 both agree).
+- **Breakable windows on a moving body:** take the panes out of the model, build each as a `func_brush` from the glass shell at the car's spawn pose, parent them (and unparent at a round restart as above); break by script (`OnBulletImpact` hits, then `Disable`, a glass particle and `Breakable.Glass`), `Enable` on restart and respawn. A scripted pane can come back; a `func_breakable` cannot.

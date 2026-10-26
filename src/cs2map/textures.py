@@ -25,21 +25,19 @@ def _image(value: Image.Image | str | Path) -> Image.Image:
 
 
 def _box(region, size):
+    """region = [left, top, right, bottom] in source pixels, one meaning only (23.10: [330,345,560,398] was read
+    as a width/height box because 330+560 still fitted the photo, and half the photo became the material)."""
     if region is None:
         return (0, 0, size[0], size[1])
     if len(region) != 4:
-        raise ValueError('region must be [left, top, right, bottom] or [left, top, width, height]')
-    x0, y0, a, b = (float(v) for v in region)
-    # A conventional crop box is the least surprising interpretation.  Accept
-    # a width/height pair too when it is obviously inside the source image.
-    if a <= size[0] and b <= size[1] and x0 + a <= size[0] and y0 + b <= size[1]:
-        x1, y1 = x0 + a, y0 + b
-    else:
-        x1, y1 = a, b
-    box = tuple(int(round(v)) for v in (x0, y0, x1, y1))
-    if box[2] <= box[0] or box[3] <= box[1]:
-        raise ValueError('region must have positive width and height')
-    return box
+        raise ValueError('region must be [left, top, right, bottom] in pixels')
+    x0, y0, x1, y1 = (int(round(float(v))) for v in region)
+    if x1 <= x0 or y1 <= y0:
+        raise ValueError(f'region must be [left, top, right, bottom] with right > left and bottom > top, got '
+                         f'{list(region)} (a width and height: [x, y, x + width, y + height])')
+    if x0 < 0 or y0 < 0 or x1 > size[0] or y1 > size[1]:
+        raise ValueError(f'region {list(region)} leaves the image ({size[0]}x{size[1]} px)')
+    return (x0, y0, x1, y1)
 
 
 def _homography(src: np.ndarray, dst: np.ndarray) -> np.ndarray:

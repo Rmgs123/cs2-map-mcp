@@ -4,6 +4,7 @@
     my/recipes/<name>.md    what worked: batches, scenarios, prefab notes (+ optional <name>.json data)
     my/styles/<name>.json   own looks: materials, tints, models, sizes, light, rules (validated; used by map_edit)
     my/inbox/               the user's own files: photos, models, sounds (tools only read it)
+    my/maps/<map>/          what builds a map: generator scripts, batches, plans (backups.py snapshots my/)
 
 The folder is local: never in git, never touched by updates. Models write only here (system guides stay as
 shipped). Every overwrite keeps the previous version in my/.history/ (at most HISTORY_KEEP per file).
@@ -54,6 +55,7 @@ AI models that build maps with cs2map keep what they learn here and read it in e
 | `recipes/` | batches, scenarios and tricks that worked | `my_notes(kind="recipe")` |
 | `styles/` | own looks: materials, tints, models, sizes, light | `my_notes(kind="style", data={...})`, `style_info(kind="mine")` |
 | `inbox/` | your photos, models and sounds for the AI to use | `asset_search(kind="mine")` |
+| `maps/<map>/` | what builds a map: generator scripts, batches, plans, data (keep them here, not in temp folders) | backed up with every map save |
 
 Put files into `inbox/` and tell the model about them. Edit or delete notes freely: they are plain Markdown
 and JSON. Earlier versions of overwritten files are kept in `.history/`.
@@ -82,7 +84,7 @@ def root() -> Path:
 def ensure() -> Path:
     """Create the folders and the README once (cheap; called on every use)."""
     base = root()
-    for sub in ('notes', 'recipes', 'styles', 'inbox'):
+    for sub in ('notes', 'recipes', 'styles', 'inbox', 'maps'):
         (base / sub).mkdir(parents=True, exist_ok=True)
     readme = base / 'README.md'
     if not readme.exists():

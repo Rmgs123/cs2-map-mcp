@@ -98,9 +98,9 @@ def register(mcp, project) -> list[str]:
                  name: str | None = None, text: str | None = None, data: Any = None, append: bool = False) -> dict:
         """Your local layer my/ (kept between chats, never in git): note = a lesson or the user's taste, recipe =
         a batch that worked (text/data), style = an own look (data; map_edit "style":"my:<name>"), feedback = a
-        problem with this MCP for its author (a tool error you did not cause, a wrong guide, a missing feature;
-        name = tool, text = wanted / happened / workaround) appended to my/feedback.md. Read notes before work,
-        write after findings. append=true adds to a note. Returns {notes, recipes, styles} | {text, data} | {files}."""
+        problem with this MCP for its author (a tool error not yours, a wrong guide, a missing feature; name = tool,
+        text = wanted / happened / workaround) in my/feedback.md. Read notes before work, write after findings.
+        append=true adds to a note. Returns {notes, recipes, styles} | {text, data} | {files}."""
         return R['my_notes'](action, kind, name, text, data, append)
 
     # ---- maps ----------------------------------------------------------------------------------------------
@@ -127,8 +127,7 @@ def register(mcp, project) -> list[str]:
         """Read a map. about: nodes (default: id, type, origin, classname/targetname, bounds; filter by classname,
         kind, ids; full=true adds keyvalues and I/O) | layout (rooms: interiors, floor_z, openings; key=layout name)
         | geometry (one mesh: faces, closure, bounds; key=node id or @ref) | terrain (plans; key=terrain name;
-        points=[[x,y],...] samples ground z, normal, slope) | street (centreline, slope, lots; key=street).
-        Example: map_info(name="arena", about="terrain", key="hills", points=[[0,0]])."""
+        points=[[x,y],...] samples ground z, normal, slope) | street (centreline, slope, lots; key=street)."""
         if about == 'layout':
             return R['layout_info'](name, key)
         if about == 'geometry':
@@ -157,17 +156,18 @@ def register(mcp, project) -> list[str]:
         return R['map_edit'](name, operations, dry_run, force)
 
     @mcp.tool()
-    def map_backups(name: str, restore: str | None = None, force: bool = False) -> dict:
-        """List the automatic backups of a map (newest first), or restore=<backup id> to roll back (the current
-        file is backed up first). Returns {backups} or {restored}."""
+    def map_backups(name: str, restore: str | None = None, force: bool = False, sources: bool = False,
+                    pin: str | None = None) -> dict:
+        """Map copies in tiers with sources snapshots: list; restore=<id> (sources=true: that moment's sources
+        to restored/<id>/); pin="label": keep the map and sources as they are now forever."""
         if restore:
-            return R['map_restore'](name, restore, force)
-        return R['map_backups'](name)
+            return R['map_restore'](name, restore, force, sources)
+        return R['map_backups'](name, pin)
 
     @mcp.tool()
-    def map_build(name: str, preset: Literal['fast', 'full', 'final', 'release'] = 'fast') -> dict:
-        """Compile the map in the background. preset: fast (geometry, entities; seconds) | full (+ baked light,
-        visibility, bot navigation: needed for bots) | final (slow, high-quality light) | release (own addon for
+    def map_build(name: str, preset: Literal['fast', 'nav', 'full', 'final', 'release'] = 'fast') -> dict:
+        """Compile the map in the background. preset: fast (geometry, entities; seconds) | nav (+ bot navigation)
+        | full (+ baked light: needs an RTX-class GPU) | final (slow light, visibility) | release (own addon for
         the Workshop; guide section publish). Then poll job_status(job)."""
         return R['map_build'](name, preset)
 
@@ -187,11 +187,11 @@ def register(mcp, project) -> list[str]:
         return R['check_map'](name)
 
     @mcp.tool()
-    def visual_check(name: str, limit: int = 200) -> dict:
-        """Scene audit from measured model bounds: floating or deeply intersecting props, unsupported lamps,
-        open meshes, likely z-fighting, unbacked text, exposed foundations. Returns {ok, problems with ids and fixes
-        (first `limit`, errors first), summary.by_code}."""
-        return R['visual_check'](name, limit)
+    def visual_check(name: str, limit: int = 200, box: list[list[float]] | None = None) -> dict:
+        """Scene audit from measured model bounds: floating or intersecting props, z-fighting, meshes over or under
+        the terrain, open meshes, unbacked text. box=[[x0,y0],[x1,y1]]: one zone. Returns {ok, problems with ids
+        and fixes (first `limit`), summary.by_code}."""
+        return R['visual_check'](name, limit, box)
 
     # ---- references -----------------------------------------------------------------------------------------
     @mcp.tool()
@@ -233,15 +233,14 @@ def register(mcp, project) -> list[str]:
     @mcp.tool()
     def material_create(name: str, image: str | None = None, pattern: dict[str, Any] | None = None,
                         roughness: float = 0.7, metalness: float = 0.0,
-                        surface: Literal['concrete', 'brick', 'metal', 'wood', 'dirt', 'grass', 'gravel', 'sand',
-                                         'tile', 'glass', 'plaster', 'rock', 'carpet', 'rubber', 'plastic',
-                                         'cardboard', 'mud', 'snow', 'water', 'default'] = 'concrete',
+                        surface: str = 'concrete',
                         kind: Literal['opaque', 'glass', 'emissive', 'water', 'decal'] = 'opaque',
                         options: dict[str, Any] | None = None) -> dict:
         """Create and compile a material. image: a local picture; or pattern {"pattern": bricks|tiles|planks|
-        noise|plaster|checker|stripes|solid, "color": [r,g,b], "color2", "mortar", "count", "seed", "size",
-        "variation"}. surface: footsteps/impacts. kind: glass (options tint, opacity, dirt) | emissive (color,
-        glow 0..100, mask_image) | water (color, murk, flow) | decal. Normal map is derived.
+        rubble|cobbles|noise|plaster|checker|stripes|solid, "color": [r,g,b], "color2", "mortar", "count", "seed", "size",
+        "variation"}. kind: glass (options tint, opacity, dirt) | emissive (color,
+        glow 0..100, mask_image) | water (color, murk, flow) | decal. surface (steps, impacts): concrete, asphalt,
+        brick, metal, wood, dirt, grass, tile, glass... Normal map is derived.
         Example: material_create(name="red_brick", pattern={"pattern":"bricks","color":[150,60,45]}, surface="brick").
         Returns {material: materials/...vmat}."""
         return R['material_create'](name, image, pattern, roughness, metalness, surface, kind, options)
@@ -286,8 +285,7 @@ def register(mcp, project) -> list[str]:
                      glow: float = 3.0, font: str = 'arialbd.ttf') -> dict:
         """Overlay material for add_decal / add_sign. image: local PNG with alpha (background="#ffffff" keys out a
         colour; size [w,h] in units). text: a sign rendered with a Windows font (Latin/Cyrillic), style plate |
-        stencil | neon | paper, color, background, glow. Example: decal_create(name="cafe", text="CAFE",
-        style="neon", color=[255,80,40]). Returns {material}."""
+        stencil | neon | paper, color, background, glow. Returns {material}."""
         if (image is None) == (text is None):
             raise ValueError('give exactly one of image (artwork) or text (a sign)')
         if text is not None:
@@ -299,18 +297,17 @@ def register(mcp, project) -> list[str]:
     def model_build(name: str, script: str | None = None, template: str | None = None, file: str | None = None,
                     params: dict[str, Any] | None = None, collision: Literal['hull', 'mesh', 'none'] = 'hull',
                     surface: str = 'default', physics: dict[str, Any] | None = None, scale: Any = 'auto',
-                    weapon: dict[str, Any] | str | None = None) -> dict:
+                    weapon: dict[str, Any] | str | None = None, lods: list[dict[str, Any]] | None = None) -> dict:
         """Make a prop model with Blender and compile it (models/mcp/<name>). One source: script (Blender Python
         file or text; inches, +Z up, front +X; objects named *_col = collision), template (crate, barrel, fence,
-        door, lamp, table, pallet, railing, ... 15 in guide models; params) or file (FBX/OBJ/GLB, scale).
-        physics: {mass, ...} for prop_physics.
-        weapon: {base, grip, muzzle, scale} puts it on a stock gun's skeleton, held in the hands (guide weapons).
-        Example: model_build(name="crate1", template="crate", params={"size":[48,48,48]}). Returns {model, bounds}."""
+        door, lamp, table, pallet, railing... 15 in guide models; params) or file (FBX/OBJ/GLB, scale). physics:
+        {mass, ...} for prop_physics. weapon: {base, grip, muzzle, scale}: on a stock gun's skeleton (guide weapons).
+        lods: [{switch, reduce: 0.5 | model}]. Example: model_build(name="crate1", template="crate", params={"size":[48,48,48]}). Returns {model, bounds}."""
         if file is not None:
             if script or template:
                 raise ValueError('give one source: script, template or file')
-            return R['model_import'](name, file, scale, collision, surface, physics, weapon)
-        return R['model_build'](name, script, template, params, collision, surface, physics, weapon)
+            return R['model_import'](name, file, scale, collision, surface, physics, weapon, lods)
+        return R['model_build'](name, script, template, params, collision, surface, physics, weapon, lods)
 
     @mcp.tool()
     def model_preview(name: str, views: list[str] | None = None, size: int = 512, reference: str | None = None) -> dict:
@@ -375,7 +372,7 @@ def register(mcp, project) -> list[str]:
                  kit: str | None = None, keys: list[str] | None = None, offset: int = 0, limit: int = 12) -> dict:
         """Measured stock building parts (kits). key="kit/part": one part (bounds, front, mount, collision).
         Otherwise a filtered list (category, style, mount, tags). gallery=true: a photographed contact sheet of a
-        kit, category or keys (offset/limit up to 12). Example: kit_info(category="street", tags=["bench"])."""
+        kit, category or keys (offset/limit up to 12)."""
         if key:
             return R['kit_info'](key)
         if gallery:
@@ -405,10 +402,12 @@ def register(mcp, project) -> list[str]:
         return R['reference_facade'](image, quad, real_width)
 
     @mcp.tool()
-    def reference_compare(reference: str, shot: str) -> dict:
-        """Two local images side by side at equal height (a photo and a game frame). Open it, name three
-        differences, refine the map. Returns {png}."""
-        return R['reference_compare'](reference, shot)
+    def reference_compare(reference: str | None = None, shot: str | None = None, pairs: list[list[str]] | None = None,
+                          plan: dict[str, Any] | None = None) -> dict:
+        """A photo and a game frame side by side; pairs [[photo, frame], ...]: one row each. plan {map, box
+        [[x0,y0],[x1,y1]], marks [[label,x,y,yaw]], image}: the map from above (offline) with camera marks, a unit
+        grid and an aerial picture under it. Open the PNG, name differences, refine. Returns {png}."""
+        return R['reference_compare'](reference, shot, pairs, plan)
 
     @mcp.tool()
     def prefab_save(map: str, ids: list[int | str], name: str) -> dict:
@@ -445,16 +444,17 @@ def register(mcp, project) -> list[str]:
                     fade: float | None = None) -> dict:
         """Create the event mcp.<name> for add_sound. kind: oneshot | loop (3D, distance) | ambient | ui (2D) |
         random_around (interval [min,max] s, radius [min,max]) | soundscape (children events, reverb). sound or
-        sounds: .vsnd paths. Example: sound_event(name="alarm", kind="loop", sound="sounds/mcp/alarm.vsnd").
-        Returns {event}."""
+        sounds: .vsnd paths. Returns {event}."""
         return R['sound_event'](name, kind, sound, sounds, volume, pitch, distance, interval, radius, children,
                                 reverb, fade)
 
     # ---- scripts ----------------------------------------------------------------------------------------------
     @mcp.tool()
-    def script_write(name: str, code: str) -> dict:
+    def script_write(name: str, code: str, reload: bool = False) -> dict:
         """Write maps/scripts/mcp/<name>.js (cs_script) and compile it; attach it with map_edit add_script.
-        Returns {script, syntax, compiler diagnostics}."""
+        reload=true restarts it in the map loaded in CS2 (no map reload). Returns {script, syntax, diagnostics}."""
+        if reload:
+            return R['script_reload'](name, code)
         return R['script_write'](name, code)
 
     @mcp.tool()
@@ -464,8 +464,9 @@ def register(mcp, project) -> list[str]:
         one action each: cmd 'console' (+wait s), walk [x,y,z] (teleport, feet), go [x,y,z] (physical), use true
         (E), hold {"key":"attack|forward|back|left|right|jump|duck|reload|walk|use","seconds":1}, aim [x,y,z] or
         'entity', mouse {"dx":40,"dy":0} (real mouse), click [x,y] (window fractions: HUD buttons), expect 'regex'
-        (+within s), shot 'name' (frame as seen), wait s, press 'button', fire 'name input', say 'chat', focus true|false. steps="auto" plays the map's
-        add_story. Call game_reset before and after. Example: [{"use":true},{"expect":"enter","within":2},
+        (+within s), shot 'name', wait s, press 'button', fire 'name input', say 'chat', focus true|false, spread
+        {"shots":5} (shot accuracy, deg and units). "auto" plays
+        add_story. game_reset before and after. Example: [{"use":true},{"expect":"enter","within":2},
         {"hold":{"key":"forward","seconds":1}},{"shot":"drive"}]. Returns {ok, checks, errors, shots, log}."""
         return R['script_test'](map, steps, timeout)
 
@@ -511,8 +512,8 @@ def register(mcp, project) -> list[str]:
         """Photograph the game (PNG paths; open them). map: loaded first (reloaded if rebuilt). views: [{"name",
         "pos":[x,y,z] feet (eye +64), "ang":[pitch,yaw,0], "cmd": console run in place, "wait", "grep",
         "keep": true = no noclip (a script camera), "preview": true = also the map's loading-screen picture}] |
-        "auto" (overviews, spawns, objectives, rooms) | "rooms" (one per layout room); offset/limit page auto views. Or one view by name/pos/ang. window="hammer" captures
-        Hammer. Example: game_screenshot(map="arena", views=[{"name":"mid","pos":[0,0,64],"ang":[10,90,0]}]).
+        "auto" (overviews, spawns, objectives, rooms) | "rooms" (one per layout room); offset/limit page them. Or one
+        view by name/pos/ang. window="hammer": Hammer.
         Returns {shots: [{name, path}]}."""
         if views == 'rooms':
             if not map:

@@ -143,6 +143,8 @@ def main() -> None:
     sys.stdout.reconfigure(encoding='utf-8')
     from . import housekeeping
     housekeeping.start_background(project.s)          # disk limits for screenshots/logs/backups (at most hourly)
+    from . import backups
+    backups.start_periodic(project.s)                 # changed maps, sources snapshot, tiers (every 30 min)
     mcp.run('stdio')
 
 

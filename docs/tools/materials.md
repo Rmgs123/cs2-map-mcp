@@ -10,6 +10,8 @@
 | Look at materials in game | `material_preview` |
 
 All paths are local project or addon paths. The tools never download images.
+
+`material_preview` builds the service map `b_gallery` and loads it in CS2 (a map shown there is replaced); when the light bake fails it shows the stands from a fast build and says so.
 Coordinates and sizes are Source 2 world units.
 
 ## Material kinds
@@ -43,6 +45,18 @@ Verified installed shader inputs:
 
 Water also carries `mapbuilder.water=1` and `mapbuilder.nonsolid=1`. A water
 surface is a mesh; use `func_water` only when its entity behaviour is needed.
+
+## Patterns
+
+`pattern` draws a tiling texture: `bricks`, `tiles`, `planks`, `rubble` (irregular stones), `cobbles` (small
+rounded stones), `noise`, `plaster`, `checker`, `stripes`, `solid`; `color`, `color2`, `mortar`, `count` (rows, or
+`[across, down]`; for stones: stones across), `seed`, `size`, `variation`. Stones also take `joint` (mortar width as
+a share of a stone) and `palette` (1..16 colours) or `palette_from` `{image, region, colors}`: the main colours of a
+photo region, so a small or blurry photo still gives a sharp wall in its own colours.
+
+```json
+{"name":"lane_rubble","pattern":{"pattern":"rubble","count":6,"joint":0.12,"palette":[[120,112,100],[150,140,122],[98,92,86]],"mortar":[185,180,168],"size":1024},"surface":"stone"}
+```
 
 ## Text signs
 
@@ -99,7 +113,9 @@ The overlay adds no collision or navigation geometry.
 `material_from_reference` reads a local image, crops/rectifies it, removes
 broad illumination, chooses regular or stochastic tiling, derives PBR maps,
 and compiles the result. `real_size:[w,h]` stores physical world size.
-`set_uv` with `scale:"auto"` reads that metadata.
+`set_uv` (and a face's `uv` in `add_mesh`) with `scale:"auto"` reads that metadata, or the measured
+size of a stock material (`data/material_sizes.json`, e.g. `brick_soviet_white_01a` = 123 units a tile);
+unknown sizes keep 0.25 units per texel. `set_uv` `mode:"wall"` lays courses level on any wall.
 
 `tile_analysis` returns `mode` and `period`; `band_analysis` returns
 `band_score`, `seam_energy_ratio`, `band_energy_ratio`, and `band_contrast`.

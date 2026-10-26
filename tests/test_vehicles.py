@@ -55,10 +55,38 @@ class Schema(unittest.TestCase):
                     spec.pop('size')
                 spec[key] = value if key != 'passengers' else spec[key]
                 control.validate(spec)
+        big = control.validate(dict(copy.deepcopy(bus), scale=1.2))          # every body-frame length, once
+        self.assertEqual(control.validate(big), big)
+        self.assertEqual(big['size'], [708, 168])
+        self.assertEqual(big['door']['at'], [271.2, -28.8, 28.8])
+        self.assertEqual(big['passengers']['doors'][0]['spots'][0], [198, -28.8, 31.2])
+        self.assertEqual((big['camera']['up'], big['camera']['chase']['forward']), (86.4, -744))
+        self.assertEqual(big['wheels']['radius'], s['wheels']['radius'] * 1.2)
+        self.assertEqual((big['speed'], big['mass']), (s['speed'], s['mass']))           # not lengths
         too_many = copy.deepcopy(bus)
         too_many['passengers']['doors'] = [dict(door, spots=[[0, 0, 26]] * 17)] * 2
         with self.assertRaises(ValueError):
             control.validate(too_many)
+
+    def test_recipe_must_fit_the_body_model(self):
+        """25.10: the docs' bus recipe on the stock car model put the riders in the air beside a small car."""
+        door = {'at': [220, -78, 14], 'radius': 70, 'spots': [[165, -24, 26], [165, 26, 26]]}
+        bus = control.validate({'name': 'bus', 'kind': 'car', 'door': {'at': [226, -24, 24], 'radius': 40},
+                                'seat': [238, 37, 50], 'size': [590, 140],
+                                'passengers': {'floor': 24, 'roof': 140, 'doors': [door]}})
+        car = ((-101, -42, 20), (103, 42, 90), 'MDAT')
+        coach = ((-295, -86, 10), (295, 86, 164), 'MDAT')
+        with patch('cs2map.visual.model_bounds', return_value=car),                 self.assertRaisesRegex(ValueError, 'does not fit the body model.*passenger spot'):
+            vehicles.fit(object(), bus)
+        with patch('cs2map.visual.model_bounds', return_value=coach):
+            vehicles.fit(object(), bus)
+        stock = control.validate({'name': 'car1', 'kind': 'car'})
+        with patch('cs2map.visual.model_bounds', return_value=car):
+            vehicles.fit(object(), stock)                   # the stock recipe fits the stock body
+        roofless = copy.deepcopy(bus)
+        roofless['passengers']['doors'][0]['spots'] = [[0, 0, 150]]        # no room for a body under the roof
+        with patch('cs2map.visual.model_bounds', return_value=coach), self.assertRaises(ValueError):
+            vehicles.fit(object(), roofless)
 
     def test_relative_origin_and_yaw_wheel_positions(self):
         with patch.object(vehicles.layout, 'point', return_value=([100, 200, 8], None)):

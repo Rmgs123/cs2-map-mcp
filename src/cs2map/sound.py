@@ -455,7 +455,7 @@ def _asset_lock():
 def _backup(project, path):
     if not path.exists(): return None
     target = ensure_inside(project.s.backups / 'sound' / dt.datetime.now().strftime('%Y%m%d_%H%M%S_%f') / path.name,
-                           PROJECT_ROOT)
+                           project.s.backups)
     target.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(path, target)
     return str(target)
 

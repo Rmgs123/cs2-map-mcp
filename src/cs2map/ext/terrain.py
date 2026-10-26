@@ -5,6 +5,7 @@ def register(mcp, project):
     project.register_op('add_terrain', terrain.add_terrain)
     project.register_op('scatter', terrain.scatter)
     project.register_op('add_street', streets.add_street)
+    project.register_op('add_junction', streets.add_junction)
     project.register_preprocessor(terrain.preprocess)
     project.preprocessors.remove(terrain.preprocess)
     project.preprocessors.insert(0,terrain.preprocess)

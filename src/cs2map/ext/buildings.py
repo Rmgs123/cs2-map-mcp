@@ -33,11 +33,19 @@ def register(mcp, project):
         return reference_mod.reference_facade(image, quad, real_width)
 
     @mcp.tool()
-    def reference_compare(reference: str, shot: str) -> dict:
-        """Place two local images side by side at equal height; return the comparison PNG.
+    def reference_compare(reference: str | None = None, shot: str | None = None, pairs: list | None = None,
+                          plan: dict | None = None) -> dict:
+        """Place two local images side by side at equal height; return the comparison PNG. pairs: rows of
+        [photo, frame]; plan: the map from above with camera marks (reference.reference_plan).
 
         Open the image, name three visible differences, then refine the map.
         """
+        if plan is not None:
+            return reference_mod.reference_plan(project, plan)
+        if pairs is not None:
+            return reference_mod.reference_pairs(pairs)
+        if not reference or not shot:
+            raise ValueError('give reference and shot, or pairs, or plan')
         return reference_mod.reference_compare(reference, shot)
 
     @mcp.tool()

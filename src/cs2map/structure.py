@@ -271,7 +271,7 @@ def prefab_save(project, map_name: str, ids: list[Any], name: str) -> dict[str, 
         raise MapError(f'prefab {stem} is open in Hammer; close it before saving')
     path.parent.mkdir(parents=True, exist_ok=True)
     target = _minimal_prefab(project, source, nodes, stem, centre)
-    saved = target.save(path, backup_dir=project.s.backups / 'maps' / 'prefabs')
+    saved = target.save(path, backup_dir=project.s.backups / 'maps' / 'prefabs', settings=project.s)
     return {'ok': True, 'prefab': _prefab_rel(project, path), 'name': stem,
             'source_map': map_name, 'source_ids': [n['nodeID'] for n in nodes],
             'origin': [round(x, 4) for x in centre], 'nodes': len(nodes), **saved}

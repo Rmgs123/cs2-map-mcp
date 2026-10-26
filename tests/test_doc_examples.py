@@ -3,7 +3,7 @@
 A ```json block counts when it is an operation, a list of operations, {"name", "operations"} or JSON lines of
 operations. The fixture has the room, layout and terrain names the guides use (layout `docs` with yard, gallery,
 lane, street; layout `port` with pier; terrain `land`; facades on the street) and the assets their examples name
-(signs exit/warehouse, decal graffiti, model a_barrier, script round_log, ambience event m_hall). An example that
+(signs exit/warehouse, decal graffiti, models a_barrier and bus, script round_log, ambience event m_hall). An example that
 builds on an earlier example of the same section (its @refs, rooms or entities) is checked together with them.
 Run alone: python -m unittest tests.test_doc_examples
 """
@@ -66,6 +66,8 @@ def prepare_assets(raw):
             art.unlink(missing_ok=True)
     if not (s.game_addon / 'models/mcp/a_barrier/a_barrier.vmdl_c').exists():
         raw['model_build']('a_barrier', None, 'jersey_barrier', None, 'hull', 'concrete', None)
+    if not (s.game_addon / 'models/mcp/bus/bus.vmdl_c').exists():      # the bus example's own body (its size only)
+        raw['model_build']('bus', None, 'crate', {'width': 590, 'depth': 140, 'height': 150}, 'hull', 'metal', None)
     if not (s.game_addon / 'maps/scripts/mcp/round_log.vjs_c').exists():
         raw['script_write']('round_log', 'import { Instance } from "cs_script/point_script";\n'
                                          'Instance.Msg("round_log: loaded");\n')

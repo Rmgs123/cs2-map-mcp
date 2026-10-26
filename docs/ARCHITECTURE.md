@@ -13,8 +13,10 @@ src/cs2map/surface.py       PUBLIC MCP tools (49): merged wrappers over RAW with
                             the description budget is tested (≤ 7000 tokens). A new tool = a RAW function + a line here
 src/cs2map/housekeeping.py  disk limits (config/settings.json → limits): frames, logs, map backups, .local/tmp;
                             files referenced by README/docs/data are kept; a background pass at most once an hour
+src/cs2map/backups.py       map copies (zstd, tiers, pins) + deduplicated sources snapshots in backups_dir; a save
+                            hard-links the old file and a worker thread finishes it; periodic pass every 30 min
 src/cs2map/project.py       core operations: maps, batch editing, builds, assets, materials, game; idle map
-   ├─ vmap.py       map model: nodes, entities, meshes, I/O, saving with a backup
+   ├─ vmap.py       map model: nodes, entities, meshes, I/O, saving with a backup (backups.stage/submit)
    │   └─ dmx.py    lossless DMX binary v9 codec (the .vmap format), pure Python
    ├─ mesh.py       polygon meshes → half-edge CDmePolygonMesh; primitives; smoothed normals
    ├─ meshops.py    polygons with holes, extrude along paths, revolve, closure/self-intersection checks, BSP CSG
@@ -59,7 +61,8 @@ src/cs2map/project.py       core operations: maps, batch editing, builds, assets
    ├─ buildings.py, reference.py, facades.py, paving.py, districts.py   houses, photo hints, facade rows,
    │                floors and sidewalks, quick districts
    ├─ wear.py, streetlife.py   facade wear decals, street dressing
-   ├─ terrain.py, streets.py   terrain (heightmap, blending), scatter, add_street
+   ├─ terrain.py, streets.py   terrain (heightmap, blending, bank cuts), scatter, add_street
+   ├─ builders.py   fences, railings, earth banks, bare trees along paths over the terrain
    ├─ modes.py      DM, Arms Race, Wingman, aim, surf/bhop/kz courses
    ├─ mechanics.py, fire.py + data/mechanics/   the shared mechanics core (JS fragments) and the shot engine
    ├─ control.py, vehicles.py, turrets.py   controllable objects: drone, car, turret
@@ -79,11 +82,12 @@ Extensions load automatically (`server.load_extensions`). New `map_edit` operati
 
 ## Files and folders
 
-- Project folder: code, tools, docs, `backups/maps/` (a copy before every map save), `logs/` (log and JSON of each build). Local only: `my/` (notes, styles), `.local/` (caches, temp, scratch), `logs/`, `backups/`.
+- Project folder: code, tools, docs, `logs/` (log and JSON of each build). Local only: `my/` (notes, styles, `maps/<map>/` generators), `.local/` (caches, temp, scratch), `logs/`, `restored/`.
+- Backups folder (settings `backups_dir`, default `<project>/backups`; best on another disk): `maps/<map>/<stamp>.vmap.zst` + `<stamp>.json` (kind, sizes, sources snapshot, pin), `sources/objects/` (file contents by SHA-256, zstd), `sources/snapshots/` (file lists), asset backups by kind. Tiers and the recovery path: [REPAIR.md](../REPAIR.md#3-backups).
 - CS2 addon (`config/settings.json` → `addon`, default `mcp_lab`):
   - `…/content/csgo_addons/<addon>/`: sources (`maps/*.vmap`, `materials/mcp/<name>/`, models, sounds, panorama);
   - `…/game/csgo_addons/<addon>/`: compiler output (`maps/*.vpk`, `*_c`, lighting caches).
-- Writing is allowed only there: `config.ensure_inside` checks the real path, junctions and `..` included.
+- Writing is allowed only there and in the backups folder: `config.ensure_inside` checks the real path, junctions and `..` included.
 
 ## VMAP format
 

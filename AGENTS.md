@@ -25,20 +25,19 @@ A feature is done only when the result is checked end to end: MCP call → files
 
 ## Where you may write
 
-- The project folder (code, docs, map backups, logs) and the project's CS2 addon (`mcp_lab` by default, set in `config/settings.json`): `<CS2>/content/csgo_addons/<addon>` and `<CS2>/game/csgo_addons/<addon>`.
+- The project folder (code, docs, logs), the backups folder (settings `backups_dir`) and the project's CS2 addon (`mcp_lab` by default, set in `config/settings.json`): `<CS2>/content/csgo_addons/<addon>` and `<CS2>/game/csgo_addons/<addon>`.
 - Never touch other addons, CS2 or Steam files, global configs, PATH or the registry.
 - Never delete irreversibly: move unneeded files to `_to_delete/`; caches and temporary files that can be recreated may be removed by the code.
 - Large downloads only with the user's permission.
 
 ## Map and game safety
 
-- Every `.vmap` write makes a copy in `backups/maps/` (the code does it). A map open in Hammer with unsaved changes (an asterisk in the title) is refused.
+- Every `.vmap` write keeps a compressed copy with a sources snapshot in the backups folder (`backups.py` does it). Keep what builds a map (generators, batches, plans) in `my/maps/<map>/`, where the snapshots see it, never in temp folders. A map open in Hammer with unsaved changes (an asterisk in the title) is refused.
 - Never close or restart CS2 while the user plays (`cs2.exe` without `-tools`); ask first.
 - The CS2 console accepts one client. A VConsole2 window takes it silently: the code closes it with `WM_CLOSE`. Never kill CS2 or its child processes. If CS2 does not respond for ~30 s, ask the user to restart it at once.
 
 ## Docs
 
-- `CHANGELOG.md`: one to three lines per notable change.
 - `docs/TOOLS.md` and `docs/tools/*.md` change with the tools: the server hands them to models. Every JSON example must pass `map_edit` dry run (`tests/test_doc_examples.py`).
 - Public files are in English and contain no personal data.
 

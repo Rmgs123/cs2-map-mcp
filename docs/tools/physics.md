@@ -108,6 +108,13 @@ optional `texture` to override the matching stock VMAT. It creates
 `func_breakable` with bullet damage enabled. `Break`, `RemoveHealth`,
 `SetHealth` are available. Visible shards are not guaranteed by this legacy
 brush class; use own ModelDoc break pieces when persistent debris matters.
+Bullets go through an intact `func_breakable` (spawnflag 2048 "Don't allow
+bullet penetration" does nothing in CS2). `bulletproof:true` stops them: a
+`toolsblockbullets` layer inside the pane that breaks with it (shots then
+fly through the hole) and returns on a round restart. By hand: a
+`func_breakable` (spawnflag 1, material `materials/tools/toolsblockbullets_cs.vmat`)
+inside the pane and `OnBreak` → that layer `Kill`; a `func_brush` layer is
+not re-created after a round restart.
 
 ## Push, teleport, damage, gravity and ladders
 

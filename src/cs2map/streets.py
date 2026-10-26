@@ -104,7 +104,33 @@ def ribbon(path,low,high):
             factor=1/sum(n[k]*normals[i][k] for k in (0,1))
             if factor>3:raise OpError('street turn too sharp; insert a wider bend')
         sections.append([[p[k]+n[k]*factor*v for k in (0,1)] for v in (low,high)])
-    return [clean([sections[i][0],sections[i+1][0],sections[i+1][1],sections[i][1]]) for i in range(len(path)-1)]
+    out=[]
+    for i in range(len(path)-1):
+        quad=[sections[i][0],sections[i+1][0],sections[i+1][1],sections[i][1]]
+        # An offset edge that runs backwards (a short segment between turns, wider than it is long) folds the
+        # ribbon over itself; clean() would flip it silently and the slope check then reads ~180 degrees (10.10).
+        for e,(a,b) in enumerate(((quad[0],quad[1]),(quad[3],quad[2]))):
+            seg=[path[i+1][k]-path[i][k] for k in (0,1)]
+            if (b[0]-a[0])*seg[0]+(b[1]-a[1])*seg[1]<-1e-6:
+                x,y=path[i+1][:2]
+                raise OpError(f'street path segment {i} -> {i+1} (near {x:.0f}, {y:.0f}, {math.hypot(*seg):.0f} units long) '
+                              f'folds the {"left" if (low,high)[e]>0 else "right"} edge at offset {(low,high)[e]:.0f}: '
+                              'the turns around it are too tight for this width; pass "smooth": true, drop a point '
+                              'or widen the bend')
+        out.append(clean(quad))
+    return out
+
+
+def smooth_path(raw, rounds=2):
+    """Chaikin corner cutting (ends kept): short zigzags of a traced axis (OSM) become bends a ribbon can follow."""
+    pts=[list(p) for p in raw]
+    for _ in range(rounds):
+        if len(pts)<3:break
+        out=[pts[0]]
+        for a,b in zip(pts,pts[1:]):
+            out.append([a[k]*.75+b[k]*.25 for k in range(len(a))]);out.append([a[k]*.25+b[k]*.75 for k in range(len(a))])
+        pts=out+[pts[-1]]
+    return pts
 
 
 def streets(m):return terrain.plans(m,terrain.STREET_KEY)
@@ -127,6 +153,149 @@ def geometry_specs(data):
                     result.append({'role':role,'poly':tri,'a':data['path'][i],'b':data['path'][i+1],
                                    'vertices':verts,'height':height,'material':mat})
     return result
+
+
+def pieces(project,m,entries,extra_cuts=()):
+    """Solid pieces of every street in order: later roads give way to earlier ones, sidewalks and curbs to every
+    road, and everything to the junction plazas (extra_cuts, convex)."""
+    roads=[s for _,sp in entries for s in sp if s['role']=='road']
+    updates=[];used_roads=list(extra_cuts);used_sides=[]
+    for d,sp in entries:
+        meshes=[]
+        for role in ('road','sidewalk','curb'):
+            for s in (v for v in sp if v['role']==role):
+                cuts=used_roads if role=='road' else [r['poly'] for r in roads]+list(extra_cuts)+used_sides
+                for poly in difference(s['poly'],cuts):
+                    # Split long solids to keep lightmap charts manageable.
+                    piece=solid(poly,s,s['height'],8,s['material'])
+                    meshes.append(m.new_mesh(piece,texture_size=project.texture_size))
+                    (used_roads if role=='road' else used_sides).append(poly)
+        updates.append((d,meshes))
+    return updates
+
+
+def replace(m,updates):
+    """Swap the mesh children of existing street groups for rebuilt pieces (group ids stay)."""
+    for d,nodes in updates:
+        group=m.node(d['id']);remove=set(d['mesh_ids'])
+        group['children']=[c for c in group['children'] if c['nodeID'] not in remove]
+        for node in nodes:m.attach(node,group)
+        d['mesh_ids']=[n['nodeID'] for n in nodes];d.pop('id',None);d['origin']=list(group['origin'])
+        group.set(terrain.STREET_KEY,'string',json.dumps(d,separators=(',',':')))
+
+
+def junctions(m):return terrain.plans(m,terrain.JUNCTION_KEY)
+
+
+def _crossing(a,b,c,d):
+    """Where segments a-b and c-d cross, or None."""
+    den=(b[0]-a[0])*(d[1]-c[1])-(b[1]-a[1])*(d[0]-c[0])
+    if abs(den)<1e-9:return None
+    t=((c[0]-a[0])*(d[1]-c[1])-(c[1]-a[1])*(d[0]-c[0]))/den
+    u=((c[0]-a[0])*(b[1]-a[1])-(c[1]-a[1])*(b[0]-a[0]))/den
+    if -1e-9<=t<=1+1e-9 and -1e-9<=u<=1+1e-9:return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]
+    return None
+
+
+def add_junction(project,m,op,refs):
+    """One paved plaza where streets meet (a town map, 18.10: five roads at one fork took ~300 lines by hand). The
+    streets give way inside the polygon; the plaza takes the road surface's own height wherever a road lies under a
+    point and a smooth blend of the roads' heights elsewhere, so every mouth meets its road without a step."""
+    terrain.keys(op,{'op','name','polygon','streets','material','cell','thickness','ref'},'junction')
+    nm=terrain.name(op.get('name','junction'))
+    if any(j['name']==nm for j in junctions(m)):raise OpError('junction name already exists; delete its group and replay')
+    poly=terrain.polygon(op.get('polygon'))
+    if mesh._polygon_area(poly)<0:poly=poly[::-1]
+    cell=terrain.number(op.get('cell',64),'cell',16,512);thick=terrain.number(op.get('thickness',8),'thickness',2,64)
+    every=streets(m)
+    names=op.get('streets')
+    if names is not None and (not isinstance(names,list)
+                              or any(n not in {d['name'] for d in every} for n in names)):
+        raise OpError(f'streets: names of existing streets ({", ".join(d["name"] for d in every) or "none yet"})')
+    from .meshops import triangulate
+    cuts=[[list(p) for p in t] for t in triangulate([tuple(p) for p in poly])]
+    specs=[(d,geometry_specs(d)) for d in every]
+    roads=[s for d,sp in specs if names is None or d['name'] in names for s in sp
+           if s['role']=='road' and any(intersect(s['poly'],t) for t in cuts)]
+    if not roads and names is None:
+        raise OpError('no street road reaches the polygon; draw it over the road ends that meet there, or pass '
+                      '"streets": [] for a paved area that follows the ground')
+    if names is None:names=sorted({d['name'] for d,sp in specs if any(s in roads for s in sp)})
+    first=next((d['road_material'] for d,_ in specs if names and d['name']==names[0]),ROAD_DEFAULT)
+    material=terrain.material(project,op.get('material',first))
+    # Height anchors: road surface points in (or on) the plaza, every 32 units along each road piece's edges.
+    anchors=[];grounds=terrain.plans(m)
+    for s in roads:
+        for a,b in zip(s['poly'],s['poly'][1:]+s['poly'][:1]):
+            n=max(1,math.ceil(math.dist(a,b)/32))
+            for k in range(n):
+                p=[a[0]+(b[0]-a[0])*k/n,a[1]+(b[1]-a[1])*k/n]
+                if terrain.inside(*p,poly) or terrain.nearest_path(*p,poly+poly[:1])[0]<1:
+                    anchors.append((p,surface(s,p)))
+    def height(p):
+        on=[surface(s,p) for s in roads
+            if terrain.inside(*p,s['poly']) or terrain.nearest_path(*p,s['poly']+s['poly'][:1])[0]<1e-3]
+        if on:return sum(on)/len(on)
+        w=[(1/max(1e-6,math.dist(p,q)**2),z) for q,z in anchors]
+        # Off the roads the plaza stays 2 units over the ground, as streets do (a blend could lie on the grass).
+        under=[terrain.sample(g,*p)['z']+2 for g in grounds
+               if g['bounds'][0][0]<=p[0]<=g['bounds'][1][0] and g['bounds'][0][1]<=p[1]<=g['bounds'][1][1]]
+        if not w and not under:raise OpError('a paved area without streets needs an add_terrain under it')
+        return max(([sum(a*z for a,z in w)/sum(a for a,_ in w)] if w else [])+under)
+    # Where road edges cross the outline the plaza needs a vertex too, or the road's corner hangs off its edge.
+    marks=[q for s in roads for a,b in zip(s['poly'],s['poly'][1:]+s['poly'][:1])
+           for c,d in zip(poly,poly[1:]+poly[:1]) if (q:=_crossing(a,b,c,d)) is not None]
+    # The top: grid cells clipped by the outline's triangles, each fanned around its centre.
+    lo=[min(p[k] for p in poly) for k in (0,1)]
+    tops=[]
+    for tri in cuts:
+        tlo=[min(p[k] for p in tri) for k in (0,1)];thi=[max(p[k] for p in tri) for k in (0,1)]
+        for i in range(int((tlo[0]-lo[0])//cell),int((thi[0]-lo[0])//cell)+1):
+            for j in range(int((tlo[1]-lo[1])//cell),int((thi[1]-lo[1])//cell)+1):
+                x0,y0=lo[0]+i*cell,lo[1]+j*cell
+                part=intersect([[x0,y0],[x0+cell,y0],[x0+cell,y0+cell],[x0,y0+cell]],tri)
+                if not part:continue
+                ring=[]
+                for a,b in zip(part,part[1:]+part[:1]):
+                    ring.append(a);ln2=math.dist(a,b)**2
+                    on=sorted((sum((q[k]-a[k])*(b[k]-a[k]) for k in (0,1))/ln2,q) for q in marks
+                              if abs(cross(a,b,q))/math.sqrt(ln2)<1e-3
+                              and 1e-6<sum((q[k]-a[k])*(b[k]-a[k]) for k in (0,1))/ln2<1-1e-6)
+                    ring+=[q for _,q in on]
+                ring=[q for i,q in enumerate(ring) if math.dist(q,ring[i-1])>1e-3]     # marks found twice
+                tops.append(ring)
+    def key(p):return (round(p[0],3),round(p[1],3))
+    zs={}
+    def z(p):
+        k=key(p)
+        if k not in zs:zs[k]=height(p)
+        return zs[k]
+    body=mesh.Mesh();edges={}
+    for ring in tops:
+        c=[sum(p[k] for p in ring)/len(ring) for k in (0,1)]
+        for a,b in zip(ring,ring[1:]+ring[:1]):
+            top=[[*c,z(c)],[*a,z(a)],[*b,z(b)]]
+            body.face(top,material);body.face([[p[0],p[1],p[2]-thick] for p in top[::-1]],material)
+            edges[(key(a),key(b))]=(a,b)
+    for (ka,kb),(a,b) in edges.items():
+        if (kb,ka) in edges:continue                   # inside: a neighbour has the same edge the other way
+        A,B=[*a,z(a)],[*b,z(b)]
+        body.face([B,A,[A[0],A[1],A[2]-thick],[B[0],B[1],B[2]-thick]],material)
+    for g in grounds:
+        (glo,ghi)=g['bounds']
+        for k,v in zs.items():
+            if glo[0]<=k[0]<=ghi[0] and glo[1]<=k[1]<=ghi[1] and terrain.sample(g,*k)['z']>v+.1:
+                raise OpError(f'the ground pokes through the plaza near ({k[0]:.0f}, {k[1]:.0f}): flatten it under the '
+                              'polygon first (add_terrain plateau or flatten) to at most the road heights minus 2')
+    node=m.new_mesh(body,texture_size=project.texture_size)
+    # The streets give way: their pieces inside the plaza go (sidewalks and curbs too).
+    data={'version':1,'origin':[0,0,0],'name':nm,'polygon':poly,'cuts':cuts,'streets':names}
+    replace(m,pieces(project,m,specs,[t for j in junctions(m) for t in j['cuts']]+cuts))
+    c=[sum(p[k] for p in poly)/len(poly) for k in (0,1)]
+    seed=m.new_entity('point_nav_walkable',{},[*c,height(c)+1],defaults=project.catalog.defaults('point_nav_walkable'))
+    gid=terrain.commit(m,op,nm,[node,seed],data,terrain.JUNCTION_KEY,refs)
+    return {'op':'add_junction','id':gid,'name':nm,'mesh':node['nodeID'],'streets':names,
+            'z_range':[round(min(zs.values()),1),round(max(zs.values()),1)]}
 
 
 def kit_model(kind,override=None):
@@ -165,13 +334,15 @@ def lot_plan(data,depth,length,gap):
 
 
 def add_street(project,m,op,refs):
-    terrain.keys(op,{'op','name','terrain','path','width','z','road_material','sidewalk','markings','details','furniture','lots','max_slope','ref'},'street')
+    terrain.keys(op,{'op','name','terrain','path','width','z','road_material','sidewalk','markings','details','furniture','lots','max_slope','ref','smooth'},'street')
     nm=terrain.name(op.get('name','street'));old=streets(m)
     if any(d['name']==nm for d in old):raise OpError('street name already exists; delete its group and replay')
     ground=terrain.select(m,op.get('terrain'));raw=terrain.path(op.get('path'),z=True)
     zmode=op.get('z','terrain')
     if zmode not in ('terrain','path'):raise OpError('street z must be terrain or path')
     if zmode=='path' and any(len(p)!=3 for p in raw):raise OpError('z:path needs XYZ at every point')
+    if op.get('smooth') not in (None,False,True):raise OpError('smooth must be true or false')
+    if op.get('smooth'):raw=smooth_path(raw)
     path=[]
     for i,(a,b) in enumerate(zip(raw,raw[1:])):
         count=max(1,math.ceil(math.dist(a[:2],b[:2])/128))
@@ -180,14 +351,20 @@ def add_street(project,m,op,refs):
             path.append([*p[:2],p[2] if zmode=='path' else terrain.sample(ground,*p[:2])['z']+2])
     p=raw[-1];path.append([*p[:2],p[2] if zmode=='path' else terrain.sample(ground,*p[:2])['z']+2])
     w=terrain.number(op.get('width',256),'width',48,4096);maxslope=terrain.number(op.get('max_slope',12),'max_slope',0,45)
-    side=op.get('sidewalk',{});terrain.keys(side,{'width','curb','material','curb_material'},'sidewalk')
-    sw=terrain.number(side.get('width',64),'sidewalk.width',16,512);curb=terrain.number(side.get('curb',6),'curb',4,8)
+    side=op.get('sidewalk',{})
+    if side is False:side={'width':0}             # a road without sidewalks and curbs
+    terrain.keys(side,{'width','curb','material','curb_material'},'sidewalk')
+    if side.get('width')==0:sw=curb=0
+    else:sw=terrain.number(side.get('width',64),'sidewalk.width',16,512);curb=terrain.number(side.get('curb',6),'curb',4,8)
     data={'version':1,'origin':[0,0,0],'name':nm,'terrain':ground['name'],'path':path,'width':w,
           'road_material':terrain.material(project,op.get('road_material',ROAD_DEFAULT)),
           'sidewalk':{'width':sw,'curb':curb,'material':terrain.material(project,side.get('material',SIDE_DEFAULT)),
                       'curb_material':terrain.material(project,side.get('curb_material',SIDE_DEFAULT))}}
     slopes=[math.degrees(math.atan2(abs(a[2]-b[2]),math.dist(a[:2],b[:2]))) for a,b in zip(path,path[1:])]
-    if max(slopes)>maxslope:raise OpError(f'street slope {max(slopes):.1f} exceeds max_slope {maxslope}')
+    if max(slopes)>maxslope:
+        i=slopes.index(max(slopes));x,y=path[i][:2]
+        raise OpError(f'street slope {max(slopes):.1f} exceeds max_slope {maxslope} between path samples {i} and {i+1} '
+                      f'(near {x:.0f}, {y:.0f})')
     data['max_slope']=round(max(slopes),3)
     specs=geometry_specs(data)
     if zmode=='terrain':
@@ -198,12 +375,17 @@ def add_street(project,m,op,refs):
         for s in specs:
             s['vertices']=[[p[0],p[1],min(path,key=lambda q:math.dist(p,q[:2]))[2]] for p in s['poly']]
     data['surfaces']=specs
-    actual_slope=0
+    actual_slope=0;steepest=None
     for s in specs:
         if s['role']!='road':continue
         a,b,c=s['vertices'];normal=mesh._norm(mesh._cross(mesh._sub(b,a),mesh._sub(c,a)))
-        actual_slope=max(actual_slope,math.degrees(math.acos(max(-1,min(1,normal[2])))))
-    if actual_slope>maxslope:raise OpError(f'street surface slope {actual_slope:.1f} exceeds max_slope {maxslope}')
+        slope=math.degrees(math.acos(max(-1,min(1,normal[2]))))
+        if slope>actual_slope:actual_slope,steepest=slope,s
+    if actual_slope>maxslope:
+        x,y=(sum(p[k] for p in steepest['poly'])/3 for k in (0,1))
+        raise OpError(f'street surface slope {actual_slope:.1f} exceeds max_slope {maxslope} near ({x:.0f}, {y:.0f}): '
+                      'the ground across the road is steeper than along it there; flatten the terrain under the '
+                      'street first (add_terrain flatten) or raise max_slope')
     data['max_slope']=round(max(actual_slope,max(slopes)),3)
     # A street does not secretly rewrite terrain or existing building pads. Grade before placing roads.
     for s in specs:
@@ -222,19 +404,12 @@ def add_street(project,m,op,refs):
     source_path=[[*p[:2],p[2] if zmode=='path' else terrain.sample(ground,*p[:2])['z']+2] for p in raw]
     data['lots']=lot_plan({**data,'path':source_path},terrain.number(lot.get('depth',384),'lots.depth',128,2048),terrain.number(lot.get('length',384),'lots.length',128,2048),terrain.number(lot.get('gap',32),'lots.gap',0,512))
     data['exclusions']=[{'polygon':s['poly']} for s in specs]
+    junction_cuts=[t for j in junctions(m) for t in j['cuts']]
+    if junction_cuts and any(intersect(s['poly'],t) for s in specs if s['role']=='road' for t in junction_cuts):
+        raise OpError('this street enters an add_junction plaza: add every street first, then the junctions '
+                      '(the plaza takes its heights from the roads that reach it)')
     # Rebuild previous sidewalks when a new street cuts through them. IDs of street groups stay stable.
-    updates=[];used_roads=[];used_sides=[]
-    for d,sp in [*oldspecs,(data,specs)]:
-        meshes=[]
-        for role in ('road','sidewalk','curb'):
-            for s in (v for v in sp if v['role']==role):
-                cuts=used_roads if role=='road' else [r['poly'] for r in roads]+used_sides
-                for poly in difference(s['poly'],cuts):
-                    # Split long solids to keep lightmap charts manageable.
-                    piece=solid(poly,s,s['height'],8,s['material'])
-                    meshes.append(m.new_mesh(piece,texture_size=project.texture_size))
-                    (used_roads if role=='road' else used_sides).append(poly)
-        updates.append((d,meshes))
+    updates=pieces(project,m,[*oldspecs,(data,specs)],junction_cuts)
     furniture=op.get('furniture',{});terrain.keys(furniture,{'lamps','benches','bins','bollards','models','scales'},'furniture')
     overrides=furniture.get('models',{});terrain.keys(overrides,set(STOCK),'furniture.models')
     scales=furniture.get('scales',{});terrain.keys(scales,set(STOCK),'furniture.scales')
@@ -275,11 +450,7 @@ def add_street(project,m,op,refs):
         for n in list(m.iter_nodes()):
             if n['nodeID'] not in before: m.remove(n);decal_nodes.append(n)
     seeds=[m.new_entity('point_nav_walkable',{},[p[0],p[1],p[2]+1],defaults=project.catalog.defaults('point_nav_walkable')) for p in path]
-    for d,nodes in updates[:-1]:
-        group=m.node(d['id']);remove=set(d['mesh_ids']);group['children']=[c for c in group['children'] if c['nodeID'] not in remove]
-        for node in nodes:m.attach(node,group)
-        d['mesh_ids']=[n['nodeID'] for n in nodes];d.pop('id',None);d['origin']=list(group['origin'])
-        group.set(terrain.STREET_KEY,'string',json.dumps(d,separators=(',',':')))
+    replace(m,updates[:-1])
     nodes=updates[-1][1];data['mesh_ids']=[n['nodeID'] for n in nodes];data['furniture']=furniture_counts
     gid=terrain.commit(m,op,nm,[*nodes,*props,*seeds,*decal_nodes],data,terrain.STREET_KEY,refs)
     return {'op':'add_street','id':gid,'name':nm,'ids':data['mesh_ids'],'lots':data['lots'],'segments':len(path)-1,

@@ -150,10 +150,16 @@ def frame_check(path: str | Path, captured_at: float | None = None,
             mean = float(pixels.mean())
             variance = float(pixels.var(axis=(0, 1)).mean())
             black_fraction = float(np.all(pixels <= 4, axis=2).mean())
+            # Share of pixels near the median colour: the fast build's "Preview Lighting" line and the vignette
+            # lift the variance of a blank frame (25.10: a camera inside the floor passed; 0.99 there, real
+            # views of 500 frames at most 0.85).
+            median = np.median(pixels.reshape(-1, 3), axis=0)
+            flat = float(np.all(np.abs(pixels - median) <= 16, axis=2).mean())
             digest = hashlib.sha256(sample.tobytes()).hexdigest()[:16]
             result.update({'size': list(image.size), 'mean': round(mean, 3),
                            'variance': round(variance, 3),
-                           'black_fraction': round(black_fraction, 4), 'signature': digest})
+                           'black_fraction': round(black_fraction, 4), 'flat': round(flat, 4),
+                           'signature': digest})
     except Exception as exc:
         result['reasons'].append(f'cannot inspect capture: {exc}')
         return result
@@ -161,6 +167,8 @@ def frame_check(path: str | Path, captured_at: float | None = None,
         result['reasons'].append('capture is smaller than a game frame')
     if result.get('variance', 0) < 0.5:
         result['reasons'].append('frame is uniform (likely loading/blank)')
+    elif result.get('flat', 0) > 0.95:
+        result['reasons'].append('frame is uniform (the camera is inside geometry, or loading)')
     elif result.get('black_fraction', 0) > 0.985 and result.get('mean', 0) < 5:
         result['reasons'].append('frame is almost entirely black (likely loading)')
     if previous_signature and result.get('signature') == previous_signature:
@@ -633,6 +641,9 @@ def _aim_kept(s: Settings, angle, settle: float):
 def _views_locked(s: Settings, map_name: str | None, shots: list[dict], hide_hud: bool, settle: float,
                   deadline: float | None = None) -> dict:
     done: list[dict] = []
+    # A free camera is the player's body: looking down it shows the player's own legs (10.10). The body is
+    # hidden for the frames and shown again afterwards, also when a view fails.
+    body = hide_hud and any(not v.get('keep') for v in shots)
     try:
         return _views_run(s, map_name, shots, hide_hud, settle, deadline, done)
     except GameError as e:
@@ -640,6 +651,12 @@ def _views_locked(s: Settings, map_name: str | None, shots: list[dict], hide_hud
             raise GameError(f'{e}; frames captured before the error: '
                             + ', '.join(f'{x["name"]}={x["path"]}' for x in done)) from None
         raise
+    finally:
+        if body:
+            try:
+                command(s, 'ent_fire !self alpha 255\nent_fire weapon_* EnableShadow', wait=0.1)
+            except GameError:
+                pass
 
 
 def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: bool, settle: float,
@@ -657,6 +674,10 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
     # Untouched test frames (keep) show what the player sees: a scripted gadget may hide the viewmodel.
     keep_all = all(v.get('keep') for v in shots)
     base += ['cl_drawhud 0', 'r_drawviewmodel 0'] if hide_hud else ['cl_drawhud 1'] + ([] if keep_all else ['r_drawviewmodel 1'])
+    if hide_hud and not keep_all:
+        # The weapon in the hidden body's hands still cast a stick-like shadow into low views (25.10); weapons
+        # have no selector for "mine", so all of them lose the shadow for the frames.
+        base += ['ent_fire !self alpha 0', 'ent_fire weapon_* DisableShadow']    # shown again in _views_locked
     command(s, '\n'.join(base), wait=0.3)
     ready = player_state(s)
     # During the freeze period (after a load or round restart) noclip cannot hold the
@@ -678,6 +699,7 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
             raise GameError('cannot capture views: map needs a point_script diagnostics entity; rebuild it first')
         raise GameError('cannot capture views: no live player in a team (team menu/loading screen is active)')
     previous = None          # (signature, view) of the previous shot
+    rejected: list[dict] = []
     for i, v in enumerate(shots):
         _check_deadline(deadline)
         player = _live_after_restart(s)
@@ -695,8 +717,9 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
             actual = _getpos_values(getpos(s)) or (0, 0, 0, 0, 0)
             shot = _capture(s, _window('Counter-Strike 2'), str(v.get('name') or f'view{i + 1}'), time.time())
             if not shot['frame_check']['ok']:
-                raise GameError(f'capture {shot["name"]!r} was rejected: '
-                                f'{", ".join(shot["frame_check"]["reasons"])}; see {shot["path"]}')
+                rejected.append({'name': shot['name'], 'reasons': ', '.join(shot['frame_check']['reasons']),
+                                 'path': shot['path']})
+                continue
             shot['player_check'] = {'ok': True, 'team': player['team'], 'alive': player['alive'],
                                     'position': actual[:3], 'angles': actual[3:], 'method': 'keep, untouched view'}
             if printed is not None:
@@ -753,19 +776,25 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
         stale = {challenge['frame_check'].get('signature')}
         if previous and previous[1] != view:
             stale.add(previous[0])     # a different view must not give the same picture
-        for attempt in range(3):
+        attempts = 3
+        for attempt in range(8):
             captured_at = time.time()
             shot = _capture(s, _window('Counter-Strike 2'), str(v.get('name') or f'view{i + 1}'), captured_at)
             check = shot['frame_check']
             if check.get('signature') in stale:
                 check['reasons'].append('frame did not change after the camera move')
                 check['ok'] = False
-            if check['ok'] or attempt == 2:
+            # A black frame right after a build or load is the map still streaming in: give it longer.
+            if any('black' in r or 'uniform' in r for r in check['reasons']):
+                attempts = 8
+            if check['ok'] or attempt >= attempts - 1:
                 break
             time.sleep(1.0)        # the game had not rendered the new view yet: capture again
         if not check['ok']:
+            # The other views still run (10.10: one black frame threw away a whole batch); the answer lists it.
             reasons = ', '.join(check['reasons']) or 'unknown frame error'
-            raise GameError(f'capture {shot["name"]!r} was rejected: {reasons}; see {shot["path"]}')
+            rejected.append({'name': shot['name'], 'reasons': reasons, 'path': shot['path']})
+            continue
         shot['player_check'] = {'ok': True, 'team': player['team'], 'alive': player['alive'],
                                 'position': actual[:3], 'angles': actual[3:],
                                 'method': 'server point_script token snapshot'}
@@ -773,7 +802,14 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
             shot['console'] = _console_digest(printed, v.get('grep'))
         previous = (check['signature'], view)
         out.append(shot)
-    return {'map': map_name, 'reloaded': reloaded, 'shots': out}
+    if rejected and not out:
+        first = rejected[0]
+        raise GameError(f'capture {first["name"]!r} was rejected: {first["reasons"]}; see {first["path"]}'
+                        + (f' (and {len(rejected) - 1} more views)' if len(rejected) > 1 else ''))
+    result = {'map': map_name, 'reloaded': reloaded, 'shots': out}
+    if rejected:
+        result['rejected'] = rejected
+    return result
 
 
 def screenshot(s: Settings, name: str | None = None, pos: list[float] | None = None,

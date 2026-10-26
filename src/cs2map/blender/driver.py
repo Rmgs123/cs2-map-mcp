@@ -291,6 +291,27 @@ def main():
         obj.data.transform(transform)
     bpy.context.view_layer.update()
     export_fbx(out, render)
+    lod_files = []
+    for index, ratio in params.get('__cs2map_lods', []):
+        # A simplified copy per level (Decimate, collapse): same materials, fewer triangles.
+        copies = []
+        for obj in render:
+            dup = obj.copy()
+            dup.data = obj.data.copy()
+            bpy.context.collection.objects.link(dup)
+            mod = dup.modifiers.new('lod', 'DECIMATE')
+            mod.ratio = float(ratio)
+            bpy.context.view_layer.objects.active = dup
+            bpy.ops.object.select_all(action='DESELECT')
+            dup.select_set(True)
+            bpy.ops.object.modifier_apply(modifier=mod.name)
+            copies.append(dup)
+        path = out.with_name(f'{out.stem}_lod{index}.fbx')
+        export_fbx(path, copies)
+        lod_files.append({'level': index, 'file': path.name,
+                          'tris': sum(len(p.vertices) - 2 for o in copies for p in o.data.polygons)})
+        for dup in copies:
+            bpy.data.objects.remove(dup, do_unlink=True)
     implicit = not physics and collision != 'none'
     if implicit:
         physics = render
@@ -308,7 +329,7 @@ def main():
         'collision_files': files, 'collision_objects': [o.name for o in physics],
         'objects': [o.name for o in render], 'implicit_collision': implicit,
         'source_scale': factor, 'blend': str(blend), 'uv_layers': 1, 'break_files': break_files,
-        'weapon_tris': weapon_tris}))
+        'weapon_tris': weapon_tris, 'lod_files': lod_files}))
 
 
 if __name__ == '__main__':

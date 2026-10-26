@@ -8,7 +8,6 @@
 !/REPAIR.md
 !/CONTRIBUTING.md
 !/.github/
-!/CHANGELOG.md
 !/AGENTS.md
 !/LICENSE
 !/setup.ps1
@@ -25,6 +24,8 @@
 !/tools/contact_sheet.py
 !/tools/setup_clients.py
 !/tools/selfcheck.py
+!/tools/dependencies.py
+!/tools/backups.py
 
 # Local settings and paths of this computer
 /config/settings.json

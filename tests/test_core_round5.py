@@ -129,10 +129,11 @@ class ViewsAfterCommand(unittest.TestCase):
         restart = fake.log.index('mp_restartgame 1')
         self.assertTrue(any('setpos 300.0' in c for c in fake.log[restart:]))
 
-    def test_frames_taken_before_an_error_are_reported(self):
+    def test_frames_taken_before_a_rejected_one_are_kept(self):
         fake = FakeGame(['c1', 'a', 'c2', 'c2', 'c2', 'c2'])
-        with self.assertRaisesRegex(game.GameError, 'captured before the error: first=first.png'):
-            fake.run([{'name': 'first', 'ang': [0, 0, 0]}, {'name': 'second', 'ang': [0, 45, 0]}])
+        out = fake.run([{'name': 'first', 'ang': [0, 0, 0]}, {'name': 'second', 'ang': [0, 45, 0]}])
+        self.assertEqual([s['name'] for s in out['shots']], ['first'])
+        self.assertEqual(out['rejected'][0]['name'], 'second')
 
 
 if __name__ == '__main__':

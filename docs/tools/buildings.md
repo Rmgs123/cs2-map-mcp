@@ -84,7 +84,13 @@ Window `infill` may name a second window part such as `window_bars` or `window_g
 
 ## `reference_compare`
 
-`reference_compare(reference, shot)` creates a same-height `REFERENCE | OUR SHOT` PNG under `.local/scratch/H/references/`. It is a visual review aid; name three visible differences before changing the map.
+`reference_compare(reference, shot)` creates a same-height `REFERENCE | OUR SHOT` PNG under `.local/cache/references/`. It is a visual review aid; name three visible differences before changing the map.
+
+A real place from a block of photos:
+
+1. `reference_compare(plan={"map":"town","box":[[-2000,-1500],[1500,1500]],"marks":[["b1-01",-1300,-1000,90],["b1-02",0,0,180]],"image":"aerial.png"})`: the map from above (walkable tops by height, entities as dots, a unit grid, `units_per_px` in the result) with each photo's camera place and view direction (yaw 0 = +x, 90 = +y); `image` is an aerial or OSM picture of the same box under it. Use it to place buildings, roads and the cameras.
+2. `game_screenshot` with one view per mark (`pos` = the mark, `ang` = [pitch, yaw, 0]).
+3. `reference_compare(pairs=[["photos/b1-01.jpg","screenshots/b1-01.png"], ...])`: one sheet, a row per photo (photo | game, numbered).
 
 ## By hand
 

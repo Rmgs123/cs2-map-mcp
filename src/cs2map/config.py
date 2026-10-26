@@ -7,6 +7,16 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+def vrf_cli():
+    """Source2Viewer-CLI of the version pinned in config/tool-sources.json (one place to bump it)."""
+    try:
+        sources = json.loads((PROJECT_ROOT / 'config' / 'tool-sources.json').read_text(encoding='utf-8'))
+        folder = next(a['extract_to'] for a in sources['archives'] if a['id'] == 'vrf-cli')
+    except (OSError, ValueError, KeyError, StopIteration):
+        folder = 'tools/vrf-cli-20.1'
+    return PROJECT_ROOT / folder / 'Source2Viewer-CLI.exe'
+
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SETTINGS_FILE = PROJECT_ROOT / 'config' / 'settings.json'
 _NAME = re.compile(r'^[a-z0-9_]{1,64}$')
@@ -23,6 +33,8 @@ class Settings:
     compile_threads: int = 0
     blender: str = ''                  # explicit blender.exe (settings "blender" or CS2MAP_BLENDER); '' = search
     limits: tuple = ()                 # disk limits (settings "limits"): (("screenshots_mb", 800), ...)
+    backups_dir: str = ''              # settings "backups_dir" or CS2MAP_BACKUPS; '' = <project>/backups
+    backup_sources: tuple = ()         # settings "backup_sources": more folders for the sources snapshots
 
     # -- CS2 layout ----------------------------------------------------------
     @property
@@ -48,7 +60,10 @@ class Settings:
     # -- project layout -------------------------------------------------------
     @property
     def backups(self) -> Path:
-        return PROJECT_ROOT / 'backups'
+        if not self.backups_dir:
+            return PROJECT_ROOT / 'backups'
+        path = Path(self.backups_dir)
+        return path if path.is_absolute() else PROJECT_ROOT / path
 
     @property
     def logs(self) -> Path:
@@ -171,8 +186,28 @@ def load_settings(path: Path = SETTINGS_FILE) -> Settings:
     limits = data.get('limits') or {}
     if not isinstance(limits, dict):
         raise ConfigError('settings "limits" must be an object, e.g. {"screenshots_mb": 800}')
-    return Settings(cs2_path=cs2, addon=addon, compile_threads=int(data.get('compile_threads', 0)),
-                    blender=str(data.get('blender') or ''), limits=tuple(sorted(limits.items())))
+    sources = data.get('backup_sources') or []
+    if not isinstance(sources, list) or not all(isinstance(x, str) for x in sources):
+        raise ConfigError('settings "backup_sources" must be a list of folders, e.g. ["my_generators"]')
+    s = Settings(cs2_path=cs2, addon=addon, compile_threads=int(data.get('compile_threads', 0)),
+                 blender=str(data.get('blender') or ''), limits=tuple(sorted(limits.items())),
+                 backups_dir=str(os.environ.get('CS2MAP_BACKUPS') or data.get('backups_dir') or ''),
+                 backup_sources=tuple(sources))
+    check_backups_dir(s)
+    return s
+
+
+def check_backups_dir(s: Settings) -> None:
+    """The backups folder must not sit inside what it backs up or what CS2 compiles."""
+    real = Path(os.path.realpath(s.backups))
+    from . import mylayer
+    inside = [('my/', mylayer.root()), ('the CS2 folder', s.cs2_path)]
+    inside += [(f'backup source {x}', Path(x) if Path(x).is_absolute() else PROJECT_ROOT / x) for x in s.backup_sources]
+    for label, root in inside:
+        r = Path(os.path.realpath(root))
+        if real == r or r in real.parents:
+            raise ConfigError(f'settings "backups_dir" ({s.backups}) is inside {label}; choose a folder outside '
+                              'it, best on another disk')
 
 
 def ensure_inside(path: Path, *roots: Path) -> Path:
@@ -186,4 +221,4 @@ def ensure_inside(path: Path, *roots: Path) -> Path:
 
 
 def writable_roots(s: Settings) -> tuple[Path, ...]:
-    return (PROJECT_ROOT, s.content_addon, s.game_addon)
+    return (PROJECT_ROOT, s.content_addon, s.game_addon, s.backups)

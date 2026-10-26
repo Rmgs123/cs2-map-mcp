@@ -1,6 +1,6 @@
 # cs2map — guide for AI models
 
-Everything a model needs to build a CS2 map with this MCP server. This core is the resource `cs2map://guide`, the tool `read_guide()` and the prompt `cs2map_guide`. Feature areas are separate sections (index at the end): read one with `read_guide(section="<name>")` before you use it.
+Everything a model needs to build a CS2 map with this MCP server (resource `cs2map://guide`, tool `read_guide()`, prompt `cs2map_guide`). Feature areas are sections (index at the end): read one with `read_guide(section="<name>")` before use.
 
 ## What to take for which task
 
@@ -12,13 +12,13 @@ Everything a model needs to build a CS2 map with this MCP server. This core is t
 | New map, edit, build | `map_create` → `map_edit` (batches) → `check_map` → `map_build` → `job_status` | this core |
 | Look at the result | `game_screenshot` (views, `"auto"`, `"rooms"`) | this core |
 | Rooms and floors of a level | `set_map_type` | `type` (table above) |
-| `add_layout`, `add_lift` | `layout` |
 | Competitive map | `add_comp_plan`, `playtest(kind="competitive"/"timings")` | `competitive` |
 | Story / single player | `add_story`, `script_test(steps="auto")`, `route_test` | `story` |
 | Streets in the Inferno look, fast | `add_paving`, `add_facade`, `add_wear`, `dress_street`, `add_backdrop` | `buildings`, `wear`, `streetlife`, `outdoor` |
 | Any other look (own style) | primitives + own materials/models, saved as a style in `my/` | `styles` |
 | A huge map's town, cheap | `add_district` | `buildings` |
-| Hills, dirt roads, rocks, trees | `add_terrain` (`paint` tracks), `scatter`, `add_street` | `terrain` |
+| Hills, dirt roads, rocks, trees | `add_terrain` (`paint` tracks), `scatter`, `add_street`, `add_junction` | `terrain` |
+| Fences, gates, handrails, steep banks, bare trees, poles with wires | `add_fence`, `add_railing`, `add_bank`, `add_tree`, `add_utility_line` | `terrain` |
 | Any shape; bevel, inset, bend, twist, noise a mesh | shapes `mesh`/`extrude`/`revolve`, `cut_mesh`, `edit_mesh`, `texture_faces`, `paint_blend` | `geometry` |
 | Stock props | `asset_search(kind="prop")` → `prop_preview` → `add_model` | `atlas` |
 | Own props, characters | `model_build`, `actor_build` + `add_actor` | `models`, `actors` |
@@ -31,7 +31,6 @@ Everything a model needs to build a CS2 map with this MCP server. This core is t
 | Drone, car, turret | `add_controllable` (`kind`: `drone`, `car`, `turret`) | `control`, `vehicles`, `turrets` |
 | Guns, launchers, gadgets (own model in the hands) | `add_weapon` (`fire`, `projectile`), `model_build` `weapon` | `weapons` |
 | Double jump, dash, flying, low gravity, invisibility, wallhack, jump pads | `add_ability` | `abilities` |
-| `add_hideseek` | `types` |
 | Shooting range, race, collect | `add_minigame` | `minigames` |
 | HUD looks, own HUDs, clickable menus | `hud` style keys, `set_ui_theme`, `add_hud` | `ui` |
 | Game modes (DM, surf...) | `mode_setup`, `playtest(kind="mode"/"course")` | `modes` |
@@ -50,7 +49,7 @@ Every installation has a folder `my/` that belongs to its user: never in git, ne
 
 ## How it works
 
-Maps are `.vmap` files in the addon (`content/csgo_addons/<addon>/maps/`); the tools edit them directly, Hammer is not needed. `map_build` runs Valve's compiler and the game loads the compiled map. Every save keeps a backup; a map with unsaved edits in Hammer is never written.
+Maps are `.vmap` files in the addon (`content/csgo_addons/<addon>/maps/`); the tools edit them directly, Hammer is not needed. `map_build` runs Valve's compiler and the game loads the compiled map.
 
 1. `status` — CS2 and Workshop Tools found and responding? Blender, Node?
 2. `map_create(name, type)` — sky, sun, fog, nothing else; `type` (below) picks the checks and the end tests.
@@ -83,7 +82,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 | Maps | `map_create`, `map_list`, `map_info` (`about`: nodes, layout, geometry, terrain + `points`, street), `map_edit`, `map_backups` (`restore`), `map_build`, `job_status` (`cancel`), `check_map`, `visual_check` |
 | References | `asset_search` (`kind`: material, model, prop, texture, sound, particle, decal, wear, smartprop), `entity_info`, `script_api` |
 | Materials | `material_create`, `material_variant`, `material_from_reference`, `material_preview` (list = gallery, `texture=true` = PNG export), `decal_create` (`image` or `text` sign) |
-| Models | `model_build` (`script`, `template` or `file` import), `model_preview`, `model_info` (no name = list, `physics`), `prop_preview`, `prop_note`, `actor_build`, `assets_prepare` (drone, car, zapper, railgun, weather, light_shaft) |
+| Models | `model_build` (`script`, `template` or `file` import, `lods`), `model_preview`, `model_info` (no name = list, `physics`), `prop_preview`, `prop_note`, `actor_build`, `assets_prepare` (drone, car, zapper, railgun, weather, light_shaft) |
 | Styles | `kit_info` (part, list, `gallery`), `style_info` (building, theme, street_set, sky), `reference_facade`, `reference_compare`, `prefab_save`, `prefab_info` |
 | Sound, scripts, light | `sound_create` (`file` or `preset`), `sound_event`, `script_write`, `script_test`, `lighting_build` (`cubemaps_only`), `lighting_measure` |
 | Game | `game_launch` (`open_in_hammer`), `game_command`, `game_screenshot`, `game_reset`, `game_crash_report`, `game_stop` |
@@ -107,13 +106,13 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 ## Clean scene
 
 - Objects do not pass through each other unless intended; chairs stand beside a table, plants grow from soil or a pot. Respect `mount`: wall parts on walls at their height, floor parts on floors. Leave 40+ units between furniture groups on routes.
-- Nothing floats: rocks and boulders sink 15–25 % of their height into the ground (their base is narrower than their box); on slopes the lowest ground under the whole footprint counts, not the ground under the origin. `scatter` does this; `visual_check` reports `visual_prop_floats_on_slope`.
+- Nothing floats: rocks and boulders sink 15–25 % of their height into the ground; on slopes the lowest ground under the whole footprint counts, not the ground under the origin. `scatter` does this; `visual_check` reports `visual_prop_floats_on_slope`.
 - No z-fighting: faces of different objects never share a plane — join them edge to edge or set one back 1+ unit (glass, shutters, panels in a niche stay 1+ unit off its back). Labels and stains are decals or signs, never thin boxes.
 - After dressing run `visual_check` and look at frames close up, from above, from the side and from outside the play area.
 
 ## map_edit operations
 
-`map_edit(name, operations, dry_run=false, force=false)` applies the operations in order and saves once; a failure saves nothing and names the operation. Results carry the created ids. `"ref": "x"` names a result; later operations (in this or any later call) use `"@x"` wherever an id is expected. Write batches with refs, not raw ids. Unknown fields are refused.
+`map_edit(name, operations, dry_run=false, force=false)` applies the operations in order and saves once; a failure saves nothing and names the operation. Results carry the created ids. `"ref": "x"` names a result; later operations (in this or any later call) use `"@x"` wherever an id is expected. Unknown fields are refused.
 
 | op | fields |
 | --- | --- |
@@ -124,7 +123,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 | `connect` | `from`, `output`, `target`, `input`, `param`, `delay`, `times` |
 | `set_material`, `set_uv` | `id`, `material`, `replace`; `id`, `faces`, `mode`, `scale`, `rotate`, `offset` |
 | `group`, `ungroup` | `ids` (direct children of one parent), `name`: move/duplicate/delete the group as one; `id` to dissolve |
-| `add_model` | stock or own prop: `model`, `origin`, `angles`, `scale`, `dynamic` (`models`) |
+| `add_model` | stock or own prop: `model`, `origin`, `angles`, `scale`, `dynamic`, `skin`, `tint` (`models`) |
 | `add_script` | a compiled `script_write` script, `origin` (`scripting`) |
 | `lighting_preset`, `add_light`, `light_rooms`, `add_fx` | `light`, `quality`, `fx` |
 | `add_sound`, `add_soundscape`, `add_ambience` | `sound` |
@@ -138,7 +137,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 | `add_story` | `story` |
 | `add_paving`, `add_facade`, `add_building`, `add_district`, `add_kit_part` (quick fill, Inferno look) | `buildings`, `kits` |
 | `add_wear`, `dress_street` (Inferno look), `dress_room`, `add_trim`, `add_pipes`, `add_cables` | `wear`, `streetlife`, `dressing` |
-| `add_terrain`, `scatter`, `add_street` | `terrain` |
+| `add_terrain`, `scatter`, `add_street`, `add_junction`, `add_fence`, `add_railing`, `add_bank`, `add_tree`, `add_utility_line` | `terrain` |
 | `add_water_body`, `add_backdrop`, `add_supports` | `outdoor` |
 | `cut_mesh`, `texture_faces`, `paint_blend`, `edit_mesh` | `geometry` |
 | `add_prefab` | `structure` |
@@ -198,6 +197,6 @@ Light builds are queued (one VRAD3 folder per addon); a map loaded in CS2 is unl
 
 ## Safety
 
-- Before each save the file is copied to `backups/maps/<map>/`; `map_backups(name)` lists, `restore=<id>` rolls back. Old backups, screenshots and logs are trimmed by size limits (`config/settings.json` `limits`); files named in docs and reports stay.
+- Backups are automatic: every map is kept compressed in tiers (newest three, hourly, daily, weekly) with a snapshot of its sources (`my/`, addon content). `map_backups(name)` lists, `restore=<id>` rolls back (`sources=true`: also `restored/<id>/`), `pin="label"` keeps a milestone. Keep what builds a map (generators, batches, plans) in `my/maps/<map>/`, never in temp folders.
 - Unsaved Hammer edits are never overwritten, not even with `force=true`.
 - Only the configured addon is written; other addons and game files are never touched.

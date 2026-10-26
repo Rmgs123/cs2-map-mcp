@@ -98,6 +98,9 @@ function Seat(cfg) {
             if (core.valid(p) && saved && cfg.pawn) p.SetEntityName(saved.name || "");
             if (core.valid(p) && p.IsAlive()) {
                 // A dead pilot keeps the engine's death camera: only a living pawn is restored.
+                // A pawn a mechanic parented (a car's pilot) takes the world angles below only once unparented:
+                // SetEyeAngles is relative to the parent. onExit may parent it back (a lift it stood on).
+                if (p.GetParent?.()) p.SetParent(undefined);
                 p.SetMoveType(saved.moveType);
                 if (!["reset", "round", "disconnect"].includes(reason)) {
                     // A pawn's own angles carry yaw only: a pitch here tilts the body (and its eye

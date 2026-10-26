@@ -12,6 +12,8 @@ from .jobs import Job, JobManager, register_recovery
 PRESETS = {
     # fast iteration: geometry + collision + entities, no baked lighting
     'fast': ['-world', '-phys', '-nolightmaps'],
+    # bots without baked light: navigation only (a GPU without hardware ray tracing cannot bake light)
+    'nav': ['-world', '-phys', '-nav', '-gridnav', '-nolightmaps'],
     # playable test: baked lighting (low res) and bot navigation; no visibility (vis is slow on open maps)
     'full': ['-world', '-phys', '-nav', '-gridnav', '-bakelighting', '-lightmapMaxResolution', '512',
              '-lightmapVRadQuality', '1'],
@@ -38,14 +40,21 @@ _NOISE = re.compile(r'(0 failed|error\(s\): 0|errors: 0|no errors|failed: 0|_fai
 HINTS = {
     'No lightmap resolution volumes': 'add a mesh with material materials/tools/toolslightmapres.vmat covering the '
                                       'playable area (op add_mesh, shape box) for correct baked-light resolution',
-    '.vpk Failed!': 'the compiled map file is locked, usually because CS2 has this map loaded; '
-                    'map_build disconnects the game automatically - rebuild',
+    '.vpk Failed!': 'the compiled map file is locked, usually because CS2 has this map loaded; map_build and '
+                    'lighting_build switch the game to the idle map first - rebuild; if it repeats, load another '
+                    'map in CS2 (game_command "map mcp_idle") and rebuild',
     'Unable to remove': 'another lighting bake of this addon was running; rebuild (bakes are queued now)',
     'Too many charts for the lightmap': 'the map has more lightmap UV charts than even a 2048 atlas holds: merge '
                                         'or remove small render-only pieces, or split the map',
     'no walkable seeds present': 'the bot navigation mesh is EMPTY (bots will not join): add point_nav_walkable '
                                  'entities on the floor near spawns and in each area, then rebuild with preset full',
 }
+# Baked light (VRAD3, presets full/final) runs on the GPU with hardware ray tracing; on a card without it the bake
+# fails (a user's friend, 1.0 on a PC without an RTX card). Any of these in a failed build's log gets the hint.
+GPU_HINT = ('baked light (presets full and final) needs a GPU with hardware ray tracing (for example NVIDIA RTX 20 '
+            'series or newer) and a current driver; without one build with preset nav (bots) or fast: the map works, '
+            'without baked light (flatter, darker shadows)')
+GPU_KEYS = ('gpu hang', 'device_lost', 'ray tracing', 'raytracing', 'vk_error', 'no suitable gpu')
 _NAV = re.compile(r'Nav mesh \([^)]*\) loaded with (\d+) nav areas')
 
 
@@ -72,7 +81,10 @@ def analyze_log(text: str) -> dict:
 
     errors, n_err = dedupe(errors, 40)
     warnings, n_warn = dedupe(warnings, 40)
-    hints = [h for key, h in HINTS.items() if key.lower() in text.lower()]
+    low = text.lower()
+    hints = [h for key, h in HINTS.items() if key.lower() in low]
+    if (errors or (summary or {}).get('failed')) and any(k in low for k in GPU_KEYS):
+        hints.append(GPU_HINT)
     nav = _NAV.findall(text)
     return {'summary': summary, 'errors': errors, 'error_count': n_err, 'warnings': warnings,
             'warning_count': n_warn, 'missing_assets': missing[:50],
@@ -197,8 +209,13 @@ def build_cubemaps(s: Settings, name: str, timeout: float = 600) -> dict:
                 game.command(s, f'r_always_render_all_windows {original}', wait=0.5)
             except Exception as exc:
                 output.append(f'could not restore r_always_render_all_windows: {exc}')
-        errors = [ln for ln in output if ('error' in ln.casefold() or 'failed' in ln.casefold())
-                  and '0 error' not in ln.casefold() and 'unable to remove' not in ln.casefold()]
+        flagged = [ln for ln in output if ('error' in ln.casefold() or 'failed' in ln.casefold())
+                   and '0 error' not in ln.casefold() and 'unable to remove' not in ln.casefold()]
+        # Renderer chatter while the map reloads (a texture still streaming in) says nothing about the bake: a fresh
+        # VPK with its cubemap array is the proof (15.10: three "returning error texture" lines failed a good bake).
+        noise = ('error texture', 'gettextureresource')
+        errors = [ln for ln in flagged if not any(x in ln.casefold() for x in noise)]
+        warnings = [ln for ln in flagged if ln not in errors]
         from .vpk import VPK
         fresh = vpk.exists() and vpk.stat().st_mtime >= before
         cubemap_entry = False
@@ -208,4 +225,4 @@ def build_cubemaps(s: Settings, name: str, timeout: float = 600) -> dict:
         return {'map': name, 'ok': bool(sentinel and fresh and cubemap_entry and not errors), 'sentinel': sentinel,
                 'vpk_fresh': fresh, 'cubemap_entry': cubemap_entry,
                 'restored_r_always_render_all_windows': original, 'errors': errors[-20:],
-                'output_tail': output[-80:]}
+                'warnings': warnings[-5:], 'output_tail': output[-80:]}

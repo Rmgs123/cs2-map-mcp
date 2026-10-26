@@ -28,6 +28,15 @@ class FrameChecks(unittest.TestCase):
             blank = Path(td) / "blank.png"
             Image.new("RGB", (640, 360), (0, 0, 0)).save(blank)
             self.assertFalse(game.frame_check(blank, time.time() - 1)['ok'])
+            inside = Path(td) / "inside.png"      # a camera inside the floor: flat colour + the fast-build line
+            image = Image.new("RGB", (640, 360), (197, 190, 175))
+            for x in range(140, 500):
+                for y in range(10, 22):
+                    image.putpixel((x, y), (255, 255, 0) if (x // 3 + y) % 2 else (0, 0, 0))
+            image.save(inside)
+            result = game.frame_check(inside, time.time() - 1)
+            self.assertFalse(result['ok'], result)
+            self.assertIn('inside geometry', ' '.join(result['reasons']))
             scene = Path(td) / "scene.png"
             image = Image.new("RGB", (640, 360), (24, 28, 32))
             for x in range(640):

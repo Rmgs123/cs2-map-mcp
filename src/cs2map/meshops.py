@@ -137,6 +137,11 @@ def triangulate(outer, holes=(), _rings=None):
         chosen=None
         for _,i in sorted((sum((a[k]-b[k])**2 for k in range(2)),i) for i,b in enumerate(polygon) if a!=b):
             b=polygon[i]
+            # A corner bridged before appears twice; only the copy whose interior angle holds the new bridge keeps
+            # the loops in angular order (25.10: two windows bridged to one corner of an L wall in the wrong
+            # order folded the polygon, and ear clipping found no ear).
+            if not _in_cone(polygon[i-1],b,polygon[(i+1)%len(polygon)],a):
+                continue
             mid=((a[0]+b[0])/2,(a[1]+b[1])/2)
             if not inside(mid,rr[0]) or any(inside(mid,r) for r in rr[1:]):
                 continue
@@ -152,11 +157,12 @@ def triangulate(outer, holes=(), _rings=None):
         polygon=polygon[:i+1]+hole[h:]+hole[:h+1]+[polygon[i]]+polygon[i+1:]
     todo=polygon[:]; triangles=[]
     while len(todo)>3:
+        n=len(todo)
         for i,b in enumerate(todo):
-            a,c=todo[i-1],todo[(i+1)%len(todo)]
+            a,c=todo[i-1],todo[(i+1)%n]
             if cross2(a,b,c)<=EPS:
                 continue
-            if any(p not in (a,b,c) and min(cross2(a,b,p),cross2(b,c,p),cross2(c,a,p))>=-EPS for p in todo):
+            if _ear_blocked(todo,i,a,b,c):
                 continue
             triangles.append([a,b,c]);todo.pop(i)
             break
@@ -168,6 +174,41 @@ def triangulate(outer, holes=(), _rings=None):
     if abs(sum(area(t) for t in triangles)-expected)>max(EPS,abs(expected)*1e-6):
         raise MeshError('triangulation area mismatch')
     return triangles
+
+
+def _in_cone(p, v, n, a):
+    """Does the direction v -> a lie inside the interior angle at v of a counter-clockwise polygon p -> v -> n?"""
+    turn=cross2(p,v,n)
+    if turn>EPS:                                 # convex corner: left of both edges
+        return cross2(p,v,a)>EPS and cross2(v,n,a)>EPS
+    if turn<-EPS:                                # reflex corner: left of either edge
+        return cross2(p,v,a)>EPS or cross2(v,n,a)>EPS
+    return cross2(p,v,a)>EPS                     # straight: left of the line
+
+
+def _ear_blocked(todo, i, a, b, c):
+    """Does another vertex of the bridged polygon lie in the ear (a, b, c), or an edge enter it?
+
+    Bridges repeat vertices: two holes bridged to one corner put that corner in the polygon twice. A copy of an
+    ear corner cannot lie inside the ear, but its edges can run into it (25.10: walls with 4+ windows in rows
+    left a folded polygon and 'cannot triangulate'), so for a copy its neighbours' directions are tested
+    against the ear's angle at that corner."""
+    n=len(todo)
+    ear={(i-1)%n,i,(i+1)%n}
+    wedges=((a,lambda q:cross2(c,a,q)>EPS and cross2(a,b,q)>EPS),
+            (b,lambda q:cross2(a,b,q)>EPS and cross2(b,c,q)>EPS),
+            (c,lambda q:cross2(b,c,q)>EPS and cross2(c,a,q)>EPS))
+    for j,p in enumerate(todo):
+        if j in ear:
+            continue
+        if p in (a,b,c):
+            enters=next(f for corner,f in wedges if corner==p)
+            if any(q!=p and enters(q) for q in (todo[j-1],todo[(j+1)%n])):
+                return True
+            continue
+        if min(cross2(a,b,p),cross2(b,c,p),cross2(c,a,p))>=-EPS:
+            return True
+    return False
 
 
 def basis(normal):
@@ -185,8 +226,14 @@ def normal(points):
 
 def planar_parts(points, holes=()):
     n=normal(points);u,v=basis(n);o=points[0]
-    if any(abs(_dot(_sub(p,o),n))>BSP_EPS for r in [points,*holes] for p in r):
-        raise MeshError('face is not planar; supply triangles for a warped surface')
+    # Generators round vertices to 0.01 (10.10: big faces with holes failed at a fixed 0.002): the tolerance grows
+    # with the face, up to 0.01; a face bent more than that is really warped.
+    size=max(math.dist(p,q) for p,q in zip(points,points[1:]+points[:1]))
+    tol=max(BSP_EPS,min(.01,size*1e-4))
+    worst=max(abs(_dot(_sub(p,o),n)) for r in [points,*holes] for p in r)
+    if worst>tol:
+        raise MeshError(f'face is not planar ({worst:.3g} units off its plane, {tol:.3g} allowed); supply triangles '
+                        'for a warped surface')
     projected=[[(_dot(_sub(p,o),u),_dot(_sub(p,o),v)) for p in r] for r in [points,*holes]]
     rr=rings(projected[0],projected[1:])
     if not holes and all(cross2(rr[0][i-1],b,rr[0][(i+1)%len(rr[0])])>=-EPS for i,b in enumerate(rr[0])):
@@ -195,20 +242,29 @@ def planar_parts(points, holes=()):
     return [[lookup[q] for q in t] for t in triangulate(projected[0],projected[1:],rr)]
 
 
-def uv_options(points, spec):
+# (u, v) units per texel showing a material at its real size, or None; the project sets it (uv.units_per_texel).
+UNITS_PER_TEXEL = lambda material: None
+
+
+def uv_options(points, spec, material=None):
     if not spec:
         return {}
     keys(spec, {'mode','scale','rotate','offset','u_axis','v_axis'})
     mode=spec.get('mode','world')
-    if mode not in ('world','box','planar'):
-        raise MeshError('shape face UV mode must be world, box or planar; use texture_faces for cylinder')
+    if mode not in ('world','box','planar','wall'):
+        raise MeshError('shape face UV mode must be world, box, planar or wall; use texture_faces for cylinder')
     n=normal(points)
-    u,v=mesh.world_axes(n) if mode in ('world','box') else basis(n)
+    from .uv import wall_axes
+    u,v=mesh.world_axes(n) if mode in ('world','box') else (wall_axes(n) or mesh.world_axes(n)) if mode=='wall' else basis(n)
     if 'u_axis' in spec or 'v_axis' in spec:
         u,v=_norm(vector(spec.get('u_axis'))),_norm(vector(spec.get('v_axis')))
     if abs(_dot(u,n))>.999 or abs(_dot(v,n))>.999 or abs(_dot(u,v))>.999:
         raise MeshError('UV axes must span the face')
-    scale=vector(spec.get('scale',[.25,.25]),2)
+    if spec.get('scale')=='auto':
+        # 18.10: a 2048 px brick at the default 0.25 units per texel showed every course 4x too big.
+        scale=list(UNITS_PER_TEXEL(material) or (.25,.25))
+    else:
+        scale=vector(spec.get('scale',[.25,.25]),2)
     if min(scale)<=0:
         raise MeshError('UV scale must be positive units per texel')
     angle=math.radians(number(spec.get('rotate',0)));c,s=math.cos(angle),math.sin(angle)
@@ -315,19 +371,57 @@ def validate(m, closed=True):
             if volume(part)<=EPS:
                 raise MeshError('solid shell has inward winding or zero volume; reverse its faces')
             components.append(component)
-        # Two disconnected closed shells may not overlap in volume. This catches
-        # intersecting boxes even when their planar faces meet only at an edge.
-        bounds=[]
+        # Two disconnected closed shells may not overlap in volume. Their surfaces do not cross (checked
+        # above), so they overlap only when one lies inside the other. Bounding boxes are no test (24-25.10: a
+        # mullion inside its frame ring, rails 7 cm apart along a 45-degree wall were refused).
+        shells=[]
         for component in components:
-            points=[m.positions[v] for fi in component for v in m.faces[fi].verts]
-            bounds.append((tuple(min(p[k] for p in points) for k in range(3)),
-                           tuple(max(p[k] for p in points) for k in range(3))))
-        for i,(lo,hi) in enumerate(bounds):
-            for lo2,hi2 in bounds[i+1:]:
-                overlap=[min(hi[k],hi2[k])-max(lo[k],lo2[k]) for k in range(3)]
-                if min(overlap)>EPS:
-                    raise MeshError('self-intersecting closed shells overlap in volume')
+            verts=sorted({v for fi in component for v in m.faces[fi].verts})
+            points=[m.positions[v] for v in verts]
+            tris=[[m.positions[f.verts[0]],m.positions[b],m.positions[c]]
+                  for f in (m.faces[fi] for fi in component) for b,c in zip(f.verts[1:],f.verts[2:])]
+            shells.append((tuple(min(p[k] for p in points) for k in range(3)),
+                           tuple(max(p[k] for p in points) for k in range(3)),points,tris))
+        for i,(lo,hi,pts,tris) in enumerate(shells):
+            for j,(lo2,hi2,pts2,tris2) in enumerate(shells[i+1:],i+1):
+                if min(min(hi[k],hi2[k])-max(lo[k],lo2[k]) for k in range(3))<=EPS:
+                    continue
+                for (outer,o_lo,o_hi,o_tris),(inner,in_pts) in (((i,lo,hi,tris),(j,pts2)),((j,lo2,hi2,tris2),(i,pts))):
+                    if any(_inside_shell(p,o_tris) for p in in_pts[:8]):
+                        box=lambda s:[[round(x,1) for x in shells[s][0]],[round(x,1) for x in shells[s][1]]]
+                        raise MeshError(f'self-intersecting closed shells: shell {inner} (bounds {box(inner)}) has '
+                                        f'corners inside shell {outer} (bounds {box(outer)}), their volumes overlap; '
+                                        'make them separate meshes, one shell, or move them apart')
     return m
+
+
+_RAYS=((0.5773,0.5774,0.5776),(-0.6022,0.4471,0.6614),(0.2183,-0.8361,0.5034))
+
+
+def _inside_shell(point, tris):
+    """Strictly inside a closed shell: majority of three ray parities; a point on its surface is not inside."""
+    for a,b,c in tris:
+        n=_cross(_sub(b,a),_sub(c,a));ln=math.sqrt(_dot(n,n))
+        if ln<EPS*EPS:continue
+        if abs(_dot(_sub(point,a),n))/ln<EPS:
+            u,v=basis(_scale(n,1/ln));pp=(_dot(point,u),_dot(point,v))
+            t=[(_dot(x,u),_dot(x,v)) for x in (a,b,c)]
+            if min(cross2(t[0],t[1],pp),cross2(t[1],t[2],pp),cross2(t[2],t[0],pp))>=-EPS or \
+               max(cross2(t[0],t[1],pp),cross2(t[1],t[2],pp),cross2(t[2],t[0],pp))<=EPS:
+                return False
+    votes=0
+    for d in _RAYS:
+        hits=0
+        for a,b,c in tris:
+            e1,e2=_sub(b,a),_sub(c,a);h=_cross(d,e2);det=_dot(e1,h)
+            if abs(det)<1e-12:continue
+            s=_sub(point,a);u=_dot(s,h)/det
+            if u<0 or u>1:continue
+            q=_cross(s,e1);v=_dot(d,q)/det
+            if v<0 or u+v>1:continue
+            if _dot(e2,q)/det>EPS:hits+=1
+        votes+=hits%2
+    return votes>=2
 
 
 # Validated meshes by content: a map script that rebuilds a town re-sends the same buildings, and their
@@ -434,7 +528,7 @@ def _mesh_shape(spec, material):
         f=face if isinstance(face,dict) else {'vertices':face}
         keys(f,{'vertices','holes','uv'})
         p=points(f.get('vertices'));holes=[points(h) for h in f.get('holes',[])]
-        uv=uv_options(p,f.get('uv'))
+        uv=uv_options(p,f.get('uv'),f.get('material',material))
         for part in planar_parts(p,holes):
             m.face(part,f.get('material',material),**uv)
             if len(m.faces)>MAX_FACES:raise MeshError('triangulated mesh face budget exceeded')
@@ -771,6 +865,34 @@ def subtract(target, cutter):
     a,b=BSP(target),BSP(cutter)
     a.invert();a.clip_to(b);b.clip_to(a);b.invert();b.clip_to(a);b.invert();a.build(b.all());a.invert()
     return a.all()
+
+
+def union(a_polys, b_polys):
+    a,b=BSP(a_polys),BSP(b_polys)
+    a.clip_to(b);b.clip_to(a);b.invert();b.clip_to(a);b.invert();a.build(b.all())
+    return a.all()
+
+
+def _poly_bounds(polys):
+    pts=[v.p for p in polys for v in p.corners]
+    return tuple(min(p[k] for p in pts) for k in range(3)),tuple(max(p[k] for p in pts) for k in range(3))
+
+
+def union_all(solids):
+    """One solid of many closed polygon sets: apart ones are simply listed together (a BSP of disjoint solids
+    is their union), overlapping ones are merged."""
+    groups=[]                                    # [(bounds, polys)]
+    for polys in solids:
+        lo,hi=_poly_bounds(polys)
+        for g in groups:
+            (glo,ghi),gp=g
+            if all(lo[k]<=ghi[k]+EPS and glo[k]<=hi[k]+EPS for k in range(3)):
+                merged=union(gp,polys)
+                g[0]=_poly_bounds(merged);g[1]=merged
+                break
+        else:
+            groups.append([(lo,hi),list(polys)])
+    return [p for _,polys in groups for p in polys]
 
 
 def select_faces(polys, selection='all'):

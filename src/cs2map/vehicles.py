@@ -22,7 +22,7 @@ MATERIALS = [  # name, colour, metalness, roughness, emissive glow
     ('rim', [168, 172, 178], .9, .28, 0), ('window', [14, 20, 24], .4, .06, 0), ('tyre', [26, 26, 28], 0, .92, 0),
     ('lamp', [255, 236, 190], 0, .3, 4), ('tail', [200, 20, 18], 0, .3, 2.5), ('amber', [255, 130, 20], 0, .3, 2.5)]
 FIELDS = {'speed', 'reverse', 'accel', 'brake', 'grip', 'steer', 'mass', 'wheel_model', 'engine', 'crash_damage',
-          'wheels', 'suspension', 'seat', 'door', 'exits', 'size', 'passengers', 'pilot'}
+          'wheels', 'suspension', 'seat', 'door', 'exits', 'size', 'passengers', 'pilot', 'scale'}
 STEER = {'max': 32, 'fast': 9, 'rate': 120, 'return': 200}
 SUSPENSION = {'up': 9, 'down': 12, 'stiffness': 16, 'rebound': 7, 'damping': 14, 'grip': .85}
 
@@ -172,8 +172,51 @@ def validate(spec, m=None):
     spec['engine'] = engine
     if spec.get('sound'):
         raise ValueError('car uses engine:{idle,drive}, not sound')
+    _scale(spec)
     # These are internal constants, not recipe fields. Do not add to spec: validation runs twice.
     return mechanics.validate_health(spec, 150, native=True)
+
+
+def _scale(spec):
+    """scale: every body-frame length of the recipe (wheels, seat, door, exits, size, passengers, the stand-in's
+    place, cameras, suspension travel) times k; reach is the player's, it stays, for a bigger or smaller body - the model itself comes from
+    model_build(file=<its .vmdl>, scale=k) (23.10: a 1.2x SUV needed every field by hand). Applied once: the
+    spec keeps the scaled values with scale 1, so a second validation leaves it alone."""
+    k = mechanics.number(spec.get('scale', 1), 'scale', .25, 4)
+    if k == 1:
+        return
+    def vec(v):
+        return [round(c * k, 4) for c in v]
+
+    def one(v):
+        return round(v * k, 4)
+    w = spec['wheels']
+    spec['wheels'] = _wheels({'positions': [vec(p) for p in w['positions']], 'radius': one(w['radius']),
+                              'z': one(w['z'])}, spec['wheel_model'])
+    spec['seat'] = vec(spec['seat'])
+    if 'door' in spec:
+        spec['door'] = _door({'at': vec(spec['door']['at']), 'radius': one(spec['door']['radius'])})
+    if 'exits' in spec:
+        spec['exits'] = [vec(e) for e in spec['exits']]
+    if 'size' in spec:
+        spec['size'] = _size(vec(spec['size']))
+    if 'passengers' in spec:
+        ride = spec['passengers']
+        spec['passengers'] = _passengers({'floor': one(ride['floor']), 'roof': one(ride['roof']), 'hint': ride['hint'],
+                                          'doors': [{'at': vec(d['at']), 'radius': one(d['radius']),
+                                                     'spots': [vec(s) for s in d['spots']]} for d in ride['doors']]})
+    if 'pilot' in spec:
+        spec['pilot'] = {**spec['pilot'], 'at': vec(spec['pilot']['at'])}
+    cam = spec['camera']
+    for key in ('forward', 'up', 'right'):
+        if key in cam:
+            cam[key] = one(cam[key])
+    if cam.get('chase'):
+        cam['chase'] = {key: one(v) for key, v in cam['chase'].items()}
+    spec['camera'] = mechanics.validate_camera(cam)
+    for key in ('up', 'down'):
+        spec['suspension'][key] = mechanics.number(one(spec['suspension'][key]), f'suspension.{key} (scaled)', 1, 64)
+    spec['scale'] = 1
 
 
 def names(spec):
@@ -223,6 +266,40 @@ def prepare(project, spec):
                 continue
             if not sound.event_exists(project, event):
                 raise ValueError('unknown car engine event: ' + event)
+    fit(project, spec)
+
+
+def fit(project, spec):
+    """The recipe's body-frame places (size, seat, doors, passenger spots) must lie in the body model. 25.10: the bus
+    recipe of the docs on the stock car model (204x84) gave riders standing in the air beside a small car facing the
+    wrong way, and their shots went 10 degrees wide; nothing refused it."""
+    from . import visual
+    got = visual.model_bounds(project, spec['model']) if project is not None else None
+    if not got:
+        return                      # not compiled yet (a dry run of a stock body): checked on the real pass
+    lo, hi = got[0], got[1]
+    length, width = hi[0] - lo[0], hi[1] - lo[1]
+    problems = []
+
+    def inside(p, label, margin=8.0, head=0.0):
+        if not (lo[0] - margin <= p[0] <= hi[0] + margin and lo[1] - margin <= p[1] <= hi[1] + margin
+                and lo[2] - margin <= p[2] <= hi[2] - head + margin):
+            problems.append(f'{label} {[round(c) for c in p]}')
+    if 'size' in spec and (spec['size'][0] > length * 1.25 + 8 or spec['size'][1] > width * 1.25 + 8):
+        problems.append(f'size {spec["size"]}')
+    inside(spec['seat'], 'seat')
+    if 'door' in spec:
+        inside(spec['door']['at'], 'door.at', 64 + spec['door']['radius'])     # where a player stands by the door
+    for d in (spec.get('passengers') or {}).get('doors', []):
+        inside(d['at'], 'passengers door', 64 + d['radius'])
+        for s in d['spots']:
+            inside(s, 'passenger spot', head=40)       # feet with room for a body above them, under the roof
+    if problems:
+        raise ValueError(
+            f'the recipe does not fit the body model {spec["model"]} ({round(length)}x{round(width)}, height '
+            f'{round(lo[2])}..{round(hi[2])} in the body frame, +x forward): {", ".join(problems[:6])} lie outside it. '
+            'These fields describe another body (a bus recipe on a car model leaves riders in the air): give "model" '
+            'a body of that size (model_build, or scale with a scaled copy) or fit the fields to this model (model_info)')
 
 
 def ensure_assets(project):

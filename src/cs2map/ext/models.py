@@ -51,7 +51,7 @@ def register(mcp, project):
                     params: dict[str, Any] | None = None,
                     collision: Literal['hull', 'mesh', 'none'] = 'hull',
                     surface: str = 'default', physics: dict[str, Any] | None = None,
-                    weapon: dict[str, Any] | str | None = None) -> dict:
+                    weapon: dict[str, Any] | str | None = None, lods: list[dict[str, Any]] | None = None) -> dict:
         """Build an environment model with Blender and compile its .vmdl.
 
         script is a Blender Python file path or source text.  A stock template
@@ -60,15 +60,15 @@ def register(mcp, project):
         can be selected instead.  Units are CS2 units, +Z is up, and objects
         whose names end in ``_col`` are used only for collision.
         """
-        return models.model_build(project, name, script, template, params, collision, surface, physics, weapon)
+        return models.model_build(project, name, script, template, params, collision, surface, physics, weapon, lods)
 
     @mcp.tool()
     def model_import(name: str, file: str, scale: str | float = 'auto',
                      collision: Literal['hull', 'mesh', 'none'] = 'hull',
                      surface: str = 'default', physics: dict[str, Any] | None = None,
-                     weapon: dict[str, Any] | str | None = None) -> dict:
+                     weapon: dict[str, Any] | str | None = None, lods: list[dict[str, Any]] | None = None) -> dict:
         """Import an FBX, OBJ, or GLB model, normalize it in Blender, and compile it."""
-        return models.model_import(project, name, file, scale, collision, surface, physics, weapon)
+        return models.model_import(project, name, file, scale, collision, surface, physics, weapon, lods)
 
     @mcp.tool()
     def model_preview(name: str, views: list[str] | None = None, size: int = 512,
@@ -99,6 +99,21 @@ def register(mcp, project):
             raise OpError('scale must be between 0 and 100')
         kv = dict(op.get('keyvalues') or {})
         kv['model'] = rel
+        tint = op.get('tint')
+        if tint is not None:
+            if (not isinstance(tint, list) or len(tint) != 3
+                    or any(isinstance(c, bool) or not isinstance(c, (int, float)) or not 0 <= c <= 255 for c in tint)):
+                raise OpError('tint is [r, g, b], each 0..255 (multiplies the whole model: leaves and bark alike)')
+            kv['rendercolor'] = ' '.join(str(int(round(c))) for c in tint)
+        skin = op.get('skin')
+        if skin is not None:
+            if not isinstance(skin, str) or not skin.strip():
+                raise OpError('skin is the name of one of the model\'s material groups')
+            from .. import visual
+            groups = visual.model_material_groups(p, rel)
+            if groups is not None and skin not in groups:
+                raise OpError(f'{rel} has no material group {skin!r}; it has: {", ".join(groups) or "none (one look only)"}')
+            kv['skin'] = skin
         defaults = p.catalog.defaults(classname)
         if dynamic:
             kv.setdefault('solid', 6)
@@ -109,6 +124,6 @@ def register(mcp, project):
         if ref:
             refs[ref] = ent['nodeID']
         return {'op': 'add_model', 'id': ent['nodeID'], 'model': rel, 'classname': classname,
-                **({'ref': ref} if ref else {})}
+                **({'ref': ref} if ref else {}), **({'skin': kv['skin']} if skin else {})}
 
     project.register_op('add_model', add_model)

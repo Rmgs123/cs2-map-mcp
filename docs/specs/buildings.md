@@ -13,7 +13,7 @@
 4. Groups `building:<name>` and `facade:<name>:<side>` hold walls, plinth and floor bands, kit parts, floor, ceiling and the roof. All five roof types (flat, parapet, gable, hip, shed) are closed meshes; only visual bands and signs are `physicsType: none`.
 5. The root group keeps `cs2map_building` (footprint, facades, opening bounds) for later checks; the result lists groups, mesh and model ids and the model count (max 60).
 
-**Photos.** `reference_facade` rectifies a four-corner quad (`textures.load` homography), profiles brightness and edges into a floor/window grid, crops a low-contrast wall patch for `material_from_reference` and always says `needs_visual_review: true`. `reference_compare` only composites two local images at the same height.
+**Photos.** `reference_facade` rectifies a four-corner quad (`textures.load` homography), profiles brightness and edges into a floor/window grid, crops a low-contrast wall patch for `material_from_reference` and always says `needs_visual_review: true`. `reference_compare` composites two local images at the same height, `pairs` stacks numbered photo | frame rows, and `plan` draws the map from above offline (`reference.reference_plan`: mesh triangles facing up, painted lowest first and shaded by height, layer prefabs included, grid every power of ten that gives about four lines, marks with yaw arrows, an optional picture blended under the box).
 
 ## Limits
 

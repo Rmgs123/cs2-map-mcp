@@ -86,7 +86,9 @@ class MapModel(unittest.TestCase):
             self.assertEqual(m2.node(box['nodeID']).type, 'CMapMesh')
             m2.remove(m2.node(ent['nodeID']))
             m2.save(backup_dir=Path(tmp) / 'bk')
-            self.assertEqual(len(list((Path(tmp) / 'bk' / 't').glob('*.vmap'))), 1)
+            from cs2map import backups
+            self.assertTrue(backups.flush(20))
+            self.assertEqual(len(list((Path(tmp) / 'bk' / 't').glob('*.vmap.zst'))), 1)
             self.assertEqual(VMap.load(path).entities('info_player_terrorist'), [])
             self.assertIn('materials/dev/reflectivity_50.vmat', VMap.load(path).asset_references())
 

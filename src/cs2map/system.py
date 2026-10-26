@@ -4,6 +4,7 @@ from __future__ import annotations
 import ctypes
 import ctypes.wintypes as wt
 import math
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -216,3 +217,51 @@ def capture_screen_region(rect: tuple[int, int, int, int], path: Path) -> dict:
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path)
     return {'path': str(path), 'size': list(img.size), 'blank': all(lo == hi for lo, hi in img.getextrema())}
+
+
+class _DisplayDevice(ctypes.Structure):
+    _fields_ = [('cb', wt.DWORD), ('DeviceName', wt.WCHAR * 32), ('DeviceString', wt.WCHAR * 128),
+                ('StateFlags', wt.DWORD), ('DeviceID', wt.WCHAR * 128), ('DeviceKey', wt.WCHAR * 128)]
+
+
+def gpus() -> list[str]:
+    """Names of the display adapters (EnumDisplayDevices: no subprocess, instant)."""
+    names = []
+    for i in range(16):
+        dev = _DisplayDevice()
+        dev.cb = ctypes.sizeof(dev)
+        if not user32.EnumDisplayDevicesW(None, i, ctypes.byref(dev), 0):
+            break
+        if dev.DeviceString and dev.DeviceString not in names and 'Basic Render' not in dev.DeviceString:
+            names.append(dev.DeviceString)
+    return names
+
+
+def ray_tracing(name: str) -> bool | None:
+    """Hardware ray tracing by the adapter's name (a guess): VRAD3 needs it for baked light."""
+    n = name.upper()
+    if 'RTX' in n or re.search(r'\bRX\s?[6-9]\d{3}', n) or re.search(r'\bARC\b', n):
+        return True
+    if re.search(r'\bGTX\b|\bGT\s?\d|\bMX\s?\d|UHD|IRIS|\bHD GRAPHICS|RADEON\(TM\) GRAPHICS|\bRX\s?[45]\d{2}\b|VEGA', n):
+        return False
+    return None
+
+
+_kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+_kernel32.CreateFileW.argtypes = [wt.LPCWSTR, wt.DWORD, wt.DWORD, ctypes.c_void_p, wt.DWORD, wt.DWORD, wt.HANDLE]
+_kernel32.CreateFileW.restype = wt.HANDLE
+_kernel32.CloseHandle.argtypes = [wt.HANDLE]
+
+
+def file_in_use(path: Path) -> bool:
+    """Would replacing the file fail because another process holds it open? Opens it for DELETE (what a
+    replace needs) without changing anything: CS2 keeps a loaded map's .vpk open for reading and writing but
+    not for deleting, so a plain open for writing succeeds while the compiler's final write fails."""
+    DELETE, SHARE_ALL, OPEN_EXISTING, BACKUP_SEMANTICS = 0x00010000, 0x7, 3, 0x02000000
+    if not Path(path).exists():
+        return False
+    handle = _kernel32.CreateFileW(str(path), DELETE, SHARE_ALL, None, OPEN_EXISTING, BACKUP_SEMANTICS, None)
+    if handle in (None, wt.HANDLE(-1).value, -1):
+        return ctypes.get_last_error() in (32, 33)          # sharing / lock violation
+    _kernel32.CloseHandle(handle)
+    return False

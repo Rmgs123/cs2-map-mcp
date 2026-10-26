@@ -352,10 +352,27 @@ def add_breakable(p, m, op, refs):
     texture = op.get('texture') or {'glass': 'materials/glass/glass01.vmat',
                                   'wood': 'materials/wood/milbeams003.vmat',
                                   'metal': 'materials/metal/metalwall031a.vmat'}[material]
+    target = target_name(m, op, 'breakable')
     e = brush(p, m, 'func_breakable', op,
-              {'targetname': target_name(m, op, 'breakable'), 'material': {'glass': 0, 'wood': 1, 'metal': 2}[material],
+              {'targetname': target, 'material': {'glass': 0, 'wood': 1, 'metal': 2}[material],
                'health': number(op.get('health', 20), 'health', 1), 'spawnflags': 0}, material=texture)
-    return result(m, e, op, refs)
+    out = result(m, e, op, refs)
+    if flag(op, 'bulletproof'):
+        # Spawnflag 2048 ("Don't allow bullet penetration") lets every bullet through in CS2 (measured 11.10 and
+        # 25.10 with AK-47). A toolsblockbullets layer inside the pane stops them; it goes away when the pane
+        # breaks, so shots then fly through the hole. The layer is a func_breakable that only breaks on input:
+        # a killed func_brush is not re-created by a round restart (the pane is, so it came back without it).
+        lo, hi, _ = bounds(op)
+        axis = min(range(3), key=lambda k: hi[k] - lo[k])
+        mid, half = (lo[axis] + hi[axis]) / 2, min(.5, (hi[axis] - lo[axis]) / 4)
+        llo, lhi = list(lo), list(hi)
+        llo[axis], lhi[axis] = mid - half, mid + half
+        brush(p, m, 'func_breakable', {'mins': llo, 'maxs': lhi},
+              {'targetname': f'{target}_bulletproof', 'spawnflags': 1, 'health': 1, 'material': 0},
+              material='materials/tools/toolsblockbullets_cs.vmat')
+        connection(m, e, 'OnBreak', f'{target}_bulletproof', 'Kill')
+        out['bulletproof'] = f'{target}_bulletproof'
+    return out
 
 
 def add_zone(p, m, op, refs):

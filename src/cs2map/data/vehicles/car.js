@@ -50,10 +50,17 @@ function ignored(p) { return [body, ...wheels, decoy, p].filter(valid); }
 // Hull traces never ignore an entity parented to the body (the seated pilot, the decoy): CS2 then skips the whole
 // hierarchy, the body included, and a point inside the bus reads as free. The decoy is never solid anyway.
 const loose = p => [p].filter(e => valid(e) && !valid(e.GetParent?.()));
+// What the last failed clearance touched: refusals and exit_blocked lines name it.
+let clearWhy = null;
 function clearance(point, p) {
-    const t = core.boxTrace({start: point, end: point, mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72},
+    // From 2 units up (a pawn settled a fraction of a unit into a slope touches it; a step is 18 high).
+    const s = {x: point.x, y: point.y, z: point.z + 2};
+    const t = core.boxTrace({start: s, end: s, mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 70},
         ignoreEntity: loose(p)});
-    return !t.startedInSolid && !t.didHit;
+    const ok = !t.startedInSolid && !t.didHit;
+    clearWhy = ok ? null : {solid: !!t.startedInSolid,
+        blocker: valid(t.hitEntity) ? (t.hitEntity.GetEntityName() || t.hitEntity.GetClassName()) : 'world'};
+    return ok;
 }
 function safeExit(p) {
     // Keep the car in the trace: a point inside its body is never considered free.
@@ -98,7 +105,7 @@ const health = Health({core, body: () => body, max: config.health, native: true,
         leaveAll('respawn');
     }});
 const seatCore = {...core, input: (name, fn) => core.input(name, e => {
-    if (name === 'Exit' && seat.player && !refreshExit()) { core.log('exit_blocked'); return; }
+    if (name === 'Exit' && seat.player && !refreshExit()) { core.log('exit_blocked', clearWhy || {}); return; }
     fn(e);
 })};
 const seat = Seat({core: seatCore, camera, hud, target: () => body, pawn: E.pawn, decoy: () => decoy, reach: config.reach,
@@ -110,12 +117,14 @@ const seat = Seat({core: seatCore, camera, hud, target: () => body, pawn: E.pawn
         // With passengers, E elsewhere boards instead (passengers()): no refusal line then.
         if (Math.hypot(at.x - door.x, at.y - door.y) > DOOR.radius || Math.abs(at.z - door.z) > 40) return RIDE ? false : {reason: 'driver_door'};
         // 1 unit up: a box resting exactly on a floor (a bus salon) touches it and would read as solid.
-        if (!clearance({...at, z: at.z + 1}, p)) return {reason: 'entry_in_solid'};
+        if (!clearance(at, p)) return {reason: 'entry_in_solid', ...clearWhy};
     },
     onEnter(p, saved) {
         entrySafe = lastSafe = {...saved.position};
         pilotParent = p.GetParent(); p.SetParent(body);
-        p.SetEyeAngles({pitch: 12, yaw: body.GetAbsAngles().yaw, roll: 0});
+        // A parented pawn: GetEyeAngles is in world space but SetEyeAngles is relative to the parent (measured: car
+        // at yaw 90, SetEyeAngles yaw 90 -> view 180). 0 = along the car whatever its heading.
+        p.SetEyeAngles({pitch: 12, yaw: 0, roll: 0});
         Instance.EntFireAtTarget({target: body, input: 'DisableAutoSleeping'});
         camera.start(p); hud.show(p); seatPose = null; placeDriver(); camera.apply(); motor('idle'); refreshExit();
     },
@@ -606,7 +615,10 @@ function followView(p, now, dt) {
     const d = angleDiff(body.GetAbsAngles().yaw, eye.yaw);
     if (Math.abs(d) < .5) return;
     const yaw = eye.yaw + d * Math.min(1, dt * 2.5);
-    p.SetEyeAngles({pitch: eye.pitch, yaw, roll: 0});
+    // The pilot is parented: the new view goes in the car's frame (pitch too, or the view creeps on a slope).
+    const b = basis(body.GetAbsAngles()), cp = Math.cos(eye.pitch * rad);
+    const v = {x: Math.cos(yaw * rad) * cp, y: Math.sin(yaw * rad) * cp, z: -Math.sin(eye.pitch * rad)};
+    p.SetEyeAngles({pitch: -Math.asin(clamp(dot(v, b.u), -1, 1)) / rad, yaw: Math.atan2(dot(v, b.l), dot(v, b.f)) / rad, roll: 0});
     viewYawSet = yaw;
 }
 // Upside down or on its side and still for 2.5 s: put the car back on its wheels.

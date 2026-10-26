@@ -20,12 +20,12 @@
     },
     {
       "id": "vrf-cli",
-      "version": "20.0",
-      "archive": "tools/downloads/vrf-cli-windows-x64-20.0.zip",
-      "extract_to": "tools/vrf-cli-20.0",
-      "sha256": "d32ab327b8bbb42a2528866afb03bb582bdb779d0005488da32b90292afd3ff5",
-      "origin": "https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/20.0/cli-windows-x64.zip",
-      "note": "Source2Viewer-CLI (MIT): exports stock CS2 models to glTF for the offline prop atlas."
+      "version": "20.1",
+      "archive": "tools/downloads/vrf-cli-windows-x64-20.1.zip",
+      "extract_to": "tools/vrf-cli-20.1",
+      "sha256": "67aaf8a67a85ca60fd09ff343e62103a4cdf3a2d177fc656231d7d734c5b3aa3",
+      "origin": "https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/20.1/cli-windows-x64.zip",
+      "note": "Source2Viewer-CLI (MIT): exports stock CS2 models to glTF for the offline prop atlas. 20.1 reads models compiled after the CS2 update of October 2026 (KeyValues3 types 26, 27)."
     }
   ]
 }

@@ -24,12 +24,12 @@ import time
 from pathlib import Path
 
 from . import dmx, kv3
-from .config import PROJECT_ROOT
+from .config import PROJECT_ROOT, vrf_cli
 from .project import OpError
 
 CACHE = PROJECT_ROOT / '.local' / 'cache' / 'weapon_bases'
 KEEP = 12                                 # cached bases (~2-6 MB each); the oldest are removed
-VRF = PROJECT_ROOT / 'tools' / 'vrf-cli-20.0' / 'Source2Viewer-CLI.exe'
+VRF = vrf_cli()
 # Class names whose model file does not end with the class name.
 ALIASES = {'glock': 'glock18', 'm4a1': 'm4a4', 'knife': 'knife_default_ct', 'knife_t': 'knife_default_t'}
 HAND_BONES = ('ag1_hand_r', 'weapon_hand_r', 'hand_r')

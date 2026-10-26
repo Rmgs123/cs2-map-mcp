@@ -68,21 +68,36 @@ def _finish(node, op, refs, **extra):
     return {'op':op['op'],'id':node['nodeID'],**({'ref':op['ref']} if op.get('ref') else {}),**extra}
 
 
+CUTTERS_MAX = 64
+
+
 def cut_mesh(project, vmap, op, refs):
+    """Subtract one cutter or a list of them (all windows of a wall in one operation)."""
     _fields(op,{'cutter','material'})
-    node=_target(project,vmap,op,refs);spec=op.get('cutter')
-    if not isinstance(spec,dict) or spec.get('shape') not in ('box','prism'):
-        raise OpError('cutter must be a box or convex prism shape in world coordinates')
+    node=_target(project,vmap,op,refs);specs=op.get('cutter')
+    specs=specs if isinstance(specs,list) else [specs]
+    if not 1<=len(specs)<=CUTTERS_MAX:raise OpError(f'cutter: one shape or a list of 1..{CUTTERS_MAX}')
     material=_material(project,op.get('material',node['meshData']['materials'][0]))
-    cutter=shapes.build(spec,material)[0];g.validate(cutter)
-    for f in cutter.faces:
-        n=cutter.normal(f);w=g._dot(n,cutter.positions[f.verts[0]])
-        if any(g._dot(n,p)>w+g.EPS for p in cutter.positions):raise OpError('cutter prism must be convex')
+    cutters=[]
+    for k,spec in enumerate(specs):
+        if not isinstance(spec,dict) or spec.get('shape') not in ('box','prism'):
+            raise OpError(f'cutter {k}: a box or convex prism shape in world coordinates')
+        cutter=shapes.build(spec,material)[0];g.validate(cutter)
+        for f in cutter.faces:
+            n=cutter.normal(f);w=g._dot(n,cutter.positions[f.verts[0]])
+            if any(g._dot(n,p)>w+g.EPS for p in cutter.positions):raise OpError(f'cutter {k}: the prism must be convex')
+        cutters.append(cutter)
     original=g.decode_node(node)
     # Validate input closure even if collision is disabled.
     g.encode_polygons(node,original,project.texture_size,True)
-    result=g.subtract(original,g.mesh_polygons(cutter,project.texture_size))
-    md=g.encode_polygons(node,result,project.texture_size,True)
+    # All cutters in one subtraction: every separate cut_mesh rounds the result to the vertex grid, and a face
+    # cut again and again drifted off its plane (10.10: 3-5 windows in one wall broke the mesh).
+    result=g.subtract(original,g.union_all([g.mesh_polygons(c,project.texture_size) for c in cutters]))
+    try:
+        md=g.encode_polygons(node,result,project.texture_size,True)
+    except (g.MeshError,ValueError) as e:
+        raise OpError(f'{e}. A face cut many times: pass all its openings in one cut_mesh (cutter: [...]), or '
+                      'build the wall as add_mesh shape mesh with faces[].holes') from None
     # The entire cut, including new interior surfaces, must remain a valid closed solid.
     node['meshData']=md
     return _finish(node,op,refs,faces=len(md['faceEdgeIndices']),vertices=len(md['vertexEdgeIndices']))
