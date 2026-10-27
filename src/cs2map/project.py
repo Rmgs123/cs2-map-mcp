@@ -34,6 +34,26 @@ class OpError(ValueError):
     pass
 
 
+def _memory_outlook(vmap: Path) -> str | None:
+    """A warning when the light bake may not fit in free RAM. Measured 26.10 on a 225 MB vmap (a town on terrain):
+    resourcecompiler 6.9 GB + vrad3 8.4 GB at 2048, while CS2 still held 16 GB of the same map loaded earlier
+    (a map change keeps that cache; only a restart frees it): 0.6 GB of 32 GB were left."""
+    import psutil
+    need = 2.0 + vmap.stat().st_size / 2**20 * 0.06            # GB
+    free = psutil.virtual_memory().available / 2**30
+    if free >= need * 1.2:
+        return None
+    cs2 = 0.0
+    for proc in psutil.process_iter(['name', 'memory_info']):
+        if (proc.info['name'] or '').lower() == 'cs2.exe' and proc.info['memory_info']:
+            cs2 += proc.info['memory_info'].rss / 2**30
+    text = f'the light bake needs about {need:.0f} GB of RAM and {free:.1f} GB are free'
+    if cs2 > 4:
+        text += (f'; CS2 holds {cs2:.0f} GB (a big map loaded earlier stays cached after a map change): ask the user '
+                 'to restart CS2 Workshop Tools before the build, or the PC may stall while it bakes')
+    return text
+
+
 IDLE_MAP = 'mcp_idle'
 CORE_OPS = ('add_entity', 'add_brush_entity', 'add_mesh', 'update', 'move', 'delete', 'duplicate', 'connect',
             'set_material')
@@ -339,7 +359,9 @@ class Project:
         if not isinstance(operations, list) or not operations:
             raise OpError('operations must be a non-empty list')
         if len(operations) > 2000:
-            raise OpError('at most 2000 operations per call')
+            raise OpError(f'at most 2000 operations per call (got {len(operations)}): split the batch into calls of '
+                          '2000 or fewer ("ref" names carry over to later calls; tools/mcp_call.py splits a big '
+                          'map_edit itself)')
         with self._lock:
             m = self.load(name)
             refs: dict[str, int] = {}
@@ -617,15 +639,19 @@ class Project:
         raise OpError(f'unknown op {kind!r}; ops: {", ".join((*CORE_OPS, *self.extra_ops))}')
 
     # -- building ----------------------------------------------------------------------------------
-    def map_build(self, name: str, preset: str = 'fast') -> dict:
+    def map_build(self, name: str, preset: str = 'fast', bots: bool | None = None, vis: bool | None = None) -> dict:
         self._map_file(name)
         if preset == 'release':                      # the map alone in its own addon, for the Workshop
             from . import release
-            return release.start(self, name)
+            return release.start(self, name, bots=bots, vis=vis)
+        if preset not in compiler.PRESETS:
+            raise MapError(f'preset must be one of {sorted([*compiler.PRESETS, "release"])}')
+        plan = self.build_plan(name, preset, bots, vis)
         released = self._release_compiled_map(name)
-        job = compiler.build_map(self.s, self.jobs, name, preset)
+        job = compiler.build_map(self.s, self.jobs, name, preset, timeout=plan['timeout'], map_flags=plan['flags'])
         out = {'job': job.id, 'state': job.state, 'log': job.log,
-               'hint': 'poll job_status(job, wait_seconds=25) until state is not running'}
+               'hint': 'poll job_status(job, wait_seconds=25) until state is not running',
+               **{k: plan[k] for k in ('bots', 'vis', 'nav', 'memory') if k in plan}}
         if released:
             out['note'] = f'the map was loaded in CS2; the game was switched to {IDLE_MAP} so it can be rebuilt'
         if preset in ('full', 'final'):
@@ -635,6 +661,53 @@ class Project:
                 out['radar'] = made.get('radar') or made.get('skipped')
             except Exception as e:                    # noqa: BLE001
                 out['radar'] = f'not made: {e}'
+        return out
+
+    def build_plan(self, name: str, preset: str, bots: bool | None = None, vis: bool | None = None,
+                   s=None) -> dict:
+        """Flags, time limit and the honest nav/VIS outlook of a build, decided BEFORE it starts.
+
+        bots None (auto): the preset's nav, dropped (with the reason) when the geometry estimate is over the nav
+        limit and the preset bakes light (a nav-only build is cheap: it runs and the guard stops it after NAVGEN with
+        the true count). vis None (auto): the preset's VIS, dropped on big open maps."""
+        from . import navcost
+        s = s or self.s
+        base = compiler.PRESETS[preset]
+        out: dict = {}
+        wants_nav = bots is True or (bots is None and '-nav' in base)
+        wants_vis = vis is True or (vis is None and '-vis' in base)
+        m = VMap.load(s.map_path(name)) if wants_nav or wants_vis else None
+        timeout = 1800.0
+        if wants_nav:
+            est = navcost.estimate(m, navcost.max_areas(s))
+            out['nav'] = {k: est[k] for k in ('areas', 'level', 'message', 'fix', 'ai_data') if k in est}
+            if est['level'] == 'too_slow' and bots is None and '-bakelighting' in base:
+                bots = False
+                out['bots'] = ('off: the nav estimate is over the limit, so this build skips bots instead of '
+                               'risking hours of bot data after the light bake. Limit the nav and measure it with '
+                               'map_build(name, "nav") (stops right after NAVGEN with the true count), or pass '
+                               'bots=true to try anyway (the build still stops after NAVGEN over the limit)')
+            elif est['level'] == 'too_slow':
+                timeout += min(navcost.ai_data_seconds(navcost.max_areas(s))[2], 4 * 3600)
+                out['bots'] = ('on, as a measurement: over the limit the build stops right after NAVGEN (minutes) and '
+                               'reports the true area count')
+            elif est['level'] == 'slow':
+                timeout += min(navcost.ai_data_seconds(est['areas'])[2], 4 * 3600)
+                out['bots'] = f'on: allow for the bot data step ({est["ai_data"]})'
+        if wants_vis and vis is None:
+            o = compiler.open_map(m)
+            if not o['vis']:
+                vis = False
+                out['vis'] = (f'off: an open map of {o["size_m"][0]} x {o["size_m"][1]} m; VIS would take hours and '
+                              'add nothing (frustum culling keeps the FPS); vis=true forces it')
+        out['flags'] = compiler.flags(preset, bots, vis)
+        if '-bakelighting' in out['flags']:
+            memory = _memory_outlook(s.map_path(name))
+            if memory:
+                out['memory'] = memory
+        if '-vis' in out['flags']:
+            timeout += 1800
+        out['timeout'] = min(timeout, 6 * 3600)
         return out
 
     def _release_compiled_map(self, name: str) -> bool:
@@ -740,6 +813,15 @@ class Project:
         job = self.jobs.wait(job_id, min(max(wait_seconds, 0), 50)) if wait_seconds else self.jobs.get(job_id)
         out = {'job': job.id, 'title': job.title, 'state': job.state, 'exit_code': job.exit_code,
                'seconds': job.seconds, 'log': job.log, 'result': job.result}
+        if job.state == 'running' and job.kind in ('build', 'release'):
+            import datetime as _dt
+            try:
+                text = Path(job.log).read_text(encoding='utf-8', errors='replace')
+                out['progress'] = {**compiler.progress(text), 'minutes': round(
+                    (_dt.datetime.now() - _dt.datetime.fromisoformat(job.started)).total_seconds() / 60, 1),
+                    **({'limit_minutes': round(job.timeout / 60)} if job.timeout else {})}
+            except OSError:
+                pass
         if log_lines:
             out['log_tail'] = self.jobs.tail(job_id, log_lines)
         return out
@@ -753,6 +835,10 @@ class Project:
         ext = {'material': 'vmat', 'model': 'vmdl', 'texture': 'vtex', 'sound': 'vsnd', 'particle': 'vpcf',
                'smartprop': 'vsmart', 'map': 'vmap', 'any': None}.get(kind, kind)
         stock = self.game.search(query, ext, limit)
+        broken = []
+        if ext == 'vmat':                          # a stock material whose texture the game lacks shows magenta
+            broken = [x for x in stock if self.game.missing_textures(x)]
+            stock = [x for x in stock if x not in broken]
         own = []
         if self.s.content_addon.is_dir():
             words = query.lower().split()
@@ -764,6 +850,8 @@ class Project:
                 if all(w in rel.lower() for w in words):
                     own.append(rel)
         return {'kind': kind, 'addon': sorted(own)[:limit], 'stock': stock,
+                **({'broken_stock': broken, 'broken_note': 'their textures are missing in the game (magenta '
+                    'checker): do not use them'} if broken else {}),
                 'note': 'use paths exactly as listed (e.g. materials/x.vmat) in maps'}
 
     def material_create(self, name: str, image: str | None = None, pattern: dict | None = None,

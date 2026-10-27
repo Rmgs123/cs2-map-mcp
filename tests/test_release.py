@@ -7,12 +7,12 @@ import unittest
 import uuid
 
 from cs2map import mylayer, release
-from tests.helpers import HAVE_CS2, ROOT, agent_suffix
+from tests.helpers import HAVE_COMPILER, ROOT, agent_suffix
 
 MAP = 'test_release' + agent_suffix()
 
 
-@unittest.skipUnless(HAVE_CS2, 'CS2 install not found')
+@unittest.skipUnless(HAVE_COMPILER, 'CS2 install not found or CS2MAP_OFFLINE set (add_hud compiles)')
 class Release(unittest.TestCase):
     def test_release_copies_only_what_the_map_uses_and_refuses_foreign_addons(self):
         from cs2map import server

@@ -39,6 +39,20 @@ class OutdoorRecipes(unittest.TestCase):
         self.assertEqual(coast['material'], outdoor.COAST_WATER_MATERIAL)
         self.assertEqual(len(calm['ids']), len(coast['ids']))
 
+    def test_far_water_is_an_opaque_own_material_made_once(self):
+        with patch('cs2map.checks._asset_exists', side_effect=lambda p, rel: rel != outdoor.FAR_WATER_MATERIAL), \
+                patch.object(self.p, 'material_create', return_value={'vmat': 'x'}, create=True) as make:
+            far = outdoor.add_water_body(self.p, self.m, {'name': 'far', 'water_style': 'far',
+                                                           'bounds': [[0, 2048, -64], [512, 2560, 0]]}, {})
+        self.assertEqual(far['material'], outdoor.FAR_WATER_MATERIAL)
+        make.assert_called_once()
+        self.assertEqual(make.call_args.kwargs['surface'], 'water')
+        with patch('cs2map.checks._asset_exists', return_value=True), \
+                patch.object(self.p, 'material_create', create=True) as make:
+            outdoor.add_water_body(self.p, self.m, {'name': 'far2', 'water_style': 'far',
+                                                     'bounds': [[0, 3072, -64], [512, 3584, 0]]}, {})
+        make.assert_not_called()
+
     def test_backdrop_accepts_non_solid_stock_silhouettes(self):
         with patch('cs2map.checks._asset_exists', return_value=True):
             out = outdoor.add_backdrop(self.p, self.m, {
@@ -116,7 +130,9 @@ class OutdoorRecipes(unittest.TestCase):
             out = outdoor.add_backdrop(self.p, self.m, {'style': 'rocky',
                   'bounds': [[0, 0, -64], [1024, 1024, 512]]}, {})
         clips = [self.m.node(i) for i in out['ids'] if self.m.node(i)['physicsType'] == 'default']
-        self.assertEqual(len(clips), 4)
+        mats = [str(c['meshData']['materials'][0]) for c in clips]
+        self.assertEqual(sum(x.endswith('toolsplayerclip.vmat') for x in mats), 4)
+        self.assertEqual(sum(x.endswith('toolsnavclip.vmat') for x in mats), 4)     # player clips do not stop nav
         self.assertFalse(self.m.entities('env_sky'))
 
     def test_fractional_counts_and_short_girders(self):
@@ -145,7 +161,7 @@ class OutdoorRecipes(unittest.TestCase):
                 out=outdoor.add_backdrop(self.p,self.m,{'name':'stock_'+style,'style':style,
                      'bounds':[[0,0,0],[1024,1024,512]],'segments':2,'clip':True},{})
                 self.assertEqual(len(out['model_ids']),8)
-                self.assertEqual(len(out['ids']),4)
+                self.assertEqual(len(out['ids']),8)            # 4 player clips and their nav clips
                 for i in out['model_ids']:
                     n=self.m.node(i)
                     b=visual._model_bounds(self.p,n['entity_properties']['model'],n['origin'],n['angles'],n['scales'])
@@ -181,7 +197,7 @@ class OutdoorRecipes(unittest.TestCase):
         self.assertGreater(one['model_roles']['building'], 0)
         self.assertGreater(one['model_roles']['cypress'], 0)
         self.assertEqual(one['model_count'], len(meta_one['models']))
-        self.assertEqual(len([i for i in one['ids'] if self.m.node(i).get('physicsType') == 'default']), 4)
+        self.assertEqual(len([i for i in one['ids'] if self.m.node(i).get('physicsType') == 'default']), 8)
         models = [n for n in self.m.iter_nodes(self.m.node(one['id'])) if n.type == 'CMapEntity']
         self.assertTrue(all(n['entity_properties']['solid'] == '0' for n in models))
         self.assertTrue(all('modelscale' not in n['entity_properties'].attrs for n in models))

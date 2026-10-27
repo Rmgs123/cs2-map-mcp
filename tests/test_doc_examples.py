@@ -8,6 +8,7 @@ builds on an earlier example of the same section (its @refs, rooms or entities) 
 Run alone: python -m unittest tests.test_doc_examples
 """
 import json
+import os
 import re
 import unittest
 from pathlib import Path
@@ -74,7 +75,9 @@ def prepare_assets(raw):
     from cs2map import sound
     if not (s.game_addon / 'sounds/mcp/m_hall.vsnd_c').exists():
         raw['sound_generate']('m_hall', 'hum', 2, {'gain': .3})
-    raw['sound_event']('m_hall', 'ambient', 'sounds/mcp/m_hall.vsnd', None, .5, 1, 1500, None, None, None, None, 1.5)
+    if not os.environ.get('CS2MAP_OFFLINE'):          # offline: the event made by an earlier run is used
+        raw['sound_event']('m_hall', 'ambient', 'sounds/mcp/m_hall.vsnd', None, .5, 1, 1500, None, None, None, None,
+                           1.5)
 
 
 def examples():

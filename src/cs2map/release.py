@@ -3,8 +3,10 @@
 The project addon (mcp_lab) holds every test map; the Workshop Manager uploads a whole addon. So a release copies
 the map and only the files it needs into a new addon named after the map (or `addon`), writes a sound event file
 with just the used events, compiles every copied resource there, builds the map with the final preset, makes the
-radar, and writes PUBLISH.md with the steps and texts for the Workshop Manager. One background job does the
-compiling and the build; job_status reports both.
+radar, and writes PUBLISH.md with the steps and texts for the Workshop Manager. One background job
+(cs2map.releaserun) does the compiling, a nav measurement on big maps and the build; job_status reports the stage.
+Bots and VIS are decided before the build (Project.build_plan): no VIS on big open maps, no bots when the nav would
+take hours; the light bake's work files are dropped from the uploaded folder.
 """
 from __future__ import annotations
 
@@ -182,8 +184,10 @@ def prepare(project, name: str, addon: str | None = None) -> dict:
     return {'settings': rs, 'files': files, 'events': events, 'compiled_only': found['compiled_only']}
 
 
-def start(project, name: str, addon: str | None = None, timeout: float = 3600):
-    """Prepare the addon, make its radar, then one job: compile every copied resource, build the map (final)."""
+def start(project, name: str, addon: str | None = None, bots: bool | None = None, vis: bool | None = None):
+    """Prepare the addon, make its radar, then one job (cs2map.releaserun): compile every copied resource, measure
+    the nav on big maps, build the map (final), drop the light bake work files, report the upload size."""
+    from . import navcost
     plan = prepare(project, name, addon)
     rs = plan['settings']
     rp = copy.copy(project)
@@ -195,24 +199,35 @@ def start(project, name: str, addon: str | None = None, timeout: float = 3600):
         notes['radar'] = made.get('radar') or made.get('skipped')
     except Exception as e:                       # noqa: BLE001
         notes['radar'] = f'not made: {e}'
+    build = project.build_plan(name, 'final', bots, vis, s=rs)
+    for key in ('bots', 'vis', 'nav', 'memory'):
+        if key in build:
+            notes[key] = build[key]
     sources = [rs.content_addon / rel for rel in plan['files'] if Path(rel).suffix.lower() in COMPILE]
     compile_argv = [str(rs.resourcecompiler), '-threads', compiler._threads(rs), '-nop4', '-retail', '-f']
     for p in sources:
         compile_argv += ['-i', str(p)]
-    build_argv = [str(rs.resourcecompiler), '-threads', compiler._threads(rs), *compiler.BASE, '-i',
-                  str(rs.map_path(name)), *compiler.PRESETS['final'], *compiler.TAIL]
-    build_argv = [sys.executable, '-m', 'cs2map.lockrun', f'vrad3-{rs.addon}', str(timeout), '--', *build_argv]
-    steps = ([compile_argv] if sources else []) + [build_argv]
-    argv = [sys.executable, '-m', 'cs2map.chain', json.dumps(steps)]
+    nav_max = navcost.max_areas(rs)
+    flags = build['flags']
+    timeout = build['timeout'] + (900 if sources else 0)
+    steps = {'compile': compile_argv if sources else None, 'nav_max': nav_max, 'game_addon': str(rs.game_addon),
+             'build': compiler.build_argv(rs, name, flags, build['timeout'], nav_max),
+             'build_without_bots': compiler.build_argv(rs, name, compiler.flags('final', False, '-vis' in flags),
+                                                       build['timeout'])}
+    # Bots asked for (or allowed) on a map whose nav may be big: count the areas first (world + NAVGEN, minutes)
+    # before the light bake, so a too big nav costs minutes, not the bake plus hours of bot data.
+    if '-nav' in flags and (build.get('nav') or {}).get('level') in ('slow', 'too_slow'):
+        steps['probe'] = compiler.build_argv(rs, name, compiler.flags('nav'), 1800, nav_max, probe=True)
+        timeout += 1800
+    plan_file = rs.content_addon / 'cs2map_release_job.json'
+    plan_file.write_text(json.dumps(steps, indent=1), encoding='utf-8')
+    argv = [sys.executable, '-m', 'cs2map.releaserun', str(plan_file)]
     vpk = rs.compiled_map(name)
     before = vpk.stat().st_mtime if vpk.exists() else None
     guide = write_guide(project, rs, name, plan)
 
     def finish(job, text: str) -> dict:
-        info = compiler._build_result(job, text, vpk, before)
-        info['addon'] = rs.addon
-        info['publish_guide'] = str(guide)
-        return info
+        return _result(job, text)
 
     env = {'PYTHONUTF8': '1'}
     job = project.jobs.start('release', f'release {name} -> addon {rs.addon}', argv, rs.game_bin, timeout, finish,
@@ -221,8 +236,36 @@ def start(project, name: str, addon: str | None = None, timeout: float = 3600):
     return {'job': job.id, 'state': job.state, 'log': job.log, 'addon': rs.addon,
             'content': str(rs.content_addon), 'game': str(rs.game_addon), 'files': len(plan['files']),
             'sound_events': len(plan['events']), **notes, 'publish_guide': str(guide),
-            'hint': ('poll job_status(job, wait_seconds=50) until it is not running; then check the release in '
-                     f'the game: game_screenshot(map="{rs.addon}/{name}") and script_test(map="{rs.addon}/{name}")')}
+            'time_limit_minutes': round(timeout / 60),
+            'hint': ('poll job_status(job, wait_seconds=50) until it is not running (progress shows the stage); then '
+                     f'check the release in the game: game_screenshot(map="{rs.addon}/{name}") and '
+                     f'script_test(map="{rs.addon}/{name}")')}
+
+
+def _result(job, text: str) -> dict:
+    """The release job's result: the build's, the decisions of the run ([release] lines), PUBLISH.md updated."""
+    from . import releaserun
+    info = compiler._build_result(job, text, Path(job.meta.get('output', '')), job.meta.get('vpk_mtime_before'))
+    info['addon'] = job.meta.get('addon')
+    info['publish_guide'] = job.meta.get('guide')
+    for line in text.splitlines():
+        if line.startswith(releaserun.MARK + ' bots '):
+            info['bots'] = line[len(releaserun.MARK) + 6:]
+        elif line.startswith(releaserun.MARK + ' upload size: '):
+            info['upload'] = line[len(releaserun.MARK) + 14:]
+    guide = Path(job.meta.get('guide') or '')
+    if info.get('upload') and guide.is_file():
+        body = guide.read_text(encoding='utf-8')
+        body = re.sub(r'\n- (?:Upload size|Bots): .*', '', body)
+        body = body.replace('the loading picture.\n', f'the loading picture.\n- Upload size: {info["upload"]}'
+                            f'{_bots_line(info)}\n', 1)
+        guide.write_text(body, encoding='utf-8')
+    return info
+
+
+def _bots_line(info: dict) -> str:
+    bots = info.get('bots')
+    return f'\n- Bots: {bots}' if bots else ''
 
 
 def write_guide(project, rs, name: str, plan: dict) -> Path:
@@ -273,8 +316,4 @@ map and press **Re-Upload** (Edit changes only the texts and the picture).
     return path
 
 
-def recover(job, text):
-    return compiler._build_result(job, text, Path(job.meta.get('output', '')), job.meta.get('vpk_mtime_before'))
-
-
-compiler.register_recovery('release', recover)
+compiler.register_recovery('release', _result)

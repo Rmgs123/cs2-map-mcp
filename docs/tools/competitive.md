@@ -5,6 +5,7 @@
 | Spawns, buyzones, bombsites/hostages, mid, nav seeds | `add_comp_plan` |
 | Route times T/CT to the sites | `playtest(kind="timings")` |
 | Bots play rounds | `playtest(kind="competitive")` |
+| Bots on a big or terrain map (bot data can take hours) | section `nav`: `set_play_area`, `map_build(name, "nav")` |
 
 `map_edit` operation `add_comp_plan` composes `layout.add_layout` with 10–16 spawns per team (default 10, pitch 64u), buyzones, objectives, mid and room nav seeds, map parameters, a light probe and a render-only lightmap volume.
 

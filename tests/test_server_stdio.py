@@ -6,7 +6,7 @@ import os
 import sys
 import unittest
 
-from tests.helpers import HAVE_CS2, ROOT, agent_suffix
+from tests.helpers import HAVE_COMPILER, ROOT, agent_suffix
 
 MAP = 'test_mcp_e2e' + agent_suffix()
 
@@ -31,7 +31,7 @@ def _data(result):
     return json.loads(result.content[0].text)
 
 
-@unittest.skipUnless(HAVE_CS2, 'CS2 install not found')
+@unittest.skipUnless(HAVE_COMPILER, 'CS2 install not found or CS2MAP_OFFLINE set')
 class ServerEndToEnd(unittest.TestCase):
     def test_create_edit_build(self):
         async def steps(session, init):

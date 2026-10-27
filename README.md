@@ -1,6 +1,6 @@
 # CS2 Map MCP — AI that builds Counter-Strike 2 maps
 
-[![Version](https://img.shields.io/badge/version-1.1.0-2ea44f)](https://github.com/Rmgs123/cs2-map-mcp/releases)
+[![Version](https://img.shields.io/badge/version-1.2.0-2ea44f)](https://github.com/Rmgs123/cs2-map-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d6)
 ![Python 3.14](https://img.shields.io/badge/python-3.14-3776ab)

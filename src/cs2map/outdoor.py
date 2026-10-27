@@ -6,7 +6,7 @@ import math
 import random
 import re
 
-from . import checks, lighting, mesh
+from . import checks, lighting, mesh, navcost
 from .project import OpError
 
 # Same-camera full builds showed much less shoreline grain with Nuke water.
@@ -14,6 +14,10 @@ from .project import OpError
 WATER_MATERIAL = "materials/liquids/nuke_water.vmat"
 COAST_WATER_MATERIAL = "materials/anubis/anubis_water_coast.vmat"
 SKYBOX_WATER_MATERIAL = "materials/anubis/anubis_water_coast_skybox.vmat"
+# Stock water is see-through from above and from afar (a bay seen from a hill showed only its bed, 26.10): the far
+# style is an opaque own material, made once in the addon (a cool blue noise, glossy, water surface).
+FAR_WATER_MATERIAL = "materials/mcp/mcp_far_sea/mcp_far_sea.vmat"
+FAR_WATER_PATTERN = {"pattern": "noise", "color": [34, 62, 74], "color2": [52, 88, 98], "size": 512, "seed": 7}
 WATER_BED_MATERIAL = "materials/concrete/concrete_floor_04.vmat"
 SHORE_MATERIAL = "materials/concrete/concrete_floor_04.vmat"
 SUPPORT_MATERIAL = "materials/concrete/hr_c/hr_concrete_wall_004.vmat"
@@ -125,6 +129,9 @@ def _name(m, requested, kind):
 
 
 def _commit(project, m, op, name, pieces, result, models=()):
+    # Player clips do not stop the nav flood: every clip of the play area's edge gets a nav clip twin.
+    pieces = list(pieces) + [(navcost.nav_twin(piece), options) for piece, options in pieces
+                             if piece.faces and all(f.material.endswith('toolsplayerclip.vmat') for f in piece.faces)]
     # Validate and construct every mesh before attaching anything to the map.
     if any(abs(value) > 32768 for piece, _ in pieces for pos in piece.positions for value in pos):
         raise OpError('generated outdoor geometry exceeds +/-32768 units; reduce bounds/height/depth')
@@ -180,10 +187,14 @@ def add_water_body(project, m, op, refs):
         raise OpError("water bed exceeds map coordinates")
     style = op.get("water_style", "calm")
     styles = {"calm": WATER_MATERIAL, "coast": COAST_WATER_MATERIAL,
-              "skybox": SKYBOX_WATER_MATERIAL}
+              "skybox": SKYBOX_WATER_MATERIAL, "far": FAR_WATER_MATERIAL}
     if style not in styles:
-        raise OpError("water_style must be calm, coast or skybox")
-    water = _material(project, op.get("material", styles[style]))
+        raise OpError("water_style must be calm, coast, skybox or far (opaque: distant sea, bays seen from above)")
+    if style == "far" and op.get("material") is None:
+        _far_water_material(project)            # made now (or, in a dry run, when the batch is applied)
+        water = FAR_WATER_MATERIAL
+    else:
+        water = _material(project, op.get("material", styles[style]))
     bed = _material(project, op.get("bed_material", WATER_BED_MATERIAL), "bed_material")
     shore = _material(project, op.get("shore_material", SHORE_MATERIAL), "shore_material")
     width = lighting._number(op.get("shore_width", 48), "shore_width", 4, 512)
@@ -208,6 +219,16 @@ def add_water_body(project, m, op, refs):
               "material": water, "water_style": style, "shore_axis": axis, "shore_side": side,
               "note": "visual water/bed/shore; no nav floor, swimming or drowning", "_refs": refs}
     return _commit(project, m, {**op, "op": "add_water_body"}, name, pieces, result)
+
+
+def _far_water_material(project) -> None:
+    """Make the opaque far-sea material once (a dry run only checks the name)."""
+    from .project import DRY_RUN
+    if DRY_RUN.get() or checks._asset_exists(project, FAR_WATER_MATERIAL):
+        return
+    made = project.material_create("mcp_far_sea", pattern=FAR_WATER_PATTERN, roughness=0.18, surface="water")
+    if made.get("error"):
+        raise OpError(f"the far water material could not be made: {made['error']}")
 
 
 def _quarter_bounds(m, supplied=None, layout_name=None):

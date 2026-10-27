@@ -28,8 +28,13 @@ def _model_path(project, value: str) -> tuple[str, Path]:
     if not isinstance(value, str) or not value.strip():
         raise OpError('"model" must be a model name or a models/.../.vmdl path')
     value = value.replace("\\", "/")
-    if value.startswith("models/") and value.endswith(".vmdl"):
-        rel = asset_path(project, value)
+    if "/" in value and value.endswith(".vmdl"):
+        # any stock or addon path: models/..., but also agents/models/... and characters/models/... (player agents)
+        prefix = value.split("/", 1)[0]
+        try:
+            rel = asset_path(project, value, prefix=prefix)
+        except OpError as e:
+            raise OpError(f'{e}{_similar_models(project, value)}') from None
         path = project.s.content_addon / Path(value)
     else:
         try:
@@ -43,6 +48,14 @@ def _model_path(project, value: str) -> tuple[str, Path]:
     if not path.is_file() and not project.game.exists(rel + '_c'):
         raise OpError(f"model asset does not exist: {rel}")
     return rel, path
+
+
+def _similar_models(project, value: str) -> str:
+    """'; real paths: ...' for a model path that does not exist (a guessed folder: models/tm_phoenix/... is really
+    agents/models/tm_phoenix/... or characters/models/...)."""
+    stem = PurePosixPath(value).stem
+    found = [x for x in project.game.search(stem, 'vmdl', 40) if PurePosixPath(x).stem == stem][:4]
+    return f'; existing paths with this name: {", ".join(found)}' if found else ''
 
 
 def register(mcp, project):

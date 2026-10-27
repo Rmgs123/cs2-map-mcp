@@ -46,8 +46,13 @@ HINTS = {
     'Unable to remove': 'another lighting bake of this addon was running; rebuild (bakes are queued now)',
     'Too many charts for the lightmap': 'the map has more lightmap UV charts than even a 2048 atlas holds: merge '
                                         'or remove small render-only pieces, or split the map',
-    'no walkable seeds present': 'the bot navigation mesh is EMPTY (bots will not join): add point_nav_walkable '
-                                 'entities on the floor near spawns and in each area, then rebuild with preset full',
+    'no walkable seeds present': 'the log says ">>NAVGEN: Skipped... no walkable seeds present": the bot '
+                                 'navigation mesh is EMPTY (bots will not join or move). Add point_nav_walkable '
+                                 'entities standing on the floor (z = floor + 1..8) near spawns and in each area, '
+                                 'then rebuild with preset nav or full; check_map warns about missing seeds',
+    '[navguard] stopped': 'the build was stopped after NAVGEN: the nav mesh has too many areas and the bot data '
+                          'would take hours (see nav in the result). Limit the nav (set_play_area, add_nav_markup '
+                          'nonav) or build without bots (map_build bots=false)',
 }
 # Baked light (VRAD3, presets full/final) runs on the GPU with hardware ray tracing; on a card without it the bake
 # fails (a user's friend, 1.0 on a PC without an RTX card). Any of these in a failed build's log gets the hint.
@@ -56,6 +61,73 @@ GPU_HINT = ('baked light (presets full and final) needs a GPU with hardware ray 
             'without baked light (flatter, darker shadows)')
 GPU_KEYS = ('gpu hang', 'device_lost', 'ray tracing', 'raytracing', 'vk_error', 'no suitable gpu')
 _NAV = re.compile(r'Nav mesh \([^)]*\) loaded with (\d+) nav areas')
+NAV_FLAGS = ('-nav', '-gridnav')
+# A world wider than this (square units, about 310 x 310 m) is an open map: VIS costs hours there (a 830 m terrain
+# map: 3368 s of clustering alone, then 2+ h of merging) and gives nothing (215-240 FPS with frustum culling only).
+VIS_AUTO_MAX_FOOTPRINT = 1.5e8
+
+
+def flags(preset: str, bots: bool | None = None, vis: bool | None = None) -> list[str]:
+    """Compiler flags of a preset; bots=False drops the nav, bots=True adds it; vis=False drops visibility."""
+    out = list(PRESETS[preset])
+    if bots is False:
+        out = [f for f in out if f not in NAV_FLAGS]
+    elif bots and '-nav' not in out:
+        at = out.index('-phys') + 1
+        out[at:at] = list(NAV_FLAGS)
+    if vis is False:
+        out = [f for f in out if f != '-vis']
+    elif vis and '-vis' not in out:
+        out.insert(out.index('-phys') + 1, '-vis')
+    return out
+
+
+def open_map(m) -> dict:
+    """Footprint of the solid world (square units) and whether VIS is worth it (no on big open maps)."""
+    from . import checks
+    b = checks._map_bounds([(n, bb) for n, bb in checks._all_meshes(m) if checks._is_solid_mesh(n)])
+    if not b:
+        return {'footprint': 0, 'vis': True}
+    lo, hi = b
+    foot = (hi[0] - lo[0]) * (hi[1] - lo[1])
+    return {'footprint': round(foot), 'size_m': [round((hi[0] - lo[0]) * 0.0254), round((hi[1] - lo[1]) * 0.0254)],
+            'vis': foot <= VIS_AUTO_MAX_FOOTPRINT}
+
+
+# Stages of a map build as its log shows them (the last one seen is where it is now).
+_STAGES = [
+    (re.compile(r'VRAD3 - Distributed Lighting Tool'), 'baking light (VRAD3, GPU)'),
+    (re.compile(r'VIS3: Build partitioned PVS'), 'visibility (VIS: voxelize, cluster, merge; slow on open maps)'),
+    (re.compile(r'Generated clusters for \d+ regions'), 'visibility: merging clusters'),
+    (re.compile(r'>>NAVGEN: pass'), 'nav mesh (NAVGEN, usually under a minute)'),
+    (re.compile(r'CSGO Compute AI Data'), 'bot data (CSGO Compute AI Data: one CPU core, no progress lines)'),
+    (re.compile(r'Compute Early Occupy Times \[.*Done'), 'bot data: hiding spots'),
+    (re.compile(r'Compute Hiding spots \[.*Done'), 'bot data: encounter spots'),
+    (re.compile(r'Compute Encounter spots \[.*Done'), 'bot data: approach areas (the long one)'),
+    (re.compile(r'Nav mesh \([^)]*\) loaded with'), 'writing the map'),
+]
+_STEP = re.compile(r'^== step (\d+)/(\d+): (.*)$', re.M)
+
+
+def progress(text: str) -> dict:
+    """Where a running map build is: the last stage seen in its log, the nav area count and the bot data estimate."""
+    from . import navcost
+    steps = list(_STEP.finditer(text))
+    if steps:                                   # a chain (release): only the current step's own log counts
+        text = text[steps[-1].start():]
+    best, stage = -1, None
+    for rx, label in _STAGES:
+        for m in rx.finditer(text):
+            if m.start() > best:
+                best, stage = m.start(), label
+    out = {'stage': stage or 'compiling (world, physics, assets)'}
+    if steps:
+        out['step'] = f'{steps[-1].group(1)}/{steps[-1].group(2)}: {steps[-1].group(3)[:80]}'
+    areas = navcost.from_log(text)
+    if areas is not None:
+        out['nav_areas'] = areas
+        out['ai_data_estimate'] = navcost.eta(areas)
+    return out
 
 
 def analyze_log(text: str) -> dict:
@@ -86,25 +158,50 @@ def analyze_log(text: str) -> dict:
     if (errors or (summary or {}).get('failed')) and any(k in low for k in GPU_KEYS):
         hints.append(GPU_HINT)
     nav = _NAV.findall(text)
-    return {'summary': summary, 'errors': errors, 'error_count': n_err, 'warnings': warnings,
-            'warning_count': n_warn, 'missing_assets': missing[:50],
-            **({'nav_areas': int(nav[-1])} if nav else {}), **({'hints': hints} if hints else {})}
+    out = {'summary': summary, 'errors': errors, 'error_count': n_err, 'warnings': warnings,
+           'warning_count': n_warn, 'missing_assets': missing[:50],
+           **({'nav_areas': int(nav[-1])} if nav else {}), **({'hints': hints} if hints else {})}
+    from . import navcost
+    counted = navcost.from_log(text)
+    if counted is not None:
+        out['nav_areas'] = int(nav[-1]) if nav else counted
+        out['nav'] = navcost.verdict(out['nav_areas'], navcost.STOP_AREAS)['message']
+    if '[navguard] stopped' in text:
+        out['nav_stopped'] = True
+        out['nav'] = next(ln.split('] ', 1)[1] for ln in reversed(lines) if ln.startswith('[navguard] stopped'))
+    elif navcost.NO_SEEDS in text:
+        out['nav'] = 'empty: ">>NAVGEN: Skipped... no walkable seeds present" (no point_nav_walkable)'
+    return out
 
 
 def _threads(s: Settings) -> str:
     return str(s.compile_threads or os.cpu_count() or 4)
 
 
-def build_map(s: Settings, jobs: JobManager, name: str, preset: str = 'fast', timeout: float = 1800) -> Job:
+def build_argv(s: Settings, name: str, map_flags: list[str], timeout: float, nav_max: int | None = None,
+               probe: bool = False) -> list[str]:
+    """resourcecompiler for one map; under lockrun when it bakes light (one VRAD3 at a time) or builds nav (guard)."""
+    argv = [str(s.resourcecompiler), '-threads', _threads(s), *BASE, '-i', str(s.map_path(name)), *map_flags, *TAIL]
+    # VRAD3 uses one _vrad3 work folder per addon: serialize lighting bakes across processes/agents
+    lock = f'vrad3-{s.addon}' if '-bakelighting' in map_flags else '-'
+    guard = []
+    if '-nav' in map_flags:
+        from . import navcost
+        guard = ['--nav-max', str(nav_max if nav_max is not None else navcost.max_areas(s))]
+        guard += ['--nav-probe'] if probe else []
+    if lock != '-' or guard:
+        argv = [sys.executable, '-m', 'cs2map.lockrun', lock, str(timeout), *guard, '--', *argv]
+    return argv
+
+
+def build_map(s: Settings, jobs: JobManager, name: str, preset: str = 'fast', timeout: float = 1800,
+              map_flags: list[str] | None = None) -> Job:
     if preset not in PRESETS:
         raise ValueError(f'preset must be one of {sorted(PRESETS)}')
     vmap = s.map_path(name)
     if not vmap.exists():
         raise FileNotFoundError(f'map not found: {vmap}')
-    argv = [str(s.resourcecompiler), '-threads', _threads(s), *BASE, '-i', str(vmap), *PRESETS[preset], *TAIL]
-    if '-bakelighting' in argv:
-        # VRAD3 uses one _vrad3 work folder per addon: serialize lighting bakes across processes/agents
-        argv = [sys.executable, '-m', 'cs2map.lockrun', f'vrad3-{s.addon}', str(timeout), '--', *argv]
+    argv = build_argv(s, name, list(map_flags if map_flags is not None else PRESETS[preset]), timeout)
     vpk = s.compiled_map(name)
     before = vpk.stat().st_mtime if vpk.exists() else None
 

@@ -11,7 +11,7 @@ import json
 import math
 import random
 
-from . import mesh, structure, terrain
+from . import mesh, navcost, structure, terrain
 from .dressing import tube
 from .project import OpError
 
@@ -314,7 +314,7 @@ def add_fence(project, m, op, refs):
             ids.append(_attach(project, m, part, {'physicsType': 'none'}))
     if leaves.faces:
         ids.append(_attach(project, m, leaves))
-    for part in [posts, *caps_eo, *rails_eo, *clips_eo]:
+    for part in [posts, *caps_eo, *rails_eo, *clips_eo, *(navcost.nav_twin(c) for c in clips_eo if c.faces)]:
         if part.faces:
             ids.append(_attach(project, m, part))
     if not ids:
@@ -362,6 +362,8 @@ def add_railing(project, m, op, refs):
             a, b = stations[i][1], stations[i + 1][1]
             both[i % 2].extend(slab(a, b, z[i], z[i] + h, z[i + 1], z[i + 1] + h, half, mat))
         ids += [_attach(project, m, part) for part in both if part.faces]
+        if mat == CLIP:
+            ids += [_attach(project, m, navcost.nav_twin(part)) for part in both if part.faces]
     out = {'op': 'add_railing', 'id': ids[0], 'ids': ids, 'posts': len(stations), 'length': round(stations[-1][0], 1)}
     if op.get('ref'):
         refs[op['ref']] = ids[0]

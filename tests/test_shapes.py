@@ -46,6 +46,16 @@ class Shapes(unittest.TestCase):
         self.closed({'shape': 'terrain', 'mins': [0, 0, 0], 'maxs': [300, 200, 10], 'cells': [3, 2],
                      'heights': grid}, 1)
 
+    def test_terrain_absolute_heights_are_world_z(self):
+        grid = [[200 + 10 * i + j for j in range(3)] for i in range(4)]
+        spec = {'shape': 'terrain', 'mins': [0, 0, 0], 'maxs': [300, 200, 230], 'cells': [3, 2], 'heights': grid}
+        top = max(p[2] for p in shapes.build({**spec, 'absolute': True})[0].positions)
+        self.assertEqual(top, 232)                               # the highest height itself
+        doubled = max(p[2] for p in shapes.build(spec)[0].positions)
+        self.assertEqual(doubled, 462)                           # default: added to maxs.z
+        with self.assertRaises(MeshError):
+            shapes.build({**spec, 'heights': None, 'absolute': True})
+
     def test_polyhedron_tetra(self):
         self.closed({'shape': 'polyhedron', 'vertices': [[0, 0, 0], [100, 0, 0], [0, 100, 0], [0, 0, 100]],
                      'faces': [[0, 2, 1], [0, 1, 3], [0, 3, 2], [1, 2, 3]]}, 1)

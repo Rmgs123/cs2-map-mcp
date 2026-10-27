@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import struct
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -73,11 +74,15 @@ class VPK:
             return e.preload + f.read(e.length)
 
 
+_TEXTURE_REF = re.compile(rb'(?:materials|textures)/[a-z0-9_/.\-]+\.vtex')
+
+
 class GameFiles:
     """All stock VPKs of the installed game."""
 
     def __init__(self, cs2_path: Path):
         self.cs2_path = Path(cs2_path)
+        self._missing: dict[str, list[str]] = {}
         self.vpks: list[tuple[str, VPK]] = []
         for mod in ARCHIVES:
             p = self.cs2_path / 'game' / mod / 'pak01_dir.vpk'
@@ -94,6 +99,19 @@ class GameFiles:
             if n in v.entries:
                 return v.read(n)
         raise FileNotFoundError(name)
+
+    def missing_textures(self, material: str) -> list[str]:
+        """Textures a compiled stock material refers to that the game does not have (it renders as a magenta
+        checker, e.g. materials/decals/oldleaves01.vmat). Empty for a sound material or one that is not stock."""
+        key = material.lower().replace('\\', '/').removesuffix('_c')
+        if key not in self._missing:
+            try:
+                data = self.read(key + '_c')
+            except (FileNotFoundError, OSError):
+                data = b''
+            refs = {m.decode() for m in _TEXTURE_REF.findall(data)}
+            self._missing[key] = sorted(r for r in refs if not self.exists(r + '_c'))
+        return self._missing[key]
 
     def search(self, query: str = '', ext: str | None = None, limit: int = 100) -> list[str]:
         """Find compiled stock assets; returns source-style paths (e.g. 'materials/x.vmat')."""

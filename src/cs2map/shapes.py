@@ -105,8 +105,13 @@ def _value_noise(seed: int):
 
 
 def _terrain(spec, mat, mats) -> Mesh:
-    _check_keys(spec, {'mins', 'maxs', 'cells', 'heights', 'noise', 'thickness'})
+    _check_keys(spec, {'mins', 'maxs', 'cells', 'heights', 'noise', 'thickness', 'absolute'})
     mins, maxs = _vec(spec, 'mins'), _vec(spec, 'maxs')
+    absolute = spec.get('absolute', False)
+    if not isinstance(absolute, bool):
+        raise MeshError('absolute must be true (heights are world z) or false (heights are added to maxs.z)')
+    if absolute and spec.get('heights') is None:
+        raise MeshError('absolute:true needs "heights" (world z of every grid point)')
     cells = spec.get('cells', [16, 16])
     nx, ny = int(cells[0]), int(cells[1])
     heights = spec.get('heights')
@@ -115,8 +120,11 @@ def _terrain(spec, mat, mats) -> Mesh:
             raise MeshError(f'heights must be a ({nx + 1} x {ny + 1}) grid: heights[i][j] for x index i, y index j')
         dx, dy = (maxs[0] - mins[0]) / nx, (maxs[1] - mins[1]) / ny
 
+        # top z = maxs.z + height; with absolute:true the heights are world z (a common mistake doubled them)
+        lift = -maxs[2] if absolute else 0.0
+
         def height(x, y):
-            return float(heights[round((x - mins[0]) / dx)][round((y - mins[1]) / dy)])
+            return float(heights[round((x - mins[0]) / dx)][round((y - mins[1]) / dy)]) + lift
     else:
         n = spec.get('noise') or {}
         amp = float(n.get('amplitude', 64))

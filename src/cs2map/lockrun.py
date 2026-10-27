@@ -1,10 +1,14 @@
 """Run a command while holding a named cross-process lock:
 
-    python -m cs2map.lockrun <lock-name> <timeout-seconds> -- <argv...>
+    python -m cs2map.lockrun <lock-name | -> <timeout-seconds> [--nav-max N] [--nav-probe] -- <argv...>
 
 Used for map builds that bake lighting: VRAD3 keeps its work files in one
 `_vrad3` folder per addon, so two lighting bakes at once break each other.
-The lock file holds the pid of this wrapper; if the wrapper dies, the lock is stale.
+The lock file holds the pid of this wrapper; if the wrapper dies, the lock is stale. "-" runs without a lock.
+
+Nav guard (map builds with -nav): right after NAVGEN the compiler prints the nav area count, before the bot data
+step that can run for hours on one core. The guard prints that count with a time estimate; over --nav-max it stops
+the compiler (exit NAV_STOPPED). --nav-probe stops it as soon as the count is known (exit 0): a cheap measurement.
 """
 from __future__ import annotations
 
@@ -58,12 +62,16 @@ def main() -> int:
         return 2
     i = sys.argv.index('--')
     name, timeout = sys.argv[1], float(sys.argv[2])
+    opts = sys.argv[3:i]
+    nav_max = int(opts[opts.index('--nav-max') + 1]) if '--nav-max' in opts else None
+    probe = '--nav-probe' in opts
     argv = sys.argv[i + 1:]
-    path = acquire(name, timeout)
+    path = acquire(name, timeout) if name != '-' else None
     try:
-        print(f'[lockrun] acquired "{name}"', flush=True)
+        if path:
+            print(f'[lockrun] acquired "{name}"', flush=True)
         while True:
-            code, too_many = _run(argv)
+            code, too_many = _run(argv, nav_max, probe)
             res = _lightmap_res(argv)
             if code == 0 or not too_many or res is None or res >= MAX_LIGHTMAP:
                 return code
@@ -72,7 +80,8 @@ def main() -> int:
             print(f'{RETRY_MARK} lightmap atlas too small: retrying with -lightmapMaxResolution {res * 2}',
                   flush=True)
     finally:
-        path.unlink(missing_ok=True)
+        if path:
+            path.unlink(missing_ok=True)
 
 
 RETRY_MARK = '[lockrun] retry:'
@@ -80,7 +89,12 @@ MAX_LIGHTMAP = 2048
 TOO_MANY = 'Too many charts for the lightmap'
 
 
-def _run(argv) -> tuple[int, bool]:
+NAV_MARK = '[navguard]'
+NAV_STOPPED = 76
+
+
+def _run(argv, nav_max: int | None = None, probe: bool = False) -> tuple[int, bool]:
+    from . import navcost
     proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     too_many = False
     for raw in proc.stdout:
@@ -88,7 +102,35 @@ def _run(argv) -> tuple[int, bool]:
         too_many = too_many or TOO_MANY in line
         sys.stdout.write(line)
         sys.stdout.flush()
+        found = navcost.ISLAND.search(line)
+        if found and (nav_max is not None or probe):
+            areas = int(found.group(1))
+            v = navcost.verdict(areas, nav_max if nav_max is not None else navcost.STOP_AREAS)
+            print(f'{NAV_MARK} areas={areas} level={v["level"]}: {v["message"]}', flush=True)
+            if probe:
+                print(f'{NAV_MARK} probe done: the compiler is stopped after counting', flush=True)
+                _kill(proc)
+                return 0, False
+            if nav_max is not None and areas > nav_max:
+                print(f'{NAV_MARK} stopped: {areas} nav areas is over the limit of {nav_max}; the bot data would '
+                      f'take {v["ai_data"]}. The compiled map was not replaced. {navcost.LIMIT_FIX}', flush=True)
+                _kill(proc)
+                return NAV_STOPPED, False
     return proc.wait(), too_many
+
+
+def _kill(proc) -> None:
+    try:
+        parent = psutil.Process(proc.pid)
+        procs = parent.children(recursive=True) + [parent]
+    except psutil.NoSuchProcess:
+        return
+    for p in procs:
+        try:
+            p.kill()
+        except psutil.NoSuchProcess:
+            pass
+    psutil.wait_procs(procs, timeout=10)
 
 
 def _lightmap_res(argv):

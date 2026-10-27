@@ -71,7 +71,7 @@ A long hollow body (verified with a 590-unit bus on a test field and on a town m
  "camera":{"forward":0,"up":72,"pilot":true,"chase":{"forward":-620,"up":230},"start":"chase"}}
 ```
 
-`models/mcp/bus/bus.vmdl` is your own hollow body, 590×140, +x forward, the floor at 24 (a `model_build` script or file; give it its own `wheel_model` too). The recipe must fit the model: `add_controllable` refuses a `size`, `seat`, door or passenger spot outside the body model's bounds — this recipe on the stock car (204×84) put the riders in the air beside a small car and their shots went 10° wide. Breakable windows are `func_breakable` boxes parented to the body (`parentname` `v9_<name>_body`), authored at the body's spawn pose; E on them counts as E on the body.
+`models/mcp/bus/bus.vmdl` is your own hollow body, 590×140, +x forward, the floor at 24: `model_build(name="bus", template="bus_body")` makes exactly this one (doors at x 225 and −218 on −Y, open windows; `params` for another size, doors or colours), or a script or file of your own; give it its own `wheel_model` too. The recipe must fit the model: `add_controllable` refuses a `size`, `seat`, door or passenger spot outside the body model's bounds — this recipe on the stock car (204×84) put the riders in the air beside a small car and their shots went 10° wide. Breakable windows are `func_breakable` boxes parented to the body (`parentname` `v9_<name>_body`), authored at the body's spawn pose; E on them counts as E on the body.
 
 ## In game
 

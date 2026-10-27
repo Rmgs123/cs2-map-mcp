@@ -81,6 +81,7 @@ The size column is the measured axis-aligned default bounds `[X,Y,Z]`, including
 | `railing` | `width=128`, `height=40`, `posts=4`, `radius=2.5`, `mid_rail=true` | 133×5×40 | M |
 | `dumpster` | `width=80`, `depth=48`, `height=64`, `wall=4`, `wheel_radius=7`, `body_material`, `wheel_material` | 58×82×68 | M, R |
 | `electrical_box` | `width=32`, `depth=20`, `height=48`, `wall=2`, `body_material`, `label_material` | 24×32×48 | M, P |
+| `bus_body` | hollow bus/van body, front +X: `length=590`, `width=140`, `height=150`, `floor=24` (floor top), `wall=4`, `roof=4`, `window_bottom=44`/`window_top=104` (over the floor), `door_top`, `windows`, `pillar=8`, `doors=[{x,width,side}]` (default two on −Y), a step well inside each door when the floor is over 18 (`step_depth=16`; 0 → 12 → 24: walked in CS2), `windshield=true`, `body_material`, `trim_material`, `floor_material`; every piece its own collision hull, so players walk in and stand inside | 590×140×150 | M, R |
 
 Verified stock paths (also useful in your scripts):
 
@@ -133,7 +134,7 @@ The driver keeps a unique `a_mat_<hex>` FBX token and remaps it to the checked V
 {"op":"add_model","model":"a_barrier","origin":[256,128,0],"angles":[0,90,0],"scale":1,"dynamic":false}
 ```
 
-`model` also accepts a full own/stock `.vmdl` path. `dynamic=true` creates `prop_dynamic`; otherwise it creates `prop_static`.
+`model` also accepts a full own/stock `.vmdl` path from any folder — player agents are `characters/models/tm_phoenix/tm_phoenix.vmdl` or `agents/models/ctm_sas/ctm_sas.vmdl` (a wrong folder lists the real paths); use them with `dynamic=true` for readability frames. `dynamic=true` creates `prop_dynamic`; otherwise it creates `prop_static`.
 
 Looks: `skin` picks one of the model's material groups by name (a wrong name lists the real ones, e.g. `generic_tree_large_1` has `default` and `no_motion`); `tint` `[r,g,b]` multiplies the whole model's colour (leaves and bark alike: an orange tint makes an autumn-ish tree, but a stock tree has no autumn group to pick).
 

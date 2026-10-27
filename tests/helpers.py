@@ -15,6 +15,8 @@ try:
     HAVE_CS2 = (CS2_CONTENT / 'csgo' / 'maps' / 'templates' / 'template_wingman.vmap').exists()
 except Exception:  # pragma: no cover
     SETTINGS, CS2_CONTENT, HAVE_CS2 = None, None, False
+# CS2MAP_OFFLINE=1: tests that start resourcecompiler or CS2 skip (the user plays; jobs refuse those programs too).
+HAVE_COMPILER = HAVE_CS2 and not os.environ.get('CS2MAP_OFFLINE')
 # The Blender every pipeline uses (settings, Steam, tools/, Program Files): tests that need it skip without it.
 try:
     HAVE_BLENDER = load_settings().blender_exe.is_file()

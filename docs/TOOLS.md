@@ -13,6 +13,7 @@ Everything a model needs to build a CS2 map with this MCP server (resource `cs2m
 | Look at the result | `game_screenshot` (views, `"auto"`, `"rooms"`) | this core |
 | Rooms and floors of a level | `set_map_type` | `type` (table above) |
 | Competitive map | `add_comp_plan`, `playtest(kind="competitive"/"timings")` | `competitive` |
+| Bots; a big map's nav | `point_nav_walkable`, `set_play_area`, `add_nav_markup`, `map_build` `bots` | `nav` |
 | Story / single player | `add_story`, `script_test(steps="auto")`, `route_test` | `story` |
 | Streets in the Inferno look, fast | `add_paving`, `add_facade`, `add_wear`, `dress_street`, `add_backdrop` | `buildings`, `wear`, `streetlife`, `outdoor` |
 | Any other look (own style) | primitives + own materials/models, saved as a style in `my/` | `styles` |
@@ -38,14 +39,14 @@ Everything a model needs to build a CS2 map with this MCP server (resource `cs2m
 
 ## Your local layer `my/`
 
-Every installation has a folder `my/` that belongs to its user: never in git, never replaced by updates. It is how you get better from chat to chat.
+`my/` belongs to the user of this installation (never in git, never replaced by updates): how you get better from chat to chat.
 
 - **Before work:** the index at the end of this guide lists your notes, recipes and styles; read the ones that touch the task (`read_guide(section="my")` prints every note).
 - **After a finding** (a fix that worked, a rule, a pitfall, the user's taste, a batch worth replaying): `my_notes(action="write", kind="note"|"recipe", name, text, data)`. One topic per note, short lines, the *why* included. Update a note instead of adding a near-duplicate.
 - **Own looks** (anything that is not Inferno): save materials, tints, models, sizes, light and rules as a style (`kind="style"`, section `styles`) and use it with `"style":"my:<name>"` or `"$<name>.materials.wall"` in any operation.
 - **The user's files** (photos, models, sounds) are in `my/inbox/`: `asset_search(kind="mine")`.
 - **Problems with this MCP** (a tool error you did not cause, a wrong guide, a missing feature you built by hand): one entry `my_notes(action="write", kind="feedback", name=<tool>, text)` → `my/feedback.md`; the user sends it to the author.
-- Write only to `my/` through `my_notes`; the shipped guides and code stay as they are.
+- Write to `my/` only through `my_notes`; never edit the shipped guides or code.
 
 ## How it works
 
@@ -58,8 +59,6 @@ Maps are `.vmap` files in the addon (`content/csgo_addons/<addon>/maps/`); the t
 5. `check_map` — fix every `error`; `visual_check` — nothing floating, buried or flickering.
 6. `map_build(name, "full")` → `job_status(job, wait_seconds=50)` until it is not `running`: `result.ok`, `errors`, `missing_assets`, `nav_areas` (> 0 for bots).
 7. `game_screenshot(map, views=...)`: open the PNGs and judge them; mechanics with `script_test`; fix and rebuild.
-
-Results are JSON. An error says what to fix; `map_edit` saves nothing when one operation fails.
 
 **Beauty first, gameplay at the end.** Shape, look and light come first (fast builds, frames); timings, bot matches and long scenario runs come once, at the end, and only where the map type needs them.
 
@@ -93,8 +92,8 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 - **Inferno-like streets** (`p7_quartiere`): `add_layout`/`add_comp_plan` (with `levels`) → `add_paving` → `add_facade` on every visible wall side → `add_wear` → `dress_street` → `lighting_preset "inferno"` → `add_backdrop style:"italy"` → `visual_check`, `check_map`, `map_build full` → frames next to `game_screenshot(map="de_inferno")`; name three differences and fix them.
 - **Competitive** (`c_defuse`, `f3_port`): `add_comp_plan` → cover, `dress_room`, light → outdoor (`add_water_body`, `add_backdrop`, sky) → `playtest(kind="timings", live=true)` (CT reaches sites 3–8 s earlier) and `playtest(kind="competitive")`.
 - **Story** (`mcp_story`, `f2_port`): `add_layout` → interactive parts (`physics`) → atmosphere (`light`, `fx`, `sound`) → `dress_room`, signs → **one** `add_story` last → `script_test(steps="auto")` and `route_test(map)` (a real walk through every stage).
-- **Mechanics** (`p8_mechanics`, `p9_playground`): drone, car, turret, guns, mini-games are operations with sane defaults; each section has a tested example, the live checks (`script_test` steps) and "By hand" recipes with raw entities and `cs_script`.
-- **Anything else**: primitives (`geometry`), any entity + `connect`, any logic (`scripting`), own models, materials and sounds. A missing primitive is a gap of the tools: describe the workaround in your result.
+- **Mechanics** (`p8_mechanics`, `p9_playground`): operations with sane defaults; each section has a tested example, `script_test` steps and "By hand" recipes.
+- **Anything else**: primitives (`geometry`), any entity + `connect`, any logic (`scripting`), own models, materials and sounds. A missing primitive: describe the workaround in `my_notes` feedback.
 
 ## Units, axes, facing
 
@@ -112,7 +111,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 
 ## map_edit operations
 
-`map_edit(name, operations, dry_run=false, force=false)` applies the operations in order and saves once; a failure saves nothing and names the operation. Results carry the created ids. `"ref": "x"` names a result; later operations (in this or any later call) use `"@x"` wherever an id is expected. Unknown fields are refused.
+`map_edit(name, operations, dry_run=false, force=false)` applies up to 2000 operations in order and saves once (split bigger ones; `ref`s carry over); a failure saves nothing and names the operation. A mesh holds ≤ 8192 faces. Results carry the created ids. `"ref": "x"` names a result; later operations (in this or any later call) use `"@x"` wherever an id is expected. Unknown fields are refused.
 
 | op | fields |
 | --- | --- |
@@ -141,6 +140,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 | `add_water_body`, `add_backdrop`, `add_supports` | `outdoor` |
 | `cut_mesh`, `texture_faces`, `paint_blend`, `edit_mesh` | `geometry` |
 | `add_prefab` | `structure` |
+| `set_play_area`, `add_nav_markup` | `nav` |
 | `add_controllable`, `add_actor`, `add_weapon`, `add_minigame` | `control`/`vehicles`/`turrets`, `actors`, `weapons`, `minigames` |
 | `add_ability` | `abilities` |
 | `add_hideseek` | `types` |
@@ -157,7 +157,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 | `prism` | `polygon` (convex), `z0`, `z1`, `axis` (`z`: polygon in x,y; `x`: in y,z; `y`: in z,x) |
 | `room` | `mins`/`maxs` = inside space, `thickness`, `floor`/`ceiling`, `walls`, `openings` [{`wall`, `center`, `width`, `height`, `bottom`}], `materials` {floor, ceiling, walls} |
 | `arch` | `mins`, `maxs` (the wall), `axis`, `opening_width`, `opening_height`, `segments` |
-| `terrain` | small heightfield: `mins`, `maxs`, `cells` (≤96), `heights` or `noise`; big landscapes use the op `add_terrain` |
+| `terrain` | small heightfield: `mins`, `maxs`, `cells` (≤96), `heights` or `noise` (added to `maxs.z`, or `absolute:true`); big landscapes: op `add_terrain` |
 | `polyhedron` | `vertices`, `faces` (counter-clockwise from outside) |
 | `mesh`, `extrude`, `revolve` | any polygons, sweeps, lathe forms (`geometry`) |
 
@@ -166,30 +166,31 @@ Shapes are checked before anything is written; solids are watertight; textures a
 ## Materials
 
 - Find: `asset_search(query, kind="material")` (`"concrete floor"`, `"plaster wall"`); use paths exactly as listed.
-- Blockout: `materials/dev/dev_measuregeneric01.vmat`, `materials/dev/reflectivity_30.vmat`…`_90`. Tools: `materials/tools/toolsnodraw.vmat` (invisible solid), `toolsclip`, `toolsplayerclip`, `toolsblockbullets`, `toolstrigger`, `toolsskybox`, `toolslightmapres` (one box over the play area: lightmap resolution; without it baked light is coarse).
+- Blockout: `materials/dev/dev_measuregeneric01.vmat`, `materials/dev/reflectivity_30.vmat`…`_90`. Tools: `materials/tools/toolsnodraw.vmat` (invisible solid), `toolsclip`, `toolsplayerclip`, `toolsblockbullets`, `toolstrigger`, `toolsskybox`, `toolslightmapres` (one box over the play area, or baked light is coarse).
 - Own: `material_create(name, pattern={...})` or `image=`; kinds glass, emissive, water, decal (section `materials`).
 
 ## Entity recipes (all keys: `entity_info(classname)`)
 
 - Spawns `info_player_terrorist` / `info_player_counterterrorist`: **8 units above the floor** (on the floor plane CS2 rejects them and nobody joins — `check_map` `spawn_in_floor`), `angles` [0,yaw,0], 48+ apart, competitive 10+ per team.
 - Buyzones `func_buyzone` brush (`TeamNum` 2 = T, 3 = CT) over spawns, 128+ tall; bombsites `func_bomb_target` (`bomb_site_designation` 0 = A, 1 = B); hostages `hostage_entity` + `func_hostage_rescue`.
-- **Bots need `point_nav_walkable`** on the floor in every area (nav grows from these seeds; `map_build` reports `nav_areas`).
+- **Bots need `point_nav_walkable`** on the floor in every area (nav grows from these seeds; `map_build` reports `nav_areas`). Big maps: section `nav`.
 - Sun and sky: `light_environment` + `env_sky` (the `basic` template has both). Lights exist only on the client: I/O and scripts cannot switch them — use `add_light` with `start_off` / `style`.
 - `env_combined_light_probe_volume` over the play area for reflections; `prop_static` / `prop_dynamic` / `prop_physics_multiplayer` props; `point_script` (`cs_script` = `scripts/<name>.vjs`).
 
 ## Building
 
 - `fast`: geometry, collision, entities; no baked light; seconds — iterate on layout.
-- `full`: + baked light (512 px, retried at 1024/2048 for big maps) + bot navigation + the radar (drawn from the floors; an own `resource/overviews/<map>.txt` is kept); 0.5–3 minutes.
+- `full`: + baked light (512 px, retried at 1024/2048) + bots' nav + the radar (an own `resource/overviews/<map>.txt` is kept); 0.5–3 minutes.
 - `final`: + visibility and 2048 px quality-2 light; 10+ minutes.
 - `release`: the map alone in its own addon for the Steam Workshop (section `publish`).
+- Bots cost: bot data grows with the square of the nav areas (66 000: hours). `map_build` answers with a `nav` estimate; over the limit it skips bots or stops after NAVGEN. Big maps: bots last.
 
 Light builds are queued (one VRAD3 folder per addon); a map loaded in CS2 is unloaded first. `job_status`: `state` running/succeeded/failed/timeout/cancelled/lost; `result.ok` only with exit 0, a new `.vpk` and no failures; `lost` = rebuild.
 
 ## Testing in game
 
-- One CS2 Workshop Tools session (addon from settings) serves everything through its console port; **one console client at a time** (the error names a holder). A VConsole2 window CS2 opened is closed automatically. CS2 is never killed: a window "Not responding" for 30 s → ask the user to restart Workshop Tools; a crash → `game_crash_report`.
-- `game_screenshot(map, views=[{"name","pos":[x,y,z],"ang":[pitch,yaw,0]}])`: loads the map if needed, moves a noclip camera (pos = feet, eye +64), checks it and returns PNG paths. Per view: `cmd` (console in place, e.g. `"ent_fire door1 Open"`), `wait`, `grep` (console lines, e.g. `"vsnd"` with `snd_showstart 1`), `keep:true` (no noclip: the view as the player or a script camera sees it). `"preview":true` on a view also makes that frame the map's loading-screen picture (and an icon). `views="auto"`: overviews, spawns, objectives, rooms (`offset`/`limit` page them); `views="rooms"`: one per layout room. All views run under one lock, ~3 s each.
+- One CS2 Workshop Tools session (addon from settings) serves everything through its console port; **one console client at a time** (the error names a holder). CS2 is never killed: a window "Not responding" for 30 s → ask the user to restart Workshop Tools; a crash → `game_crash_report`.
+- `game_screenshot(map, views=[{"name","pos":[x,y,z],"ang":[pitch,yaw,0]}])`: loads the map if needed, moves a noclip camera (pos = feet, eye +64), checks it and returns PNG paths. Per view: `cmd` (console in place, e.g. `"ent_fire door1 Open"`), `wait`, `grep` (console lines, e.g. `"vsnd"` with `snd_showstart 1`), `keep:true` (no noclip: the view as the player or a script camera sees it). `"preview":true` on a view also makes that frame the map's loading-screen picture (and an icon). `views="auto"`: overviews, spawns, objectives, rooms (`offset`/`limit` page them); `views="rooms"`: one per layout room. ~3 s per view.
 - `script_test(map, steps)`: real input and checks — steps in section `scripting` (`use`, `hold`, `aim`, `mouse`, `expect`, `shot`, ...). Call `game_reset(map)` before and after: it leaves vehicles, turrets and drones, turns noclip off, restores HUD, accuracy and recoil, kicks bots, releases keys and restarts the round.
 - Rounds start live (`mp_freezetime 0`, no intro). After a map load the mode's bots may join and the game restarts the round once; the tools wait for the respawn.
 - `game_command("...", wait)` returns what the commands and the next `wait` seconds printed (script `Instance.Msg`, events). Aimed input (`setang` + `+attack`) needs `focus=true`. Avoid `maps *`.
@@ -197,6 +198,6 @@ Light builds are queued (one VRAD3 folder per addon); a map loaded in CS2 is unl
 
 ## Safety
 
-- Backups are automatic: every map is kept compressed in tiers (newest three, hourly, daily, weekly) with a snapshot of its sources (`my/`, addon content). `map_backups(name)` lists, `restore=<id>` rolls back (`sources=true`: also `restored/<id>/`), `pin="label"` keeps a milestone. Keep what builds a map (generators, batches, plans) in `my/maps/<map>/`, never in temp folders.
+- Backups are automatic (tiers, with a snapshot of the sources): `map_backups(name)` lists, `restore=<id>` rolls back (`sources=true`: also `restored/<id>/`), `pin="label"` keeps a milestone. Keep what builds a map (generators, batches) in `my/maps/<map>/`, never in temp folders.
 - Unsaved Hammer edits are never overwritten, not even with `force=true`.
 - Only the configured addon is written; other addons and game files are never touched.

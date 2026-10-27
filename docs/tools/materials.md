@@ -135,4 +135,4 @@ and world text before/after `SetMessage`.
 
 ## By hand
 
-A material is a text `.vmat` (shader, textures, parameters). `material_create` writes `materials/mcp/<name>/<name>.vmat`; for shader keys we do not expose, copy a made one next to it and edit. Stock materials: `asset_search(kind="material")`; apply with `set_material` or per face with `texture_faces`; check with `material_preview` and a frame in the game.
+A material is a text `.vmat` (shader, textures, parameters). `material_create` writes `materials/mcp/<name>/<name>.vmat`; for shader keys we do not expose, copy a made one next to it and edit. Stock materials: `asset_search(kind="material")` (a stock material whose texture the game lacks — a magenta checker, e.g. `materials/decals/oldleaves01.vmat` — is listed apart under `broken_stock`, never use it); apply with `set_material` or per face with `texture_faces`; check with `material_preview` and a frame in the game.

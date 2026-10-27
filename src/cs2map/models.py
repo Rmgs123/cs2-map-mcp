@@ -28,7 +28,7 @@ class ModelError(ValueError):
 BLENDER_DIR = PROJECT_ROOT / "src" / "cs2map" / "blender"
 TEMPLATES_DIR = BLENDER_DIR / "templates"
 TEMPLATES = ("crate", "barrel", "fence", "door", "window_frame", "pipe", "lamp", "table", "shelf",
-             "sandbags", "jersey_barrier", "pallet", "railing", "dumpster", "electrical_box")
+             "sandbags", "jersey_barrier", "pallet", "railing", "dumpster", "electrical_box", "bus_body")
 
 
 def _agent():

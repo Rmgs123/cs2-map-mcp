@@ -25,6 +25,7 @@ Thresholds give warnings, not errors (a model can be unusual, a support can be i
 | `visual_lamp_unmounted` | a light farther than 32 units from any solid mesh or measured prop (shaft companions, lights outside authored geometry and parked carriers skipped) |
 | `visual_open_mesh` | open half-edges on a collidable mesh; identical boxes of different materials |
 | `visual_phantom_floor`, `visual_phantom_wall` (errors) | a render-only mesh (`physicsType none`) showing a floor more than a few units above the real floor, or a wall at player height with no collision behind it: players walk and shoot through it |
+| `visual_paved_lip` | two ground meshes (by face material) meeting with a step: 1–4 units where one overlaps the other and the lower comes out from under its edge, 1–2 units side by side (planes compared on the shared cell edge); rasterised on an 8-unit grid; one finding per mesh pair; terrain, buildings, roofs, background and small meshes skipped |
 
 Sky, water, decals, triggers, precipitation and non-collidable meshes take no part in support and intrusion tests. The same penetration test is used by `dress_street` and the kit placement.
 

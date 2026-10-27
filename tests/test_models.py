@@ -16,7 +16,7 @@ class Models(unittest.TestCase):
         from cs2map.project import Project
 
         self.assertTrue({"sandbags", "jersey_barrier", "pallet", "railing",
-                         "dumpster", "electrical_box"}.issubset(TEMPLATES))
+                         "dumpster", "electrical_box", "bus_body"}.issubset(TEMPLATES))
         with tempfile.TemporaryDirectory() as td:
             p = Project(Settings(Path(td), "model_test"))
             p.s.content_addon.mkdir(parents=True)
@@ -74,7 +74,7 @@ from common import box, cylinder, finish, project_uv, STOCK_MATERIALS
 from driver import material_records
 names = ("crate", "barrel", "fence", "door", "window_frame", "pipe", "lamp",
          "table", "shelf", "sandbags", "jersey_barrier", "pallet", "railing",
-         "dumpster", "electrical_box")
+         "dumpster", "electrical_box", "bus_body")
 for name in names:
     bpy.ops.wm.read_factory_settings(use_empty=True)
     mod = importlib.import_module("templates."+name)
@@ -135,7 +135,52 @@ print("JSON>"+json.dumps({"checked_templates":len(names),"uv_scale":True,"normal
         job = run_blender(p, script, timeout=90)
         st = p.jobs.wait(job.id, 60)
         self.assertEqual(st.state, "succeeded", st.log)
-        self.assertEqual(st.result.get("checked_templates"), 15)
+        self.assertEqual(st.result.get("checked_templates"), 16)
+
+    @unittest.skipUnless(HAVE_BLENDER, "Blender is not installed")
+    def test_bus_body_is_hollow_with_open_doors(self):
+        from cs2map.models import run_blender
+        from cs2map.project import Project
+
+        script = '''
+import sys, json, importlib
+import bpy
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / "src/cs2map/blender"))
+bpy.ops.wm.read_factory_settings(use_empty=True)
+mod = importlib.import_module("templates.bus_body")
+objects = mod.build({})
+bpy.context.view_layer.update()
+def box(obj):
+    pts = [obj.matrix_world @ v.co for v in obj.data.vertices]
+    return [min(p[i] for p in pts) for i in range(3)], [max(p[i] for p in pts) for i in range(3)]
+def hits(a, b):
+    return all(a[0][i] < b[1][i] - .01 and a[1][i] > b[0][i] + .01 for i in range(3))
+lo = [min(box(o)[0][i] for o in objects) for i in range(3)]
+hi = [max(box(o)[1][i] for o in objects) for i in range(3)]
+cols = [box(o) for o in bpy.context.scene.objects if o.name.endswith("_col")]
+# a standing player (32x32x72) in the aisle, in the front doorway and walking in from outside it
+aisle = ([-16, -16, 25], [16, 16, 97])
+door = ([295 - 70 - 16, -70, 25], [295 - 70 + 16, -54, 97])
+outside = ([295 - 70 - 16, -90, 25], [295 - 70 + 16, -70, 97])
+# the step well: a player standing on it (12 up) inside the doorway
+well = ([295 - 70 - 16, -66, 13], [295 - 70 + 16, -50, 85])
+print("JSON>" + json.dumps({"size": [round(hi[i] - lo[i]) for i in range(3)], "lo_z": round(lo[2], 3),
+      "cols": len(cols), "aisle": any(hits(c, aisle) for c in cols), "door": any(hits(c, door) for c in cols),
+      "outside": any(hits(c, outside) for c in cols), "well": any(hits(c, well) for c in cols),
+      "well_top": max((c[1][2] for c in cols if c[0][0] <= 225 <= c[1][0] and c[0][1] <= -58 <= c[1][1] and c[1][2] < 30),
+                      default=None)}))
+'''
+        p = Project()
+        job = run_blender(p, script, timeout=90)
+        st = p.jobs.wait(job.id, 60)
+        self.assertEqual(st.state, "succeeded", st.log)
+        r = st.result
+        self.assertEqual(r["size"], [590, 140, 150])
+        self.assertEqual(r["lo_z"], 0)
+        self.assertGreater(r["cols"], 20)                    # separate hulls: the inside stays empty
+        self.assertFalse(r["aisle"] or r["door"] or r["outside"] or r["well"])
+        self.assertEqual(r["well_top"], 12)                  # 0 -> 12 -> 24: steps a player walks up (max 18)
 
     @unittest.skipUnless(HAVE_BLENDER, "Blender is not installed")
     def test_template_build_without_resourcecompiler(self):

@@ -165,16 +165,17 @@ def register(mcp, project) -> list[str]:
         return R['map_backups'](name, pin)
 
     @mcp.tool()
-    def map_build(name: str, preset: Literal['fast', 'nav', 'full', 'final', 'release'] = 'fast') -> dict:
-        """Compile the map in the background. preset: fast (geometry, entities; seconds) | nav (+ bot navigation)
-        | full (+ baked light: needs an RTX-class GPU) | final (slow light, visibility) | release (own addon for
-        the Workshop; guide section publish). Then poll job_status(job)."""
-        return R['map_build'](name, preset)
+    def map_build(name: str, preset: Literal['fast', 'nav', 'full', 'final', 'release'] = 'fast',
+                  bots: bool | None = None, vis: bool | None = None) -> dict:
+        """Compile in the background. preset: fast (geometry; seconds) | nav (+ bots) | full (+ light: RTX
+        GPU) | final (+ visibility, slow) | release (own Workshop addon). bots/vis null = auto (off over the nav
+        limit / on open maps); poll job_status."""
+        return R['map_build'](name, preset, bots, vis)
 
     @mcp.tool()
     def job_status(job: str, wait_seconds: float = 20, log_lines: int = 15, cancel: bool = False) -> dict:
-        """State of a background job (build, compile, Blender); waits up to wait_seconds (max 50) for the end.
-        cancel=true stops it. Returns {state, result: {ok, errors, warnings, missing_assets}, log}."""
+        """State of a background job (build, compile, Blender); waits up to wait_seconds (max 50).
+        cancel=true stops it. Returns {state, progress, result: {ok, errors, nav_areas}, log}."""
         if cancel:
             return R['job_cancel'](job)
         return R['job_status'](job, wait_seconds, log_lines)

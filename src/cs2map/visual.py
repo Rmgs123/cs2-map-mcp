@@ -521,9 +521,20 @@ def scenery_ids(m):
     return out
 
 
+def outside_play_area_ids(m) -> set:
+    """Nodes whose centre lies outside the play area (map_edit set_play_area): nobody walks there, so walk-through
+    checks (phantom floors and walls) and the playable bounds leave them out; looks are still checked."""
+    from . import navcost
+    area = navcost.play_area(m)
+    if not area:
+        return set()
+    return {n.get('nodeID') for n in m.iter_nodes() if n.type in ('CMapMesh', 'CMapEntity') and 'origin' in n
+            and not navcost.in_polygon(n['origin'][0], n['origin'][1], area['outline'])}
+
+
 def playable_bounds(m):
-    """Core integration helper: visible solids, excluding distant clip/scenery."""
-    scenery = scenery_ids(m)
+    """Core integration helper: visible solids, excluding distant clip/scenery and what lies outside the play area."""
+    scenery = scenery_ids(m) | outside_play_area_ids(m)
     return checks._map_bounds([(n,b) for n,b in checks._all_meshes(m)
         if n.get('nodeID') not in scenery and checks._is_solid_mesh(n)
         and not all('tools' in str(mat).lower() for mat in n['meshData'].get('materials',[]))])
@@ -1011,9 +1022,122 @@ PHANTOM_BACKING = 8.0      # a render-only wall face needs a solid surface this 
 _PHANTOM_SKIP = _HELPER_MATERIALS + ("decal", "lightshaft", "shaft", "overlay", "glow", "fog", "cloud", "tools")
 
 
+LIP_MIN, LIP_MAX = 1.05, 4.0    # a visible lip; 1 unit is the usual set-back (no z-fight), curbs start at 4 units
+LIP_CELL = 8.0
+# Paved and natural ground, by material name (a roof slab or a block top painted like a wall is not ground).
+LIP_GROUND = ("asphalt", "sidewalk", "cobble", "gravel", "pav", "concrete", "conc_", "ground", "floor", "tile",
+              "stone", "dirt", "ruts", "road", "street", "plaza", "brick_floor", "mud", "sand")
+LIP_SEAM_MAX = 2.0              # side by side: 2+ units is a low kerb (a sidewalk by a road), not a flaw
+LIP_MIN_SIDE = 48.0             # meshes narrower than this, or under ~120 x 120 units, are objects
+
+
+def _lip_ground(material: str) -> bool:
+    return any(h in material for h in LIP_GROUND) and not any(x in material for x in ("roof", "tools", "shingle"))
+
+
+def _lip_checks(m, meshes) -> list:
+    """Steps between walkable surfaces of different meshes (26.10, a town map: roads over a plaza and over each other
+    stood 2-6 units apart; frames showed only thin dark lines). A lip is a top over 1..4 units over another where the
+    lower one comes out from under its edge, or a seam where two meshes meet at different heights. Terrain,
+    background, render-only, tool and small meshes are left out; curbs and steps (4+ units) are deliberate."""
+    import numpy as np
+    from . import terrain
+    skip = scenery_ids(m) | outside_play_area_ids(m)
+    for group in m.iter_nodes():
+        # terrain (roads stand 2 units over it by design) and buildings (their floor is a threshold over the street)
+        if terrain.PLAN_KEY in group or (group.type == "CMapGroup" and str(group.name).startswith(("building:",
+                                                                                                    "facade"))):
+            skip |= {n.get("nodeID") for n in m.iter_nodes(group)}
+    cells: dict = {}          # (i, j) -> {node id: (z, dz/dx, dz/dy)} of its highest top there
+    for node, bound, tris in meshes:
+        nid = node.get("nodeID")
+        if nid in skip or node.get("physicsType") == "none" or not tris:
+            continue
+        sx, sy = bound[1][0] - bound[0][0], bound[1][1] - bound[0][1]
+        if min(sx, sy) < LIP_MIN_SIDE or sx * sy < LIP_MIN_SIDE * LIP_MIN_SIDE * 6:
+            continue                          # wall tops, curbs, trims and tiles: objects, not ground to cross
+        # only ground people cross, face by face: roofs and block tops meet walls and parapets by design
+        ground = [pts[0:1] + pts[k:k + 2] for pts, mat in _faces(node) if _lip_ground(mat)
+                  for k in range(1, len(pts) - 1)]
+        if not ground:
+            continue
+        arr = np.array(ground, dtype=float)
+        e1, e2 = arr[:, 1] - arr[:, 0], arr[:, 2] - arr[:, 0]
+        n = np.cross(e1, e2)
+        length = np.linalg.norm(n, axis=1)
+        up = (length > 1e-6) & (n[:, 2] >= 0.7 * np.maximum(length, 1e-9))
+        for tri, nn in zip(arr[up], n[up]):
+            gx, gy = -nn[0] / nn[2], -nn[1] / nn[2]
+            i0, i1 = math.floor(tri[:, 0].min() / LIP_CELL), math.ceil(tri[:, 0].max() / LIP_CELL)
+            j0, j1 = math.floor(tri[:, 1].min() / LIP_CELL), math.ceil(tri[:, 1].max() / LIP_CELL)
+            xs = (np.arange(i0, i1) + 0.5) * LIP_CELL
+            ys = (np.arange(j0, j1) + 0.5) * LIP_CELL
+            if not len(xs) or not len(ys):
+                continue
+            px, py = np.meshgrid(xs, ys, indexing="ij")
+            (ax, ay, az), (bx, by, _), (cx, cy, _) = tri
+            d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy)
+            if abs(d) < 1e-9:
+                continue
+            l1 = ((by - cy) * (px - cx) + (cx - bx) * (py - cy)) / d
+            l2 = ((cy - ay) * (px - cx) + (ax - cx) * (py - cy)) / d
+            inside = (l1 >= -1e-6) & (l2 >= -1e-6) & (1 - l1 - l2 >= -1e-6)
+            for ii, jj in zip(*np.nonzero(inside)):
+                x, y = xs[ii], ys[jj]
+                z = az + gx * (x - ax) + gy * (y - ay)
+                slot = cells.setdefault((i0 + int(ii), j0 + int(jj)), {})
+                if nid not in slot or z > slot[nid][0]:
+                    slot[nid] = (z, gx, gy)
+    top = {c: max(d.items(), key=lambda kv: kv[1][0]) for c, d in cells.items()}
+    bad: dict = {}
+    for c, d in cells.items():
+        (a, (za, ga, ha)) = top[c]
+        if len(d) >= 2:
+            # overlap: the second top comes out from under the top's edge in a neighbour cell
+            b, (zb, _, _) = max(((k, v) for k, v in d.items() if k != a), key=lambda kv: kv[1][0])
+            dz = za - zb
+            if LIP_MIN <= dz < LIP_MAX:
+                for di, dj in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nb = cells.get((c[0] + di, c[1] + dj))
+                    if nb and a not in nb and top[(c[0] + di, c[1] + dj)][0] == b:
+                        bad[c] = (dz, a, b, za)
+                        break
+        for di, dj in ((1, 0), (0, 1)):
+            # seam: the neighbour's top is another mesh that is not here (they meet, not overlap); compare both
+            # planes on the shared cell edge, so a slope is not a step
+            cn = (c[0] + di, c[1] + dj)
+            if cn not in top:
+                continue
+            b, (zb, gb, hb) = top[cn]
+            if b == a or b in d or a in cells[cn]:
+                continue
+            ex, ey = di * LIP_CELL / 2, dj * LIP_CELL / 2
+            dz = abs((za + ga * ex + ha * ey) - (zb - gb * ex - hb * ey))
+            if LIP_MIN <= dz < LIP_SEAM_MAX:
+                bad.setdefault(c, (dz, a, b, za))
+    pairs: dict = {}
+    for c, (dz, a, b, z) in bad.items():
+        pairs.setdefault(tuple(sorted((a, b))), []).append(c)
+    out = []
+    for group in pairs.values():
+        if len(group) < 2:
+            continue                          # one cell: a sliver, not a line across the ground
+        worst = max(group, key=lambda q: bad[q][0])
+        dz, a, b, z = bad[worst]
+        at = (round((worst[0] + .5) * LIP_CELL), round((worst[1] + .5) * LIP_CELL), round(float(z), 1))
+        out.append(checks.problem("warning", "visual_paved_lip", a,
+            f"meshes {a} and {b} meet with a {dz:.1f}-unit step near {at} ({len(group) * LIP_CELL:.0f} units of "
+            "joint): a dark line across the ground",
+            "Make the joint flush: the joining surface takes the other one's height along the joint, or where they "
+            "overlap it lies 1 unit under the other's top and blends back within a few metres (add_street and "
+            "add_junction do this themselves)."))
+    return out
+
+
 def _render_only_meshes(m):
-    """World meshes without collision (physicsType none), excluding helpers, decals and backdrops."""
-    scenery = scenery_ids(m)
+    """World meshes without collision (physicsType none), excluding helpers, decals, backdrops and what lies
+    outside the play area."""
+    scenery = scenery_ids(m) | outside_play_area_ids(m)
     out = []
 
     def visit(parent):
@@ -1540,6 +1664,7 @@ def _audit(project, m, box=None) -> list[dict]:
     problems.extend(_zfight_checks(m, visible))
     problems.extend(_flat_model_checks(props, visible))
     problems.extend(_phantom_checks(m, meshes))
+    problems.extend(_lip_checks(m, meshes))
     problems.extend(_wall_mount_checks(project, props, visible))
     problems.extend(_terrain_float_checks(m, props))
 

@@ -436,7 +436,7 @@ def add_pipes(project,m,op,refs):
     if not isinstance(points,list) or not 2<=len(points)<=33:raise OpError('points must contain 2..33 world positions')
     points=[vector(v,'points') for v in points]; radius=number(op.get('radius',4),'radius',.25,32)
     sides=int(number(op.get('sides',12),'sides',6,32))
-    if sides!=op.get('sides',12):raise OpError('sides must be an integer')
+    if sides!=op.get('sides',12):raise OpError('sides must be an integer 6..32')
     data=palette(op.get('theme','industrial'))
     material=structure._material_path(project,op.get('material') or data['materials']['metal'])
     fitting=op.get('fittings',False)

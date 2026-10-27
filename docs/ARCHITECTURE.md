@@ -29,7 +29,8 @@ src/cs2map/project.py       core operations: maps, batch editing, builds, assets
    ├─ jobs.py       background processes: log, timeout, cancel; jobexit.py writes the exit code,
    │                so a result survives a server restart
    ├─ lockrun.py    a command under a cross-process lock (VRAD3 light baking queue); retries with a larger
-   │                lightmap atlas on "Too many charts"
+   │                lightmap atlas on "Too many charts"; the nav guard (stops a build after NAVGEN over the limit)
+   ├─ navcost.py, navzone.py   bot nav: area estimate, bot-data time model, play area and NAVGEN markup (specs/nav.md)
    ├─ blender_run.py headless Blender for every pipeline: one profile, a JSON> protocol, background jobs
    ├─ game.py       CS2 Workshop Tools: launch, map_workshop, live player (a diagnostic point_script created at
    │                run time), camera, frames with staleness checks, the CS2 lock, fast start, idle map
@@ -70,8 +71,9 @@ src/cs2map/project.py       core operations: maps, batch editing, builds, assets
    ├─ ui.py         UI themes, add_hud, style overrides for every generated HUD
    ├─ abilities.py, hideseek.py   player abilities, hide and seek
    ├─ radar.py, preview.py   radar overview and loading screen/icon on full builds
-   ├─ release.py, chain.py   map_build(name, "release"): one map and the files it uses in its own addon
-   │                (compile all, final build, PUBLISH.md); game tools take map="<addon>/<map>" (Project.released)
+   ├─ release.py, releaserun.py, chain.py   map_build(name, "release"): one map and the files it uses in its own
+   │                addon (compile all, nav probe, final build without VIS/bots when they would take hours, PUBLISH.md
+   │                with the upload size); game tools take map="<addon>/<map>" (Project.released)
    └─ experimental/ not part of MCP (unsupported player-model draft)
 src/cs2map/ext/*.py         register(mcp, project): tools, map_edit operations, shapes, preprocessors
 docs/tools/*.md             guide sections (read_guide(section)); docs/TOOLS.md is the core

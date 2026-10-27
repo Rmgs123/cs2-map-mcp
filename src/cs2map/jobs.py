@@ -25,6 +25,8 @@ import psutil
 CREATE_NO_WINDOW = 0x08000000
 CREATE_BREAKAWAY_FROM_JOB = 0x01000000
 SRC_ROOT = Path(__file__).resolve().parents[1]
+# CS2MAP_OFFLINE=1 (tests while the game is in use, machines without CS2): these programs never start as jobs.
+OFFLINE_BLOCKED = {'resourcecompiler.exe', 'cs2.exe', 'vrad3.exe'}
 # kind -> fn(job, log_text) -> result dict; used when the watcher thread was lost
 RECOVERY: dict[str, Callable[['Job', str], dict]] = {}
 
@@ -63,6 +65,8 @@ class JobManager:
     def start(self, kind: str, title: str, argv: list[str], cwd: Path, timeout: float | None = None,
               on_finish: Callable[[Job, str], dict] | None = None, env: dict | None = None,
               meta: dict | None = None) -> Job:
+        if os.environ.get('CS2MAP_OFFLINE') and any(Path(str(a)).name.lower() in OFFLINE_BLOCKED for a in argv):
+            raise RuntimeError('CS2MAP_OFFLINE is set: no compiler or game process may start (offline tests)')
         stamp = _dt.datetime.now().strftime('%Y%m%d-%H%M%S')
         job_id = f'{kind}-{stamp}-{uuid.uuid4().hex[:6]}'
         log = self.log_dir / f'{job_id}.log'
