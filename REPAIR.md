@@ -27,7 +27,7 @@ What to do when something in CS2 Map MCP breaks: where to look, the usual causes
 | The build cannot replace the `.vpk` | the map is loaded in CS2 | the build unloads it first; if CS2 holds it anyway, load another map and rebuild |
 | `job_status` says `lost` | the server restarted during the job | run the build again |
 | "one console client at a time" | a VConsole2 window or another tool holds the CS2 console | the server closes VConsole2 itself; close other console tools |
-| CS2 "Not responding" for 30 s | the game hung (often during a load or a cubemap build) | ask the user to restart CS2 Workshop Tools; CS2 processes are never killed by the server |
+| CS2 "Not responding" for 30 s | the game hung (often during a load or a cubemap build) | ask the user to restart CS2 Workshop Tools; with `restart_hung_cs2` in `config/settings.json` the server restarts a hung Workshop Tools of its addon itself after 3 minutes (a game the user plays is never touched) |
 | CS2 crashes on a weapon or `SetModel` | a model not in the map's manifest, or a weapon model without the base's clips | use `add_weapon` (it adds the preload prop) and weapon models built with `model_build(weapon=...)`; read `game_crash_report` |
 | A script does nothing, the console says "Relative values are not supported" | `import "./x.js"` in a `cs_script` | no relative imports: use `// @requires` fragments or one file |
 | A trigger, button or story stage never fires | wrong targetname, spawnflags, or the script lost its hooks after a round restart | `script_test` with `expect` lines; runtimes re-subscribe on round start; see `docs/tools/scripting.md` |
