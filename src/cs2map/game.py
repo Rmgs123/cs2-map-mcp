@@ -322,6 +322,42 @@ def launch(s: Settings, map_name: str | None = None, width: int = 1600, height: 
 HANG_SECONDS = 30.0
 RESTART_HINT = ('CS2 does not respond: ask the user to restart CS2 Workshop Tools with addon {addon}. '
                 'Nothing was killed.')
+# The last hang ensure_alive gave up on: {'at', 'since' (time.monotonic()), 'pid', 'handled'}. A tool call that
+# met one may restart CS2 and retry (run_restartable); scenario tools that turn errors into results are covered too.
+_HANG: dict = {}
+
+
+def restart_blocker(s: Settings, cur: dict | None) -> str | None:
+    """Why a hung session must not be restarted automatically, or None when it may (settings restart_hung_cs2)."""
+    if not getattr(s, 'restart_hung_cs2', False):
+        return 'restart_hung_cs2 is off'
+    if not cur:
+        return 'CS2 is not running'
+    if cur.get('mode') != 'tools':
+        return 'this CS2 is not Workshop Tools'
+    if not cur.get('launched_by_tool'):
+        # A Workshop Tools session the user started: only with restart_hung_cs2_user, and only with this addon
+        # (the user's own work in another addon is never touched). A plain game (-tools absent) never is.
+        if not getattr(s, 'restart_hung_cs2_user', False):
+            return 'this CS2 was started by the user'
+        if cur.get('addon') != s.addon:
+            return 'this CS2 runs another addon'
+    return None
+
+
+def _hang_message(s: Settings, cur: dict, waited: float) -> str:
+    text = f'CS2 is not responding ({int(waited)} s). '
+    blocker = restart_blocker(s, cur)
+    if blocker is None:
+        return text + (f'The MCP restarts it once it has hung for {s.restart_hung_cs2_seconds} s '
+                       '(settings restart_hung_cs2) and retries the call once.')
+    text += RESTART_HINT.format(addon=s.addon)
+    if blocker == 'restart_hung_cs2 is off':
+        text += (' (The user can let the MCP restart a hung Workshop Tools: "restart_hung_cs2": true in '
+                 'config/settings.json, plus "restart_hung_cs2_user": true for one the user started.)')
+    elif blocker == 'this CS2 was started by the user':
+        text += ' ("restart_hung_cs2_user": true in config/settings.json would let the MCP restart it.)'
+    return text
 
 
 def not_running_message(s: Settings) -> str:
@@ -352,27 +388,192 @@ def hung(s: Settings) -> bool:
     if _HWNDS['pid'] != cur['pid'] or now - _HWNDS['at'] > 10 or not all(system.user32.IsWindow(h) for h in _HWNDS['list']):
         _HWNDS.update(pid=cur['pid'], at=now,
                       list=[w.hwnd for w in system.windows(('cs2.exe',)) if w.pid == cur['pid']])
-    return any(system.is_hung(h) for h in _HWNDS['list'])
+    if any(system.is_hung(h) for h in _HWNDS['list']):
+        return True
+    # One WM_NULL probe (all CS2 windows share the main thread): instant when healthy, 3 s when frozen.
+    return bool(_HWNDS['list']) and not system.responds(_HWNDS['list'][0])
 
 
 def ensure_alive(s: Settings, wait: float = HANG_SECONDS) -> dict:
     """A live, responding CS2 session or a clear error. A hung window gets `wait` seconds to recover
-    (map loads freeze it for a while); if it does not, the user must restart CS2: we never kill it."""
+    (map loads freeze it for a while). If it does not, the hang is recorded for run_restartable: a session the MCP
+    launched is restarted when settings allow it; any other CS2 is never killed (the user restarts it)."""
     cur = session(s)
     if cur is None:
         raise GameError(not_running_message(s))
     deadline = time.monotonic() + wait
+    since = None
     while hung(s):
-        if time.monotonic() >= deadline:
-            raise GameError(f'CS2 is not responding ({int(wait)} s). ' + RESTART_HINT.format(addon=s.addon))
+        now = time.monotonic()
+        since = since or now
+        if now >= deadline:
+            _HANG.clear()
+            _HANG.update(at=now, since=since, pid=cur['pid'])
+            raise GameError(_hang_message(s, cur, wait))
         time.sleep(1.0)
     return cur
+
+
+def _dirty_hammer(pid: int) -> str | None:
+    """Title of a Hammer window of this process with unsaved edits ('*'); reading another process's window title
+    never blocks on a hung window."""
+    for w in system.windows(('cs2.exe',)):
+        low = w.title.casefold()
+        if w.pid == pid and w.title.rstrip().endswith('*') and ('hammer' in low or '.vmap' in low):
+            return w.title
+    return None
+
+
+def recover(s: Settings, hang: dict) -> str | None:
+    """Restart the hung Workshop Tools session of `hang` when settings allow it: wait until it has hung for
+    restart_hung_cs2_seconds, kill it, launch it again with its addon and reload the map it had.
+
+    Returns a one-line note when the call should be retried; None when nothing may be done (the original error
+    stands: a CS2 the user started, the setting off, the process gone). Raises GameError when a restart was
+    allowed but refused or failed (unsaved Hammer edits, no console after the relaunch)."""
+    with exclusive('cs2-restart'):
+        cur = session(s)
+        if cur is None:
+            return None                 # exited by itself: game_crash_report tells why; nothing to restart
+        if cur['pid'] != hang.get('pid'):
+            return 'CS2 was restarted meanwhile; the call was retried once.'
+        if restart_blocker(s, cur):
+            return None
+        since = hang.get('since', time.monotonic())
+        while hung(s):
+            if time.monotonic() >= since + s.restart_hung_cs2_seconds:
+                break
+            time.sleep(2.0)
+        else:
+            return f'CS2 hung for {int(time.monotonic() - since)} s and recovered by itself; the call was retried once.'
+        dirty = _dirty_hammer(cur['pid'])
+        if dirty:
+            raise GameError(f'CS2 hung, but Hammer has unsaved edits ({dirty}): not restarted. '
+                            + RESTART_HINT.format(addon=cur.get('addon') or s.addon))
+        try:
+            loaded = json.loads(LOADED.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            loaded = {}
+        map_name = loaded.get('map') if loaded.get('pid') == cur['pid'] else None
+        waited = int(time.monotonic() - since)
+        try:
+            proc = psutil.Process(cur['pid'])
+            proc.kill()
+            proc.wait(timeout=30)
+        except psutil.NoSuchProcess:
+            pass                        # it exited on its own in the meantime
+        except psutil.TimeoutExpired:
+            raise GameError(f'CS2 hung for {waited} s; it was killed but has not exited after 30 s: ask the user '
+                            'to check it') from None
+        _SESSION_CACHE.clear()
+        _HWNDS.update(pid=None, at=0.0, list=[])
+        vconsole.release()
+        import dataclasses
+        own = dataclasses.replace(s, addon=cur.get('addon') or s.addon)     # the session's own addon, not a release one
+        try:
+            launch(own)
+        except CONSOLE_ERRORS as e:
+            raise GameError(f'CS2 hung for {waited} s and was killed (restart_hung_cs2), but the relaunch failed: '
+                            f'{e}. Call game_launch.') from None
+        note = f'CS2 hung for {waited} s: the MCP restarted it (restart_hung_cs2)'
+        if not console_ready(RESTART_CONSOLE_SECONDS):
+            raise GameError(f'{note}, but its console did not answer within {RESTART_CONSOLE_SECONDS} s: call '
+                            'game_launch, then retry')
+        if map_name:
+            note += _reload_after_restart(s, map_name)
+        if not console_ready(RESTART_CONSOLE_SECONDS):
+            raise GameError(f'{note}, but its console stopped answering after the map load: call game_launch, '
+                            'then retry')
+        return note + ' and retried the call once.'
+
+
+RESTART_CONSOLE_SECONDS = 120
+CONSOLE_ERRORS = (GameError, vconsole.VConsoleError, OSError)
+
+
+def console_ready(seconds: float) -> bool:
+    """The console answers a marker echo (a fresh CS2 reopens it during startup and its first map load)."""
+    deadline = time.monotonic() + seconds
+    while True:
+        token = 'mcp_ready_' + uuid.uuid4().hex[:10]
+        try:
+            ok, _ = vconsole.run_until([f'echo {token}'], token, timeout=5)
+            if ok:
+                return True
+        except (vconsole.VConsoleError, OSError):
+            vconsole.release()
+        if time.monotonic() >= deadline:
+            return False
+        time.sleep(2.0)
+
+
+def _reload_after_restart(s: Settings, map_name: str) -> str:
+    """Load the map the hung session had; a console that drops during the load is waited for and the load is
+    checked with status (then loaded_map.json is written), else loaded once more."""
+    last = None
+    for _ in range(2):
+        try:
+            load_map(s, map_name)
+            return f', reloaded {map_name}'
+        except CONSOLE_ERRORS as e:
+            last = e
+        if console_ready(RESTART_CONSOLE_SECONDS):
+            try:
+                if _status_has_map(status(s), map_name):
+                    _remember_loaded(s, map_name)
+                    return f', reloaded {map_name}'
+            except CONSOLE_ERRORS as e:
+                last = e
+    return f'; {map_name} did not reload ({str(last)[:120]})'
+
+
+def run_restartable(s: Settings, call):
+    """Run a tool call; if it met a CS2 hang (raised, or turned into a result by a scenario tool) and recover()
+    allows it, restart CS2 and run the call once more. The note goes into a dict result as "cs2_restart", or into
+    the error text."""
+    started = time.monotonic()
+    try:
+        result, error = call(), None
+    except Exception as e:      # noqa: BLE001 - re-raised below unless a restart retries the call
+        result, error = None, e
+    hang = dict(_HANG) if _HANG.get('at', -1.0) >= started and not _HANG.get('handled') else None
+    if hang is None:
+        if error is not None:
+            raise error
+        return result
+    _HANG['handled'] = True               # one retry per tool call, also when calls are nested
+    retry_started = time.monotonic()
+    try:
+        note = recover(s, hang)
+    except (GameError, vconsole.VConsoleError, OSError, psutil.Error) as refusal:
+        _HANG['handled'] = True
+        if error is not None:
+            raise GameError(f'{error} | {refusal}') from None
+        return {**result, 'cs2_restart': str(refusal)} if isinstance(result, dict) else result
+    if note is None:
+        if error is not None:
+            raise error
+        return result
+    try:
+        result = call()
+    except Exception as e:      # noqa: BLE001 - the restart note must reach the caller whatever the retry raised
+        kind = '' if isinstance(e, GameError) else f'{type(e).__name__}: '
+        raise GameError(f'{note} The retry failed (no second restart in this call): {kind}{e}') from None
+    finally:
+        if _HANG.get('at', -1.0) >= retry_started:
+            _HANG['handled'] = True       # hung again: no second restart in this call
+    return {**result, 'cs2_restart': note} if isinstance(result, dict) else result
 
 
 def command(s: Settings, cmd: str, wait: float = 1.5) -> list[str]:
     ensure_alive(s)
     lines = [c.strip() for c in cmd.splitlines() if c.strip()]
-    return vconsole.run(lines, wait)
+    answered, out = vconsole.run_ended(lines, wait)
+    if not answered:
+        # The console said nothing for 20 s: a frozen CS2 raises here (and the hang path starts); a map load that
+        # stalls the console only returns the partial output, as before (callers poll again).
+        ensure_alive(s, wait=0)
+    return out
 
 
 _LAST_QUERY: dict[str, float] = {}
@@ -407,6 +608,14 @@ def getpos(s: Settings) -> list[str]:
     return query(s, 'getpos', 'setpos', timeout=3.0, retries=1)
 
 
+def _remember_loaded(s: Settings, name: str) -> None:
+    cur = session(s)
+    vpk = s.map_vpk(name)
+    LOADED.parent.mkdir(parents=True, exist_ok=True)
+    LOADED.write_text(json.dumps({'pid': cur['pid'] if cur else None, 'map': name,
+                                  'vpk_mtime': vpk.stat().st_mtime if vpk.exists() else None}), encoding='utf-8')
+
+
 def load_map(s: Settings, name: str, timeout: float = 120) -> list[str]:
     """Load (or reload) a compiled addon map in the game view and wait until it is in game.
 
@@ -432,13 +641,11 @@ def load_map(s: Settings, name: str, timeout: float = 120) -> list[str]:
     else:
         raise GameError(f'CS2 entered the game UI but status did not confirm map {name!r}; '
                         f'last status: {" | ".join(status_lines[-5:])}')
+    # Recorded as soon as status confirms the map: a later step that fails must not leave the old pid/map behind.
+    _remember_loaded(s, name)
     if official:
         command(s, 'bot_kick\nbot_quota 0', wait=0.3)      # official modes add bots that shoot the camera
     fast_start(s)
-    vpk = s.map_vpk(name)
-    LOADED.parent.mkdir(parents=True, exist_ok=True)
-    LOADED.write_text(json.dumps({'pid': session(s)['pid'], 'map': name,
-                                  'vpk_mtime': vpk.stat().st_mtime if vpk.exists() else None}), encoding='utf-8')
     wait_for_player(s, timeout=max(5.0, timeout - (time.monotonic() - started)))
     return [ln for ln in out if 'error' in ln.lower() and 'annotation' not in ln.lower()][:20]
 

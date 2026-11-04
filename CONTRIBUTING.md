@@ -26,7 +26,7 @@ Say in the PR what you ran and attach a frame or a contact sheet. If you could n
 ## Rules
 
 - Write only to the project folder and the project's CS2 addon; never to other addons, CS2/Steam files, global configs, PATH or the registry.
-- Never kill CS2 or its processes; see [AGENTS.md](AGENTS.md) for the game safety rules.
+- Never kill CS2 or its processes (the only exception is the opt-in `restart_hung_cs2` path in `game.recover`); see [AGENTS.md](AGENTS.md) for the game safety rules.
 - Every JSON example in `docs/TOOLS.md` and `docs/tools/*.md` must pass `map_edit` dry run (`tests/test_doc_examples.py`).
 - Code, docs and commit messages in English; no personal data (paths, names, e-mails) in public files.
 - Valve's files (decompiled models, textures, maps) never go into the repository.

@@ -352,6 +352,11 @@ def run_until(commands: list[str], pattern: str | tuple[str, ...], timeout: floa
                     timeout, port=port)
 
 
+def run_ended(commands: list[str], wait: float = 1.5, port: int = PORT) -> tuple[bool, list[str]]:
+    """run() plus whether the console answered at all (the end marker came back within 20 s + wait)."""
+    return _session(commands, lambda lines, ended: ended, timeout=20 + wait, linger=max(0.0, wait), port=port)
+
+
 def run(commands: list[str], wait: float = 1.5, port: int = PORT) -> list[str]:
     """Send commands (in order) and return what they printed.
 

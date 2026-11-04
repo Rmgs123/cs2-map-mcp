@@ -44,4 +44,4 @@ Restart the AI client, then in a new chat: `status` (CS2, Workshop Tools, addon,
 - **Execution policy:** use the `-ExecutionPolicy Bypass -File` form (this run only).
 - **Steam updated Blender** past the tested range: the server picks another installed Blender or says which version is installed; `blender` in settings pins one.
 - **CS2 is running in normal mode** (playing): `game_launch` refuses; ask the user to close it or to start Workshop Tools.
-- **CS2 does not respond** for ~30 s: ask the user to restart CS2 Workshop Tools; never kill `cs2.exe`.
+- **CS2 does not respond** for ~30 s: ask the user to restart CS2 Workshop Tools; never kill a `cs2.exe` you did not launch. Opt-in: `"restart_hung_cs2": true` in `config/settings.json` (`setup.ps1 -Apply` asks once) lets the MCP restart a Workshop Tools session it launched itself after `restart_hung_cs2_seconds` (default 180) of "Not responding", reload the map and retry the call; `"restart_hung_cs2_user": true` also covers a Workshop Tools session of that addon you started yourself (handy when you start CS2 and leave). A plain game is never touched.

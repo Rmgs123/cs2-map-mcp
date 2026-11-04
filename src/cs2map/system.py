@@ -125,6 +125,24 @@ def is_hung(hwnd: int) -> bool:
     return bool(user32.IsWindow(hwnd)) and bool(user32.IsHungAppWindow(hwnd))
 
 
+_user32_probe = ctypes.WinDLL('user32', use_last_error=True)       # own argtypes, not shared with other callers
+_user32_probe.SendMessageTimeoutW.argtypes = [wt.HWND, wt.UINT, wt.WPARAM, wt.LPARAM, wt.UINT, wt.UINT,
+                                              ctypes.POINTER(ctypes.c_size_t)]
+_user32_probe.SendMessageTimeoutW.restype = ctypes.c_ssize_t
+WM_NULL, SMTO_ABORTIFHUNG = 0x0000, 0x0002
+
+
+def responds(hwnd: int, timeout_ms: int = 3000) -> bool:
+    """The window's thread answers a WM_NULL within `timeout_ms`. Catches what IsHungAppWindow misses: a frozen or
+    suspended thread with no pending input is not flagged "Not responding" (03.11, a suspended cs2.exe: 8 s and
+    IsHungAppWindow still False). Returns at once for a healthy window; a vanished window counts as answering."""
+    if not user32.IsWindow(hwnd):
+        return True
+    result = ctypes.c_size_t()
+    sent = _user32_probe.SendMessageTimeoutW(hwnd, WM_NULL, 0, 0, SMTO_ABORTIFHUNG, int(timeout_ms), ctypes.byref(result))
+    return bool(sent) or not user32.IsWindow(hwnd)
+
+
 class _MouseInput(ctypes.Structure):
     _fields_ = [('dx', wt.LONG), ('dy', wt.LONG), ('mouseData', wt.DWORD), ('dwFlags', wt.DWORD),
                 ('time', wt.DWORD), ('dwExtraInfo', ctypes.POINTER(wt.ULONG))]

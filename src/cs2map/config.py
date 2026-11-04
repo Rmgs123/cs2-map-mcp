@@ -26,6 +26,10 @@ class ConfigError(RuntimeError):
     pass
 
 
+RESTART_HUNG_DEFAULT = 180     # seconds a Workshop Tools window must stay "Not responding" before a restart
+RESTART_HUNG_MIN = 60          # map loads and light bakes freeze the window for up to ~1 min
+
+
 @dataclass(frozen=True)
 class Settings:
     cs2_path: Path
@@ -35,6 +39,9 @@ class Settings:
     limits: tuple = ()                 # disk limits (settings "limits"): (("screenshots_mb", 800), ...)
     backups_dir: str = ''              # settings "backups_dir" or CS2MAP_BACKUPS; '' = <project>/backups
     backup_sources: tuple = ()         # settings "backup_sources": more folders for the sources snapshots
+    restart_hung_cs2: bool = False     # settings "restart_hung_cs2": restart a hung Workshop Tools the MCP launched
+    restart_hung_cs2_seconds: int = RESTART_HUNG_DEFAULT   # how long it must hang first (>= RESTART_HUNG_MIN)
+    restart_hung_cs2_user: bool = False   # settings "restart_hung_cs2_user": also a Workshop Tools the user started
 
     # -- CS2 layout ----------------------------------------------------------
     @property
@@ -173,7 +180,7 @@ def find_cs2(steam: Path | None = None) -> Path | None:
 def load_settings(path: Path = SETTINGS_FILE) -> Settings:
     """config/settings.json if present; otherwise CS2 is found through Steam and addon is mcp_lab."""
     path = Path(path)
-    data = json.loads(path.read_text(encoding='utf-8')) if path.is_file() else {}
+    data = json.loads(path.read_text(encoding='utf-8-sig')) if path.is_file() else {}
     cs2 = os.environ.get('CS2MAP_CS2_PATH') or data.get('cs2_path') or find_cs2()
     if not cs2:
         raise ConfigError('CS2 with Workshop Tools not found: set cs2_path in config/settings.json '
@@ -189,12 +196,30 @@ def load_settings(path: Path = SETTINGS_FILE) -> Settings:
     sources = data.get('backup_sources') or []
     if not isinstance(sources, list) or not all(isinstance(x, str) for x in sources):
         raise ConfigError('settings "backup_sources" must be a list of folders, e.g. ["my_generators"]')
+    restart = data.get('restart_hung_cs2', False)
+    seconds = data.get('restart_hung_cs2_seconds', RESTART_HUNG_DEFAULT)
+    user = data.get('restart_hung_cs2_user', False)
+    if not isinstance(restart, bool) or not isinstance(user, bool):
+        raise ConfigError('settings "restart_hung_cs2" and "restart_hung_cs2_user" must be true or false')
+    if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or seconds < RESTART_HUNG_MIN:
+        raise ConfigError(f'settings "restart_hung_cs2_seconds" must be a number >= {RESTART_HUNG_MIN}')
     s = Settings(cs2_path=cs2, addon=addon, compile_threads=int(data.get('compile_threads', 0)),
                  blender=str(data.get('blender') or ''), limits=tuple(sorted(limits.items())),
                  backups_dir=str(os.environ.get('CS2MAP_BACKUPS') or data.get('backups_dir') or ''),
-                 backup_sources=tuple(sources))
+                 backup_sources=tuple(sources), restart_hung_cs2=restart, restart_hung_cs2_seconds=int(seconds),
+                 restart_hung_cs2_user=user)
     check_backups_dir(s)
     return s
+
+
+def update_settings(values: dict, path: Path = SETTINGS_FILE) -> dict:
+    """Set keys in config/settings.json, keeping the others (setup.ps1 asks the per-install questions with it)."""
+    path = Path(path)
+    data = json.loads(path.read_text(encoding='utf-8-sig')) if path.is_file() else {}
+    data.update(values)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    return data
 
 
 def check_backups_dir(s: Settings) -> None:

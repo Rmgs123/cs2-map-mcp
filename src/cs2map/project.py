@@ -157,7 +157,12 @@ class Project:
         from . import __version__
         out = {'version': __version__,
                'cs2': {'path': str(self.s.cs2_path), 'found': self.s.cs2_exe.exists(),
-                       'workshop_tools': self.s.resourcecompiler.exists(), 'running': running},
+                       'workshop_tools': self.s.resourcecompiler.exists(), 'running': running,
+                       'restart_hung': (f'after {self.s.restart_hung_cs2_seconds} s ('
+                                        + ('Workshop Tools of this addon, also user-started'
+                                           if getattr(self.s, 'restart_hung_cs2_user', False)
+                                           else 'only a CS2 the MCP launched') + ')'
+                                        if getattr(self.s, 'restart_hung_cs2', False) else 'off')},
                'addon': {**st, 'maps': len(maps), 'newest': newest},
                'blender': {'path': str(blender), 'found': blender.exists(),
                            'version': '.'.join(map(str, version)) if version else None,
@@ -187,7 +192,12 @@ class Project:
             except Exception:                      # a window listing failure must not break the status
                 pass
             if out['cs2'].get('responding') is False:
-                out['hint'] = 'CS2 is not responding: ask the user to restart CS2 Workshop Tools (never kill it)'
+                cur = game.session(self.s)
+                if game.restart_blocker(self.s, cur) is None:
+                    out['hint'] = (f'CS2 is not responding: the next game call restarts it once it has hung for '
+                                   f'{self.s.restart_hung_cs2_seconds} s (restart_hung_cs2)')
+                else:
+                    out['hint'] = 'CS2 is not responding: ask the user to restart CS2 Workshop Tools (never kill it)'
         if not any(p['mode'] == 'tools' for p in running):
             out['hint'] = ('start CS2 Workshop Tools with addon ' + self.s.addon + ' (Steam: CS2 -> Workshop Tools) '
                            'or call game_launch; game tools need it')

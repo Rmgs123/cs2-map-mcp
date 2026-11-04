@@ -189,12 +189,12 @@ Light builds are queued (one VRAD3 folder per addon); a map loaded in CS2 is unl
 
 ## Testing in game
 
-- One CS2 Workshop Tools session (addon from settings) serves everything through its console port; **one console client at a time** (the error names a holder). CS2 is never killed: a window "Not responding" for 30 s → ask the user to restart Workshop Tools; a crash → `game_crash_report`.
+- One CS2 Workshop Tools session (addon from settings) serves everything through its console port; **one console client at a time** (the error names a holder). A window "Not responding" 30 s → ask the user to restart Workshop Tools, unless settings `restart_hung_cs2` let the MCP do it (`cs2_restart` in the result); a crash → `game_crash_report`.
 - `game_screenshot(map, views=[{"name","pos":[x,y,z],"ang":[pitch,yaw,0]}])`: loads the map if needed, moves a noclip camera (pos = feet, eye +64), checks it and returns PNG paths. Per view: `cmd` (console in place, e.g. `"ent_fire door1 Open"`), `wait`, `grep` (console lines, e.g. `"vsnd"` with `snd_showstart 1`), `keep:true` (no noclip: the view as the player or a script camera sees it). `"preview":true` on a view also makes that frame the map's loading-screen picture (and an icon). `views="auto"`: overviews, spawns, objectives, rooms (`offset`/`limit` page them); `views="rooms"`: one per layout room. ~3 s per view.
 - `script_test(map, steps)`: real input and checks — steps in section `scripting` (`use`, `hold`, `aim`, `mouse`, `expect`, `shot`, ...). Call `game_reset(map)` before and after: it leaves vehicles, turrets and drones, turns noclip off, restores HUD, accuracy and recoil, kicks bots, releases keys and restarts the round.
-- Rounds start live (`mp_freezetime 0`, no intro). After a map load the mode's bots may join and the game restarts the round once; the tools wait for the respawn.
+- Rounds start live (`mp_freezetime 0`, no intro); after a map load the tools wait out the bots' round restart.
 - `game_command("...", wait)` returns what the commands and the next `wait` seconds printed (script `Instance.Msg`, events). Aimed input (`setang` + `+attack`) needs `focus=true`. Avoid `maps *`.
-- `game_launch(map)` reuses the running Workshop Tools session or starts one (30–90 s), never the user's own game; `open_in_hammer=<map>` shows a map in Hammer (map_edit refuses to write it until it is closed there).
+- `game_launch(map)` reuses the running session or starts one (30–90 s), never the user's own game; `open_in_hammer=<map>` shows a map in Hammer (map_edit refuses to write it until it is closed there).
 
 ## Safety
 

@@ -34,7 +34,7 @@ A feature is done only when the result is checked end to end: MCP call → files
 
 - Every `.vmap` write keeps a compressed copy with a sources snapshot in the backups folder (`backups.py` does it). Keep what builds a map (generators, batches, plans) in `my/maps/<map>/`, where the snapshots see it, never in temp folders. A map open in Hammer with unsaved changes (an asterisk in the title) is refused.
 - Never close or restart CS2 while the user plays (`cs2.exe` without `-tools`); ask first.
-- The CS2 console accepts one client. A VConsole2 window takes it silently: the code closes it with `WM_CLOSE`. Never kill CS2 or its child processes. If CS2 does not respond for ~30 s, ask the user to restart it at once.
+- The CS2 console accepts one client. A VConsole2 window takes it silently: the code closes it with `WM_CLOSE`. Never kill CS2 or its child processes yourself. A hung Workshop Tools session is restarted by the code only when the user enabled it in `config/settings.json` (`restart_hung_cs2`: one the MCP launched; plus `restart_hung_cs2_user`: one the user started); otherwise, if CS2 does not respond for ~30 s, ask the user to restart it at once.
 
 ## Docs
 

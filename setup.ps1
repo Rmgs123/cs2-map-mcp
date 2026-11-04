@@ -84,6 +84,23 @@ if ($cs2) {
         } else { Say '  would write config\settings.json' 'Yellow' }
     }
 } else { Say '  CS2 with Workshop Tools not found: install CS2 and "CS2 Workshop Tools" (Steam -> Library -> Tools), or set cs2_path in config\settings.json' 'Red' }
+# Asked once per install (the answer is kept in settings.json; change it there any time).
+$restart = & $Py -c "import json,pathlib; p=pathlib.Path(r'$settings'); d=json.loads(p.read_text(encoding='utf-8-sig')) if p.is_file() else {}; print('' if 'restart_hung_cs2' not in d else ('off' if not d['restart_hung_cs2'] else 'on, also user-started' if d.get('restart_hung_cs2_user') else 'on'))" 2>$null
+if ($restart) { Say "  restart of a hung CS2 the MCP launched: $restart (restart_hung_cs2 in config\settings.json)" 'Green' }
+elseif ($Apply -and (Test-Path $settings)) {
+    Say '  When CS2 Workshop Tools started by the MCP (game_launch) stays "Not responding" for 3 min, the MCP can'
+    Say '  kill it, start it again with your addon, reload the map and retry the call. A CS2 you started is never touched.'
+    $on = Ask '  Allow this (recommended for long unattended sessions)?'
+    $flag = if ($on) { 'True' } else { 'False' }
+    $userFlag = 'False'
+    if ($on) {
+        Say '  Also a Workshop Tools session YOU started (Steam -> CS2 Workshop Tools, addon from settings)? Useful when'
+        Say '  you start CS2 yourself and leave; refused while Hammer has unsaved edits; a normal game is never touched.'
+        if (Ask '  Allow restarting a hung Workshop Tools you started?') { $userFlag = 'True' }
+    }
+    & $Py -c "from cs2map.config import update_settings, RESTART_HUNG_DEFAULT; update_settings({'restart_hung_cs2': $flag, 'restart_hung_cs2_seconds': RESTART_HUNG_DEFAULT, 'restart_hung_cs2_user': $userFlag})"
+    Say "  restart_hung_cs2 = $($flag.ToLower()), restart_hung_cs2_user = $($userFlag.ToLower()) in config\settings.json" 'Green'
+} else { Say '  would ask whether the MCP may restart a hung CS2 it launched (restart_hung_cs2)' 'Yellow' }
 
 # 3. Blender ----------------------------------------------------------------------------------------------------
 Say '3. Blender'

@@ -53,8 +53,26 @@ def compact_schema(schema):
     return out
 
 
+class _Restartable:
+    """RAW behind the tools: a call that meets a hung CS2 Workshop Tools session may restart it and run once more
+    (game.run_restartable; only with settings restart_hung_cs2, a user-started one also with restart_hung_cs2_user)."""
+
+    def __init__(self, raw: dict, project):
+        self._raw, self._project = raw, project
+
+    def __getitem__(self, name):
+        fn = self._raw[name]
+
+        @functools.wraps(fn)
+        def call(*args, **kwargs):
+            from . import game
+            s = getattr(self._project, 's', None)
+            return game.run_restartable(s, lambda: fn(*args, **kwargs)) if s is not None else fn(*args, **kwargs)
+        return call
+
+
 def register(mcp, project) -> list[str]:
-    R = RAW
+    R = _Restartable(RAW, project)
 
     def on_release(fn):
         """map="<addon>/<map>": the call works on that release addon (map_build(..., "release")) for its duration."""

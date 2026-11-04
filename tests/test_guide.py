@@ -17,7 +17,8 @@ class Guide(unittest.TestCase):
     def test_every_section_has_task_table_by_hand_and_size_limit(self):
         """Each section tells what to take for which task, how to do it by hand, and stays small (10.16)."""
         root = Path(server.__file__).resolve().parents[2] / 'docs'
-        self.assertLessEqual(len((root / 'TOOLS.md').read_bytes()), 20480)
+        # The limit is on the text as stored (LF); a checkout with core.autocrlf has CRLF.
+        self.assertLessEqual(len((root / 'TOOLS.md').read_bytes().replace(b'\r\n', b'\n')), 20480)
         for path in sorted((root / 'tools').glob('*.md')):
             text = path.read_text(encoding='utf-8')
             with self.subTest(section=path.stem):

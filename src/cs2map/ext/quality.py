@@ -19,7 +19,10 @@ def run_lighting_build(project, name: str, preset: str = 'full', cubemaps: bool 
         result['note'] = 'the map was loaded in CS2; the game was switched to the idle map so it could be rebuilt'
     if result['state'] != 'succeeded' or not result['result'].get('ok'):
         return {'map':name,'build':result,'cubemaps':None,'ok':False}
-    cube = compiler.build_cubemaps(project.s,name, min(600,timeout)) if cubemaps else None
+    # A hang while baking restarts CS2 (when settings allow) and retries only the bake, not the whole build.
+    cube = None
+    if cubemaps:
+        cube = game.run_restartable(project.s, lambda: compiler.build_cubemaps(project.s, name, min(600, timeout)))
     return {'map':name,'build':result,'cubemaps':cube,'ok':bool(result['result'].get('ok') and (cube is None or cube.get('ok')))}
 
 
