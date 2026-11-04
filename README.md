@@ -1,6 +1,6 @@
 # CS2 Map MCP — AI that builds Counter-Strike 2 maps
 
-[![Version](https://img.shields.io/badge/version-1.2.0-2ea44f)](https://github.com/Rmgs123/cs2-map-mcp/releases)
+[![Version](https://img.shields.io/badge/version-1.3.0-2ea44f)](https://github.com/Rmgs123/cs2-map-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d6)
 ![Python 3.14](https://img.shields.io/badge/python-3.14-3776ab)
@@ -148,7 +148,7 @@ After changes, ask your AI for the release again, then select the map in the Wor
 ## When something goes wrong
 
 - **Ask your AI first.** It can run `status` (CS2, Workshop Tools, Blender, jobs), `job_status` (build logs), `check_map`, `visual_check` and `game_crash_report` (reads CS2's crash dump).
-- **CS2 does not respond** (the window says "Not responding" for about 30 s): close it yourself and start CS2 Workshop Tools again. The server never kills the game.
+- **CS2 does not respond** (the window says "Not responding" for about 30 s): close it yourself and start CS2 Workshop Tools again. If you allowed it (`setup.ps1` asks; `restart_hung_cs2` in `config/settings.json`), the server restarts a hung Workshop Tools of its addon after 3 minutes, reloads the map and goes on; a game you play is never touched.
 - **"one console client at a time":** a VConsole window holds the game console; the server closes it, or close it yourself.
 - **A map is refused:** it is open in Hammer with unsaved changes — save or close it.
 - More causes and fixes: [REPAIR.md](REPAIR.md). After a CS2 update, `tools\python-env\Scripts\python.exe tools\selfcheck.py` builds a small map with every mechanic and plays it (report in `logs/`).
@@ -156,6 +156,8 @@ After changes, ask your AI for the release again, then select the map in the Wor
 ## Feedback
 
 Your AI keeps a short log of real problems it met with this MCP — a tool error it did not cause, a guide that was wrong, a feature it had to build by hand — in **`my/feedback.md`** (it stays on your computer). Send that file to the author or paste it into an [issue](../../issues/new/choose): it is exactly what the next version is built from. Ideas for new features are welcome too.
+
+**Show the AI what you mean.** While you walk your map in CS2 Workshop Tools, press **F8** at every spot worth a fix, then **Y**, type a note and press Enter (several lines are fine). The AI reads each mark — your frame, the map, the exact position and view, the note — with `game_screenshot(views="marks")`.
 
 ## What it can do
 
@@ -170,9 +172,9 @@ Your AI keeps a short log of real problems it met with this MCP — a tool error
 - **Gameplay.** Any entity from the game's FGD with correct defaults, triggers and I/O; doors, buttons, elevators, ladders, breakables, physics props; `cs_script` scripts and stories from JSON.
 - **Mechanics through code.** A physics drone, a drivable car, turrets, shooting galleries, races and collect games, animated characters, weapons on any stock base with **your own model in the hands** and a scripted shot (charge, wall penetration, beams, homing rockets, bursts); **17 player abilities** (double jump, dash, blink, jetpack, flight, invisibility, wallhack, shield, jump pads...); **hide and seek** with prop disguises. Your own mechanics reuse the tested pieces (E to control, cameras, HUD, HP, the shot engine).
 - **Custom UI.** Six HUD themes and per-HUD overrides for every mechanic, own layouts with images and clickable buttons.
-- **Testing in the game.** Background compiles with parsed errors; camera screenshots; `script_test` with real input (E, held keys, aiming, mouse, clicks); walking routes; competitive timings; 5v5 bot matches; `check_map` and `visual_check` (floating props, props in walls, z-fighting, phantom floors, key conflicts).
+- **Testing in the game.** Background compiles with parsed errors; camera screenshots; `script_test` with real input (E, held keys, aiming, mouse, clicks); walking routes; competitive timings; 5v5 bot matches; `check_map` and `visual_check` (floating props, props in walls, wall units off their walls, z-fighting, phantom floors, paving standing over the ground, invisible walls, key conflicts); player marks (F8) for testers.
 - **Workshop releases.** One map in its own clean addon with final light, radar and loading picture, plus upload steps.
-- **Safety.** Writes only to its own addons and the project folder; never touches a map with unsaved changes in Hammer; never kills the game.
+- **Safety.** Writes only to its own addons and the project folder; never touches a map with unsaved changes in Hammer; never kills a game you play (a hung Workshop Tools only when you allowed it).
 
 The guide the AI reads before working is [docs/TOOLS.md](docs/TOOLS.md); feature areas live in [docs/tools/](docs/tools/) and are read only when needed, which saves context. Every section says what to take for which task and how to do it by hand when no tool fits.
 
