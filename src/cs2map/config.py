@@ -42,6 +42,7 @@ class Settings:
     restart_hung_cs2: bool = False     # settings "restart_hung_cs2": restart a hung Workshop Tools the MCP launched
     restart_hung_cs2_seconds: int = RESTART_HUNG_DEFAULT   # how long it must hang first (>= RESTART_HUNG_MIN)
     restart_hung_cs2_user: bool = False   # settings "restart_hung_cs2_user": also a Workshop Tools the user started
+    marks_key: str = 'F8'              # settings "marks_key": the CS2 key of player marks (marks.py); '' = off
 
     # -- CS2 layout ----------------------------------------------------------
     @property
@@ -203,11 +204,14 @@ def load_settings(path: Path = SETTINGS_FILE) -> Settings:
         raise ConfigError('settings "restart_hung_cs2" and "restart_hung_cs2_user" must be true or false')
     if isinstance(seconds, bool) or not isinstance(seconds, (int, float)) or seconds < RESTART_HUNG_MIN:
         raise ConfigError(f'settings "restart_hung_cs2_seconds" must be a number >= {RESTART_HUNG_MIN}')
+    marks_key = data.get('marks_key', 'F8')
+    if not isinstance(marks_key, str) or not re.fullmatch(r'[A-Za-z0-9_]{0,16}', marks_key):
+        raise ConfigError('settings "marks_key" must be a CS2 key name such as "F8" (or "" to turn marks off)')
     s = Settings(cs2_path=cs2, addon=addon, compile_threads=int(data.get('compile_threads', 0)),
                  blender=str(data.get('blender') or ''), limits=tuple(sorted(limits.items())),
                  backups_dir=str(os.environ.get('CS2MAP_BACKUPS') or data.get('backups_dir') or ''),
                  backup_sources=tuple(sources), restart_hung_cs2=restart, restart_hung_cs2_seconds=int(seconds),
-                 restart_hung_cs2_user=user)
+                 restart_hung_cs2_user=user, marks_key=marks_key)
     check_backups_dir(s)
     return s
 

@@ -39,13 +39,13 @@ Everything a model needs to build a CS2 map with this MCP server (resource `cs2m
 
 ## Your local layer `my/`
 
-`my/` belongs to the user of this installation (never in git, never replaced by updates): how you get better from chat to chat.
+`my/` belongs to this installation's user (never in git or replaced by updates): how you improve from chat to chat.
 
 - **Before work:** the index at the end of this guide lists your notes, recipes and styles; read the ones that touch the task (`read_guide(section="my")` prints every note).
 - **After a finding** (a fix that worked, a rule, a pitfall, the user's taste, a batch worth replaying): `my_notes(action="write", kind="note"|"recipe", name, text, data)`. One topic per note, short lines, the *why* included. Update a note instead of adding a near-duplicate.
 - **Own looks** (anything that is not Inferno): save materials, tints, models, sizes, light and rules as a style (`kind="style"`, section `styles`) and use it with `"style":"my:<name>"` or `"$<name>.materials.wall"` in any operation.
 - **The user's files** (photos, models, sounds) are in `my/inbox/`: `asset_search(kind="mine")`.
-- **Problems with this MCP** (a tool error you did not cause, a wrong guide, a missing feature you built by hand): one entry `my_notes(action="write", kind="feedback", name=<tool>, text)` → `my/feedback.md`; the user sends it to the author.
+- **Problems with this MCP** (a tool error not yours, a wrong guide, a feature you built by hand): one entry `my_notes(action="write", kind="feedback", name=<tool>, text)` → `my/feedback.md`; the user sends it to the author.
 - Write to `my/` only through `my_notes`; never edit the shipped guides or code.
 
 ## How it works
@@ -92,8 +92,8 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 - **Inferno-like streets** (`p7_quartiere`): `add_layout`/`add_comp_plan` (with `levels`) → `add_paving` → `add_facade` on every visible wall side → `add_wear` → `dress_street` → `lighting_preset "inferno"` → `add_backdrop style:"italy"` → `visual_check`, `check_map`, `map_build full` → frames next to `game_screenshot(map="de_inferno")`; name three differences and fix them.
 - **Competitive** (`c_defuse`, `f3_port`): `add_comp_plan` → cover, `dress_room`, light → outdoor (`add_water_body`, `add_backdrop`, sky) → `playtest(kind="timings", live=true)` (CT reaches sites 3–8 s earlier) and `playtest(kind="competitive")`.
 - **Story** (`mcp_story`, `f2_port`): `add_layout` → interactive parts (`physics`) → atmosphere (`light`, `fx`, `sound`) → `dress_room`, signs → **one** `add_story` last → `script_test(steps="auto")` and `route_test(map)` (a real walk through every stage).
-- **Mechanics** (`p8_mechanics`, `p9_playground`): operations with sane defaults; each section has a tested example, `script_test` steps and "By hand" recipes.
-- **Anything else**: primitives (`geometry`), any entity + `connect`, any logic (`scripting`), own models, materials and sounds. A missing primitive: describe the workaround in `my_notes` feedback.
+- **Mechanics** (`p8_mechanics`, `p9_playground`): every section: a tested example, `script_test` steps, "By hand" recipes.
+- **Anything else**: primitives (`geometry`), any entity + `connect`, any logic (`scripting`), own models, materials and sounds. A missing primitive: `my_notes` feedback with the workaround.
 
 ## Units, axes, facing
 
@@ -128,7 +128,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 | `add_sound`, `add_soundscape`, `add_ambience` | `sound` |
 | `add_sign`, `add_world_text`, `add_decal` | `materials` |
 | `add_door`, `add_button`, `add_mover`, `add_rotator`, `add_physics_prop`, `add_breakable`, `add_zone`, `add_ladder` | `physics` |
-| `add_button_visual`, `add_control_button`, `add_cloth_awning` | a visible button body, a control panel button, a cloth awning (`visual`) |
+| `add_button_visual`, `add_control_button`, `add_cloth_awning` | `visual` |
 | `add_mode`, `add_arena`, `add_surf_ramp`, `add_bhop_platforms`, `add_movement_course` | game modes and movement maps (`modes`) |
 | `set_map_type` | `type` (table above) |
 | `add_layout`, `add_lift` | `layout` |
@@ -165,7 +165,7 @@ Shapes are checked before anything is written; solids are watertight; textures a
 
 ## Materials
 
-- Find: `asset_search(query, kind="material")` (`"concrete floor"`, `"plaster wall"`); use paths exactly as listed.
+- Find: `asset_search(query, kind="material")`; use paths exactly as listed.
 - Blockout: `materials/dev/dev_measuregeneric01.vmat`, `materials/dev/reflectivity_30.vmat`…`_90`. Tools: `materials/tools/toolsnodraw.vmat` (invisible solid), `toolsclip`, `toolsplayerclip`, `toolsblockbullets`, `toolstrigger`, `toolsskybox`, `toolslightmapres` (one box over the play area, or baked light is coarse).
 - Own: `material_create(name, pattern={...})` or `image=`; kinds glass, emissive, water, decal (section `materials`).
 
@@ -185,13 +185,14 @@ Shapes are checked before anything is written; solids are watertight; textures a
 - `release`: the map alone in its own addon for the Steam Workshop (section `publish`).
 - Bots cost: bot data grows with the square of the nav areas (66 000: hours). `map_build` answers with a `nav` estimate; over the limit it skips bots or stops after NAVGEN. Big maps: bots last.
 
-Light builds are queued (one VRAD3 folder per addon); a map loaded in CS2 is unloaded first. `job_status`: `state` running/succeeded/failed/timeout/cancelled/lost; `result.ok` only with exit 0, a new `.vpk` and no failures; `lost` = rebuild.
+Light builds are queued; a map loaded in CS2 is unloaded first. `job_status`: `state` running/succeeded/failed/timeout/cancelled/lost; `result.ok` only with exit 0, a new `.vpk` and no failures; `lost` = rebuild.
 
 ## Testing in game
 
 - One CS2 Workshop Tools session (addon from settings) serves everything through its console port; **one console client at a time** (the error names a holder). A window "Not responding" 30 s → ask the user to restart Workshop Tools, unless settings `restart_hung_cs2` let the MCP do it (`cs2_restart` in the result); a crash → `game_crash_report`.
 - `game_screenshot(map, views=[{"name","pos":[x,y,z],"ang":[pitch,yaw,0]}])`: loads the map if needed, moves a noclip camera (pos = feet, eye +64), checks it and returns PNG paths. Per view: `cmd` (console in place, e.g. `"ent_fire door1 Open"`), `wait`, `grep` (console lines, e.g. `"vsnd"` with `snd_showstart 1`), `keep:true` (no noclip: the view as the player or a script camera sees it). `"preview":true` on a view also makes that frame the map's loading-screen picture (and an icon). `views="auto"`: overviews, spawns, objectives, rooms (`offset`/`limit` page them); `views="rooms"`: one per layout room. ~3 s per view.
 - `script_test(map, steps)`: real input and checks — steps in section `scripting` (`use`, `hold`, `aim`, `mouse`, `expect`, `shot`, ...). Call `game_reset(map)` before and after: it leaves vehicles, turrets and drones, turns noclip off, restores HUD, accuracy and recoil, kicks bots, releases keys and restarts the round.
+- **Testers' marks:** offer testers: "press F8 at each problem, then Y + text + Enter (several lines are fine)"; before fixing read `game_screenshot(views="marks")`: frame, `pos`/`ang`, note (`quality`).
 - Rounds start live (`mp_freezetime 0`, no intro); after a map load the tools wait out the bots' round restart.
 - `game_command("...", wait)` returns what the commands and the next `wait` seconds printed (script `Instance.Msg`, events). Aimed input (`setang` + `+attack`) needs `focus=true`. Avoid `maps *`.
 - `game_launch(map)` reuses the running session or starts one (30–90 s), never the user's own game; `open_in_hammer=<map>` shows a map in Hammer (map_edit refuses to write it until it is closed there).

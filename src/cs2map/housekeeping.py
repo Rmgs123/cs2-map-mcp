@@ -22,8 +22,9 @@ DEFAULTS = {'screenshots_mb': 800, 'logs_mb': 200, 'logs_files': 3000, 'backups_
             'tmp_hours': 24}
 STAMP = PROJECT_ROOT / '.local' / 'housekeeping.json'
 REFERENCE_SOURCES = ('README.md', 'STATUS.md', 'CHANGELOG.md', 'docs', 'reports', 'src/cs2map/data')
-# Curated images that data files point to (kit thumbnails verified in the game): never trimmed.
-KEEP_DIRS = ('kits',)
+# Curated images that data files point to (kit thumbnails verified in the game): never trimmed. Player marks
+# (screenshots/marks/) have their own age, size and count limits in marks.prune, which keeps marks.json consistent.
+KEEP_DIRS = ('kits', 'marks')
 _NAME = re.compile(r'[\w.\-]+\.(?:png|jpe?g|json|log|txt)', re.I)
 
 
@@ -100,6 +101,16 @@ def _tmp(root: Path, hours: float, dry_run: bool) -> dict:
     return {'removed': removed}
 
 
+def _marks(s: Settings, dry_run: bool) -> dict:
+    if dry_run:
+        return {'skipped': 'dry run'}
+    try:
+        from . import marks
+        return marks.prune(s)
+    except Exception as e:                  # a marks problem must not stop the other limits
+        return {'error': str(e)}
+
+
 def cleanup(s: Settings, dry_run: bool = False) -> dict:
     """Apply the limits now. Returns what stayed and what was (or would be) removed per folder."""
     lim = limits(s)
@@ -113,6 +124,7 @@ def cleanup(s: Settings, dry_run: bool = False) -> dict:
                                    for f in _files(d)] if s.backups.is_dir() else [],
                                   lim['backups_other_mb'] * 2**20, set(), dry_run),
            'tmp': _tmp(PROJECT_ROOT / '.local' / 'tmp', lim['tmp_hours'], dry_run),
+           'marks': _marks(s, dry_run),
            'limits': lim, 'dry_run': dry_run, 'time': time.strftime('%Y-%m-%d %H:%M:%S')}
     if not dry_run:
         STAMP.parent.mkdir(parents=True, exist_ok=True)

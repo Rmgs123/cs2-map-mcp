@@ -46,12 +46,24 @@ def _prints(data: bytes) -> list[str]:
     return reader.feed(data)
 
 
-class _Reader:
-    """Incremental PRNT parser: each byte is scanned once, partial packets wait for more data."""
+def _stamp(payload: bytes) -> int:
+    """Milliseconds since the game started at which CS2 printed the line (the 5th header word, verified 03.11)."""
+    return struct.unpack('>I', payload[16:20])[0] if len(payload) >= 20 else 0
 
-    def __init__(self):
+
+# Callables tap(conn, [(ms, line), ...]) that see every printed line of every connection, the backlog CS2
+# replays on connect included (marks.py reads player marks from it). They run on the reader thread: keep them fast.
+TAPS: list = []
+
+
+class _Reader:
+    """Incremental PRNT parser: each byte is scanned once, partial packets wait for more data.
+    With `stamped` set, (ms, line) pairs are also collected there for TAPS."""
+
+    def __init__(self, stamped: list | None = None):
         self.buf = b''
         self.pos = 0
+        self.stamped = stamped
 
     def feed(self, chunk: bytes) -> list[str]:
         self.buf += chunk
@@ -71,7 +83,12 @@ class _Reader:
             if i + length > len(self.buf):
                 self.pos = i
                 break
-            out.extend(_text(self.buf[i + 12:i + length]))
+            payload = self.buf[i + 12:i + length]
+            text = _text(payload)
+            out.extend(text)
+            if self.stamped is not None and text:
+                ms = _stamp(payload)
+                self.stamped.extend((ms, ln) for ln in text)
             self.pos = i + length
         if self.pos > (1 << 20):
             self.buf, self.pos = self.buf[self.pos:], 0
@@ -167,7 +184,8 @@ class _Connection:
         self.thread.start()
 
     def _read(self) -> None:
-        reader = _Reader()
+        stamped: list = []
+        reader = _Reader(stamped)
         try:
             while self.alive:
                 try:
@@ -179,6 +197,13 @@ class _Connection:
                 if not chunk:
                     break
                 lines = reader.feed(chunk)
+                if stamped:
+                    batch, stamped[:] = list(stamped), []
+                    for tap in list(TAPS):
+                        try:
+                            tap(self, batch)
+                        except Exception:          # a tap must never break the console
+                            pass
                 if lines and self.listeners:
                     with self.cv:
                         for listener in self.listeners:

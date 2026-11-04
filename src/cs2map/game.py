@@ -484,6 +484,14 @@ def recover(s: Settings, hang: dict) -> str | None:
         if not console_ready(RESTART_CONSOLE_SECONDS):
             raise GameError(f'{note}, but its console stopped answering after the map load: call game_launch, '
                             'then retry')
+        # CS2 saves binds only on a clean exit: the killed session may not have kept the player-marks key.
+        try:
+            from . import marks
+            key = marks.install(own)
+            if key not in (own.marks_key, 'off'):
+                note += f' (marks key: {key})'
+        except Exception as e:                      # never fail the recovery over the key
+            note += f' (marks key not bound: {str(e)[:80]})'
         return note + ' and retried the call once.'
 
 

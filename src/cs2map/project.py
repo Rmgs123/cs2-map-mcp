@@ -186,6 +186,10 @@ class Project:
             pass
         if mylayer.feedback_count():
             out['feedback'] = f'{mylayer.feedback_count()} entries in my/feedback.md (problems for the MCP author)'
+        from . import marks
+        waiting = marks.summary(self.s)
+        if waiting:
+            out['marks'] = waiting
         if running:
             try:
                 out['cs2']['responding'] = not game.hung(self.s)
@@ -904,6 +908,12 @@ class Project:
             name = IDLE_MAP
         with game.exclusive():
             out = game.launch(self.s, name, width, height, hammer_map=open_in_hammer)
+            if 'console' in out or out.get('state') in ('started', 'already running'):
+                from . import marks
+                try:
+                    out['marks_key'] = marks.install(self.s)     # the tester's key for player marks
+                except Exception as e:                           # never fail a launch over the key
+                    out['marks_key'] = f'not bound: {e}'
         if note:
             out['warning'] = note
         return out

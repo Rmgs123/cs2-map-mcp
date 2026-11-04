@@ -46,6 +46,7 @@ class Fixture(unittest.TestCase):
         self.launch = MagicMock(side_effect=self._launch)
         self.load_map = MagicMock(return_value=[])
         self.calls = 0
+        self.install = MagicMock(return_value='F8')
         patches = [patch.object(game, 'time', self.clock.module()),
                    patch.object(game, 'session', side_effect=lambda s: self.session),
                    patch.object(game, 'hung', side_effect=lambda s: self.clock.now < self.hung_until),
@@ -56,7 +57,8 @@ class Fixture(unittest.TestCase):
                    patch.object(game.vconsole, 'release'),
                    patch.object(game, 'console_ready', return_value=True),
                    patch.object(game.system, 'windows', return_value=[]),
-                   patch.object(game.psutil, 'Process', return_value=self.proc)]
+                   patch.object(game.psutil, 'Process', return_value=self.proc),
+                   patch('cs2map.marks.install', self.install)]
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
@@ -130,6 +132,17 @@ class HangRestart(Fixture):
         self.assertEqual((self.launched_addon, out['pid']), ('mcp_lab', 222))
         self.load_map.assert_called_once_with(s, 'kr_test')
         self.assertIn('restarted it', out['cs2_restart'])
+        # The killed session never saved its binds: the player-marks key is bound again in the new one.
+        self.install.assert_called_once()
+        self.assertEqual(self.install.call_args[0][0].addon, 'mcp_lab')
+        self.assertNotIn('marks key', out['cs2_restart'])
+
+    def test_marks_key_failure_does_not_fail_the_recovery(self):
+        self.install.side_effect = RuntimeError('console busy')
+        s = settings()
+        out = game.run_restartable(s, self.tool(s))
+        self.assertEqual(out['pid'], 222)
+        self.assertIn('marks key not bound: console busy', out['cs2_restart'])
 
     def test_user_option_never_touches_a_plain_game_or_another_addon(self):
         for session in ({'mode': 'game'}, {'addon': 'their_addon'}):

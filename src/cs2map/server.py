@@ -75,7 +75,9 @@ read_guide(section=...) gives a feature area (atlas, buildings, terrain, story..
 Local layer my/: notes from earlier chats on this computer (read_guide(section="my")); save new
 lessons, recipes and own styles with my_notes. When a tool fails without your fault, a guide is wrong
 or a feature is missing, write one entry with my_notes(kind="feedback"): the user sends it to the author.
-Publishing: map_build(name, "release") puts one map in its own addon for the Steam Workshop."""
+Publishing: map_build(name, "release") puts one map in its own addon for the Steam Workshop.
+When a person tests the map in CS2, offer them the marks key: "press F8 at each problem, then Y + text +
+Enter (several lines are fine)"; read game_screenshot(views="marks") before fixing what they found."""
 
 project = Project()
 mcp = FastMCP('cs2map', instructions=INSTRUCTIONS, log_level='WARNING')

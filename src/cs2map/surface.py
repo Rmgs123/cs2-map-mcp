@@ -510,30 +510,34 @@ def register(mcp, project) -> list[str]:
     @on_release
     def game_launch(map: str | None = None, open_in_hammer: str | None = None, width: int = 1600,
                     height: int = 900) -> dict:
-        """Start CS2 Workshop Tools with the addon (windowed) and load a compiled map, or load it into the running
-        session; open_in_hammer=<map> opens a map in Hammer for the user. The first start takes 30-90 s.
+        """Start CS2 Workshop Tools with the addon and load a compiled map (into a running session if any);
+        open_in_hammer=<map> opens a map in Hammer. The first start takes 30-90 s.
         Returns {loaded, ...}."""
         return R['game_launch'](map, width, height, open_in_hammer)
 
     @mcp.tool()
     def game_command(command: str, wait: float = 1.5, focus: bool = False) -> dict:
         """Console commands to the running CS2 (one per line); returns the printed output. Useful: sv_cheats 1,
-        noclip, getpos, bot_add_ct, mp_restartgame 1, ent_fire <name> <input>, snd_showstart 1. focus=true keeps the
+        getpos, bot_add_ct, ent_fire <name> <input>, snd_showstart 1. focus=true keeps the
         game window in front (needed for setang before +attack). Returns {output}."""
         return R['game_command'](command, wait, focus)
 
     @mcp.tool()
     @on_release
-    def game_screenshot(map: str | None = None, views: list[dict[str, Any]] | Literal['auto', 'rooms'] | None = None,
+    def game_screenshot(map: str | None = None,
+                        views: list[dict[str, Any]] | Literal['auto', 'rooms', 'marks'] | None = None,
                         name: str | None = None, pos: list[float] | None = None, ang: list[float] | None = None,
                         hide_hud: bool = True, window: Literal['game', 'hammer'] = 'game', offset: int = 0,
                         limit: int | None = None) -> dict:
         """Photograph the game (PNG paths; open them). map: loaded first (reloaded if rebuilt). views: [{"name",
         "pos":[x,y,z] feet (eye +64), "ang":[pitch,yaw,0], "cmd": console run in place, "wait", "grep",
         "keep": true = no noclip (a script camera), "preview": true = also the map's loading-screen picture}] |
-        "auto" (overviews, spawns, objectives, rooms) | "rooms" (one per layout room); offset/limit page them. Or one
-        view by name/pos/ang. window="hammer": Hammer.
+        "auto" (overviews, spawns, objectives, rooms) | "rooms" (one per layout room) | "marks" (frames a
+        tester marked: map, pos, ang, time, note); offset/limit page them. Or one view by name/pos/ang.
+        window="hammer": Hammer.
         Returns {shots: [{name, path}]}."""
+        if views == 'marks':
+            return R['game_marks'](map, offset, limit)
         if views == 'rooms':
             if not map:
                 raise ValueError('views="rooms" needs map')
@@ -547,19 +551,19 @@ def register(mcp, project) -> list[str]:
     @mcp.tool()
     @on_release
     def game_reset(map: str | None = None) -> dict:
-        """Clean game state between scenarios (~6 s): leave every vehicle/turret/drone, noclip off, HUD and
+        """Clean game state between scenarios: leave every vehicle/turret/drone, noclip off, HUD and
         viewmodel on, default accuracy, bots removed, keys released, mp_restartgame, live player. Returns {ok, done}."""
         return R['game_reset'](map)
 
     @mcp.tool()
     def game_crash_report(dump: str | None = None) -> dict:
         """Why CS2 crashed: the newest minidump's exception and module (server.dll = a script or entity), a hint,
-        the last console lines and the full report path. Call when CS2 vanished or a tool says it crashed."""
+        the last console lines and the report path. Call when CS2 vanished or a tool says it crashed."""
         return R['game_crash_report'](dump)
 
     @mcp.tool()
     def game_stop() -> dict:
-        """Close CS2 only if this tool started it (never the user's own session). Returns {stopped}."""
+        """Close CS2 only if this tool started it (never the user's). Returns {stopped}."""
         return R['game_stop']()
 
     # ---- tests ------------------------------------------------------------------------------------------------

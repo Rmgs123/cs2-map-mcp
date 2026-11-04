@@ -35,7 +35,11 @@ src/cs2map/project.py       core operations: maps, batch editing, builds, assets
    ├─ game.py       CS2 Workshop Tools: launch, map_workshop, live player (a diagnostic point_script created at
    │                run time), camera, frames with staleness checks, the CS2 lock, fast start, idle map
    ├─ vconsole.py   VConsole2 protocol (TCP 29000): commands and output; CS2 accepts one client, so the
-   │                connection closes after 5 s idle and on leaving game.exclusive
+   │                connection closes after 5 s idle and on leaving game.exclusive; TAPS see every line
+   │                with its millisecond stamp, the backlog CS2 replays on connect included
+   ├─ marks.py      player marks: the tester's key (cfg in the addon + bind, set by game_launch) prints a
+   │                marker, getpos and status and writes a jpeg; the marks are read from the console history
+   │                later (game_screenshot views="marks"), frames move to screenshots/marks/
    ├─ system.py     Windows processes and windows (CS2/Hammer), focus, window capture, SendInput, Hammer state
    ├─ gametest.py, crashdump.py   script_test with real input, game_reset, game_crash_report (minidumps)
    ├─ addon.py, config.py   the addon from Valve's template; paths and settings (config/settings.json)

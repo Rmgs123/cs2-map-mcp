@@ -7,6 +7,7 @@
 | Lamps (flicker, switchable, shafts) | `add_light`, `light_rooms` |
 | Bots play a round | `playtest` |
 | Automatic frames | `game_screenshot(views="auto")` |
+| What a tester marked in the game | `game_screenshot(views="marks")` |
 
 These tools author VMAP entities and inspect real game captures. A lighting change is only meaningful after a `full` build; `fast` does not bake lightmaps. `game_screenshot` loads the requested map while holding the shared CS2 lock. A response from a headless check or a successful compiler run is not a visual acceptance.
 
@@ -84,6 +85,15 @@ The automatic captures were opened and reviewed for `mcp_accept`, `mcp_showcase`
 
 If CS2 has no visible Workshop Tools window, capture tools fail with a diagnostic. Do not use `maps *`; restore the tools window and retry.
 
+## Player marks (the tester's key)
+
+When a person walks the map in CS2 Workshop Tools, they press **F8** (settings `marks_key`) at every spot worth a fix. Each press saves the frame they see, the map, the eye position and view, and the time. A note is optional: after the key, open the chat (`Y`), type and press Enter, as many lines as needed. Every chat line until the next mark belongs to it while each comes within two minutes of the previous one (five minutes at most after the mark); the lines are joined with " / ".
+
+- **Offer the key** whenever a person tests the map, instead of asking for descriptions: "walk the map; at each problem press F8, then Y + text + Enter (several lines are fine). Keep CS2 open until I have read them." Call `game_reset(map)` before handing the game over: frames leave the HUD off, and without the HUD the chat does not open (the letters then act as game keys).
+- **Read them before fixing:** `game_screenshot(views="marks")` returns `{shots: [{name, path, map, pos, ang, time, note, notes (when several lines)}], total}`, newest first (10 per page; `offset`/`limit`; `map` keeps that map's marks). Open every `path`. `pos` is the feet like a view's `pos`, so `game_screenshot(map, views=[{"name":"m1","pos":pos,"ang":ang}])` reproduces the spot after a rebuild. `status` says when new marks wait; a mark that got more note lines after a read counts as new again.
+- `game_launch` binds the key (it reports `marks_key`). A key the user bound to something of their own is never taken: then `marks_key` explains it and another key goes into settings `marks_key` (`""` turns marks off and gives the key its old binding back). The binding stays in the user's CS2 key config, so the key also works in a Workshop Tools session started from Steam; outside Workshop Tools with this addon it does nothing.
+- The MCP does not hold the console while the tester plays: it reads the marks from the console history the next time it connects. A mark made after the last read and then CS2 closed keeps its frame and time, but its position is lost (`unknown`). Marks are kept up to `limits.marks_days` (14), `marks_max` (300) and `marks_mb` (200; a frame is ~150–250 KB), oldest deleted first with their frames.
+
 ## By hand
 
-Bots: `bot_add_t`, `bot_add_ct` through `game_command` after a `full` build (nav needs it; spawns on walkable floor). Reflections: `env_combined_light_probe_volume` boxes over the play area, baked by `lighting_build`. Views: `game_screenshot(views=[{"pos":[x,y,z],"angles":[pitch,yaw,0]}])` with `pos` at the feet. Fog: `env_gradient_fog`. Lamps: `light_omni2`, `light_rect`, `light_barn` through `add_light` or `add_entity`.
+Bots: `bot_add_t`, `bot_add_ct` through `game_command` after a `full` build (nav needs it; spawns on walkable floor). Reflections: `env_combined_light_probe_volume` boxes over the play area, baked by `lighting_build`. Views: `game_screenshot(views=[{"pos":[x,y,z],"angles":[pitch,yaw,0]}])` with `pos` at the feet. Fog: `env_gradient_fog`. Lamps: `light_omni2`, `light_rect`, `light_barn` through `add_light` or `add_entity`. Marks: `<game addon>/cfg/mcp_mark.cfg` (`echo MCP_MARK_BEGIN`, `getpos`, `status`, `jpeg_screenshot mcp_mark 90`) and `bind F8 "exec mcp_mark"`; frames land in `<game addon>/screenshots/`.
