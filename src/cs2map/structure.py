@@ -6,9 +6,10 @@ without changing the binary codec or the core map-edit dispatcher.
 """
 from __future__ import annotations
 
+import json
 import math
 import random
-import json
+import re
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Sequence
 
@@ -400,6 +401,25 @@ def _material_path(project, value: Any) -> str:
     raise OpError(f'material does not exist: {value}; use asset_search(kind="material")')
 
 
+_OVERLAY = re.compile(r'F_OVERLAY\W+1\b|shader\W+\S*overlay', re.I)
+
+
+def _overlay_material(project, material: str) -> None:
+    """An own material on a decal must be an overlay (F_OVERLAY or an overlay shader): an opaque one lies 0.05 units
+    off the wall and flickers against it (02.11, a plate made with material_create). Stock materials are not read."""
+    src = project.s.content_addon / material
+    if not src.is_file():
+        return
+    try:
+        text = src.read_text(encoding='utf-8', errors='replace')
+    except OSError:
+        return
+    if not _OVERLAY.search(text):
+        raise OpError(f'{material} is not an overlay material (no F_OVERLAY): as a decal it flickers against the '
+                      'wall. Make the picture with decal_create(image=...) or material_create(kind="decal"), or '
+                      'use add_mesh for a solid plate')
+
+
 def _decal_mesh(origin: Vec3, normal: Vec3, size: tuple[float, float], material: str,
                 texture_size: tuple[int, int] = (1, 1)) -> Mesh:
     # Choose a stable tangent frame.  ``u x v`` is the requested outward normal.
@@ -426,6 +446,7 @@ def add_decal(project, vmap: VMap, op: dict[str, Any], refs: dict[str, int]) -> 
     if op.get('normal') is not None and op.get('angles') is not None:
         raise OpError('give either normal or angles, not both')
     material = _material_path(project, op.get('material'))
+    _overlay_material(project, material)
     origin = _vec(op.get('origin'), 'origin')
     size = _positive_size(op.get('size', 64.0))
     angles = _vec(op.get('angles'), 'angles') if op.get('angles') is not None else (0.0, 0.0, 0.0)

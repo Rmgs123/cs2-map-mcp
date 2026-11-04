@@ -60,6 +60,30 @@ CORE_OPS = ('add_entity', 'add_brush_entity', 'add_mesh', 'update', 'move', 'del
 
 
 
+_TAG = re.compile(r'[a-z0-9_\-]{1,32}')
+
+
+def mesh_label(op: dict) -> tuple[str, list[str]]:
+    """add_mesh "name" (Hammer's outliner) and "tags" (read by later steps and checks: "paved" makes visual_check
+    treat the mesh as paving)."""
+    name = op.get('name') or ''
+    if not isinstance(name, str) or len(name) > 64:
+        raise OpError('add_mesh name must be a string of at most 64 characters')
+    tags = op.get('tags') or []
+    if isinstance(tags, str):
+        tags = [tags]
+    if (not isinstance(tags, list) or len(tags) > 8
+            or not all(isinstance(t, str) and _TAG.fullmatch(t) for t in tags)):
+        raise OpError('add_mesh tags must be up to 8 words of a-z, 0-9, "_" or "-", e.g. ["paved", "east_road"]')
+    return name, list(dict.fromkeys(tags))
+
+
+def mesh_tags(node) -> set[str]:
+    """Tags given to a mesh with add_mesh "tags"."""
+    raw = node.get('cs2map_tags') if hasattr(node, 'get') else None
+    return {t for t in str(raw).split(',') if t} if raw else set()
+
+
 def _compact_shot(shot: dict) -> dict:
     """What a model needs from a capture: the PNG path (open it) and where the camera was."""
     out = {'name': shot.get('name'), 'path': shot.get('path')}
@@ -536,13 +560,18 @@ class Project:
             spec = op.get('shape') or {}
             if not isinstance(spec, dict):
                 raise OpError('"shape" must be an object, e.g. {"shape":"box","mins":[..],"maxs":[..]}')
-            extra = set(op) - {'op', 'ref', 'parent', 'shape', 'material', 'materials', 'options'}
+            extra = set(op) - {'op', 'ref', 'parent', 'shape', 'material', 'materials', 'options', 'name', 'tags'}
             if extra:
                 raise OpError(f'unknown add_mesh field(s) {sorted(extra)}; shape parameters go inside "shape"')
+            name, tags = mesh_label(op)
             if op.get('materials') and 'materials' not in spec:
                 spec = {**spec, 'materials': op['materials']}   # per-face materials given next to "material"
             els = self._new_meshes(m, spec, op.get('material') or mesh.DEFAULT_MATERIAL, op.get('options'))
             for el in els:
+                if name:
+                    el.name = name                      # shown in Hammer's outliner
+                if tags:
+                    el.set('cs2map_tags', 'string', ','.join(tags))
                 m.attach(el, parent)
             if ref:
                 refs[ref] = els[0]['nodeID']

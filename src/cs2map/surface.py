@@ -207,9 +207,9 @@ def register(mcp, project) -> list[str]:
 
     @mcp.tool()
     def visual_check(name: str, limit: int = 200, box: list[list[float]] | None = None) -> dict:
-        """Scene audit from measured model bounds: floating or intersecting props, z-fighting, meshes over or under
-        the terrain, open meshes, unbacked text. box=[[x0,y0],[x1,y1]]: one zone. Returns {ok, problems with ids
-        and fixes (first `limit`), summary.by_code}."""
+        """Scene audit: floating or intersecting props, z-fighting, meshes over or under terrain, wall parts off
+        walls, paved slabs, invisible walls. box=[[x0,y0],[x1,y1]]: one zone. Returns {ok, problems (ids,
+        fixes; first `limit`), summary.by_code}."""
         return R['visual_check'](name, limit, box)
 
     # ---- references -----------------------------------------------------------------------------------------
@@ -531,7 +531,8 @@ def register(mcp, project) -> list[str]:
                         limit: int | None = None) -> dict:
         """Photograph the game (PNG paths; open them). map: loaded first (reloaded if rebuilt). views: [{"name",
         "pos":[x,y,z] feet (eye +64), "ang":[pitch,yaw,0], "cmd": console run in place, "wait", "grep",
-        "keep": true = no noclip (a script camera), "preview": true = also the map's loading-screen picture}] |
+        "keep": true = no noclip (a script camera), "fullbright": true, "preview": true = also the loading-screen
+        picture}] |
         "auto" (overviews, spawns, objectives, rooms) | "rooms" (one per layout room) | "marks" (frames a
         tester marked: map, pos, ang, time, note); offset/limit page them. Or one view by name/pos/ang.
         window="hammer": Hammer.

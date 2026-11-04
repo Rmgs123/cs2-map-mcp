@@ -54,6 +54,7 @@ src/cs2map/project.py       core operations: maps, batch editing, builds, assets
    ├─ scripting.py, story.py   cs_script writing and checks, script_test; stories from JSON → JS + HUD + entities
    ├─ route.py      route_test: real walking (+forward/+use) by stages; planner over openings, lifts, ladders, A*
    ├─ visual.py     visual_check: model bounds from vmdl_c → floating, intrusion, z-fighting, phantom floors
+   ├─ visual_scene.py  wall parts, cables, doors over windows, paved slabs, bare clips, fences (numpy cell index)
    ├─ outdoor.py    water to the horizon, backdrops, supports, outdoor sky
    ├─ competitive.py add_comp_plan (defuse/hostage/wingman layouts), timings, bot rounds, spawn sightlines
    ├─ layout.py     add_layout: rooms by graph, shared walls, openings, levels, add_lift, relative coordinates

@@ -106,7 +106,7 @@ Use the returned material with `add_decal`:
  "origin":[64,300,80],"normal":[0,-1,0],"size":[200,100]}
 ```
 
-The overlay adds no collision or navigation geometry.
+The overlay adds no collision or navigation geometry. `add_decal` refuses an own material that is not an overlay (no `F_OVERLAY`): an opaque plate 0.05 units off the wall flickers; make pictures with `decal_create` or `material_create(kind="decal")`.
 
 ## Reference textures and UVs
 

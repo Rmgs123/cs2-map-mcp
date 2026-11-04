@@ -187,6 +187,18 @@ def foreground() -> int:
     return int(user32.GetForegroundWindow() or 0)
 
 
+class _LastInput(ctypes.Structure):
+    _fields_ = [('cbSize', wt.UINT), ('dwTime', wt.DWORD)]
+
+
+def idle_seconds() -> float | None:
+    """Seconds since the user's last keyboard or mouse input (None when Windows does not say)."""
+    info = _LastInput(ctypes.sizeof(_LastInput), 0)
+    if not user32.GetLastInputInfo(ctypes.byref(info)):
+        return None
+    return ((ctypes.windll.kernel32.GetTickCount() - info.dwTime) & 0xFFFFFFFF) / 1000.0
+
+
 def capture(hwnd: int, path: Path) -> dict:
     """Save a screenshot of a window (works for DirectX windows via PrintWindow)."""
     from PIL import Image

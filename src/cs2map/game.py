@@ -859,6 +859,7 @@ def _views_locked(s: Settings, map_name: str | None, shots: list[dict], hide_hud
     # A free camera is the player's body: looking down it shows the player's own legs (10.10). The body is
     # hidden for the frames and shown again afterwards, also when a view fails.
     body = hide_hud and any(not v.get('keep') for v in shots)
+    bright = any(v.get('fullbright') for v in shots)
     try:
         return _views_run(s, map_name, shots, hide_hud, settle, deadline, done)
     except GameError as e:
@@ -870,6 +871,11 @@ def _views_locked(s: Settings, map_name: str | None, shots: list[dict], hide_hud
         if body:
             try:
                 command(s, 'ent_fire !self alpha 255\nent_fire weapon_* EnableShadow', wait=0.1)
+            except GameError:
+                pass
+        if bright:
+            try:
+                command(s, 'mat_fullbright 0', wait=0.1)
             except GameError:
                 pass
 
@@ -915,8 +921,12 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
         raise GameError('cannot capture views: no live player in a team (team menu/loading screen is active)')
     previous = None          # (signature, view) of the previous shot
     rejected: list[dict] = []
+    bright = any(v.get('fullbright') for v in shots)
     for i, v in enumerate(shots):
         _check_deadline(deadline)
+        if bright:
+            # Unbaked shadows of a fast build hide objects: "fullbright": true shows every surface lit evenly.
+            command(s, f'mat_fullbright {1 if v.get("fullbright") else 0}', wait=0.1)
         player = _live_after_restart(s)
         if not player:
             raise GameError('cannot capture: the local player died or became an observer')
@@ -1008,6 +1018,8 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
         if not check['ok']:
             # The other views still run (10.10: one black frame threw away a whole batch); the answer lists it.
             reasons = ', '.join(check['reasons']) or 'unknown frame error'
+            if 'frame did not change after the camera move' in check['reasons']:
+                reasons += _not_rendering_hint()
             rejected.append({'name': shot['name'], 'reasons': reasons, 'path': shot['path']})
             continue
         shot['player_check'] = {'ok': True, 'team': player['team'], 'alive': player['alive'],
@@ -1025,6 +1037,22 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
     if rejected:
         result['rejected'] = rejected
     return result
+
+
+def _not_rendering_hint() -> str:
+    """Why CS2 may have shown an old frame (31.10: the user worked at the PC; a stale frame with the round timer
+    at 0:00 was read as a round problem twice): the game window lost the front, or someone uses the PC."""
+    out = []
+    try:
+        if system.foreground() != _window('Counter-Strike 2').hwnd:
+            out.append('the CS2 window is not in front (another window took the focus), so CS2 stopped rendering')
+    except Exception:
+        pass
+    idle = system.idle_seconds()
+    if idle is not None and idle < 10:
+        out.append(f'the keyboard or mouse was used {idle:.0f} s ago: someone works at the PC; ask them to leave '
+                   'CS2 in front for the frames, or retry later')
+    return ('; ' + '; '.join(out)) if out else '; CS2 did not render a new frame: retry, or bring the game to the front'
 
 
 def screenshot(s: Settings, name: str | None = None, pos: list[float] | None = None,

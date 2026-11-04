@@ -67,7 +67,10 @@ class VisualMap(unittest.TestCase):
         project = Project()
         # mcp_story (round 3) keeps coplanar duplicates found by the z-fighting check (04.10): sign 0.08 in
         # front of its plate, floor and wall slabs; everything else stays clean.
+        # visual_wall_gap (04.11) found one more real flaw in both: wall lamp 177 (lamp_ver1, mount "wall") placed
+        # by hand 4 units off its wall.
         story = visual.visual_check(project, 'mcp_story')['problems']
-        self.assertEqual({x['code'] for x in story}, {'visual_z_fighting'})
+        self.assertEqual({x['code'] for x in story}, {'visual_z_fighting', 'visual_wall_gap'})
+        self.assertEqual([x['id'] for x in story if x['code'] == 'visual_wall_gap'], [177])
         dressed = visual.visual_check(project, 'v_warehouse')['problems']
-        self.assertEqual({x['code'] for x in dressed} - {'visual_z_fighting'}, set())
+        self.assertEqual({x['code'] for x in dressed} - {'visual_z_fighting', 'visual_wall_gap'}, set())

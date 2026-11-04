@@ -13,7 +13,7 @@ Thresholds give warnings, not errors (a model can be unusual, a support can be i
 | Code | What it catches |
 | --- | --- |
 | `visual_floating_prop` | five rays down find no solid mesh within 16 units, no wall, ceiling or prop contact; the map bottom is the median top of ordinary `*floor*` materials, so a deep pool is not "the floor" |
-| `visual_prop_floats_on_slope` | a static prop on terrain whose base hangs more than 8 units above the lowest ground under it |
+| `visual_prop_floats_on_slope` | a static prop on terrain whose base hangs more than 8 units (plants 16) above the lowest ground under its footprint; the ground at a sample is the highest of the terrain, a mesh top and a non-plant prop no more than 8 units over the base; on a structure, samples 64+ units under the base are an overhang |
 | `visual_floating_platform` | a raised concrete slab (≤ 32 thick, ≥ 4096 sq units, > 32 up) with solid support under less than 2 % of its area (ceilings, metal, water and tool materials excluded) |
 | `visual_prop_intersection`, `visual_prop_overlap` | a prop deeper than 12 units into a wall on every axis; two props nested deeper than 24 or one centre inside the other (water/boats, lamps, pipes and `cs2map_inset` parts excluded) |
 | `visual_z_fighting` | faces of different meshes overlapping in one plane (exactly or nearly coplanar), unless both are pressed against an opposite face |
@@ -25,6 +25,12 @@ Thresholds give warnings, not errors (a model can be unusual, a support can be i
 | `visual_lamp_unmounted` | a light farther than 32 units from any solid mesh or measured prop (shaft companions, lights outside authored geometry and parked carriers skipped) |
 | `visual_open_mesh` | open half-edges on a collidable mesh; identical boxes of different materials |
 | `visual_phantom_floor`, `visual_phantom_wall` (errors) | a render-only mesh (`physicsType none`) showing a floor more than a few units above the real floor, or a wall at player height with no collision behind it: players walk and shoot through it |
+| `visual_wall_gap`, `visual_unit_over_window` (`visual_scene.py`) | wall parts (mount `wall`, AC units, `wall_mounted`): five rays from each side of the oriented box (Möller–Trumbore over a numpy cell index of steep visible faces, 32 units ahead, 8 behind); the side with most hits and the smallest gap is the back; gap > 1.5, sunk > 4, uneven > 4, or 1–2 rays without a wall. A glass/window face parallel within 30 units overlapping 6×6+ |
+| `visual_cable_in_air` | `add_cables` meshes carry `cs2map_cable` (both ends); an end with no visible non-cable face within 6 units (exact point–triangle distance) and no prop box within 6 |
+| `visual_door_over_window` | door faces (material "door", 60–130 × 20–110) against parallel glass faces within 16 units, overlap ≥ 0.03 m²; a pane inside the door's outline within 3 units is a glazed door |
+| `visual_paved_slab` | free edges of paving tops (edges used by one top triangle; ground material or tag `paved`; 48+ wide, ≤ 96 tall, 70 % of the top within 48 of the terrain, not the terrain's own surface): every 32 units, 12 outside, terrain under the top by 7+ and no other mesh over the terrain there; 64+ units per mesh |
+| `visual_bare_clip` | vertical sides of clip meshes every 32 units; ground 24 units outside = terrain or paving/floor faces (roofs, facades, plaster, wall tops excluded); the clip spans ground + 48; no steep visible face or prop within 28 units between ground + 8 and + 96; 64+ units per clip; play area only |
+| `visual_fence_no_collision` | render-only meshes of fence-like materials, 32–200 tall, ≤ 24 thick, ≥ 64 long, with no steep solid face or clip within 8 units |
 | `visual_paved_lip` | two ground meshes (by face material) meeting with a step: 1–4 units where one overlaps the other and the lower comes out from under its edge, 1–2 units side by side (planes compared on the shared cell edge); rasterised on an 8-unit grid; one finding per mesh pair; terrain, buildings, roofs, background and small meshes skipped |
 
 Sky, water, decals, triggers, precipitation and non-collidable meshes take no part in support and intrusion tests. The same penetration test is used by `dress_street` and the kit placement.
@@ -40,4 +46,4 @@ Box-based heuristics; Hammer frames, `resourcecompiler` and in-game frames remai
 
 ## Tests
 
-`tests/test_visual.py`, `test_visual_penetration.py`, `test_visual_polish.py`.
+`tests/test_visual.py`, `test_visual_penetration.py`, `test_visual_polish.py`, `test_visual_scene.py`. On a 830 m town (04.11) the new checks add ~25 s; their first runs there and on `p7_quartiere` tuned the thresholds (1-unit lamp gaps, round gutters, boundary clips over roofs, `dirt` inside `dirty` facade materials, boxes on tables).

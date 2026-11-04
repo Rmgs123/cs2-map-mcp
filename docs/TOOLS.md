@@ -115,7 +115,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 
 | op | fields |
 | --- | --- |
-| `add_mesh` | `shape` (below), `material` or `materials`, optional `options` (`physicsType`, `disableShadows`, `smoothingAngle`, `tintColor`, `fademaxdist`, ...), `parent` |
+| `add_mesh` | `shape` (below), `material` or `materials`, optional `options` (`physicsType`, `disableShadows`, `smoothingAngle`, `tintColor`, `fademaxdist`, ...), `parent`, `name`, `tags` (`"paved"`) |
 | `add_entity` | `classname`, `origin`, `angles`, `keyvalues`; FGD defaults fill the rest |
 | `add_brush_entity` | `classname` (triggers, buyzones, bombsites, `func_*`), `shape`, `keyvalues`, `material` |
 | `update` / `move` / `delete` / `duplicate` | `id` + `keyvalues`/`origin`/`angles`; `ids`/`id` + `offset`; `ids`; `id`, `offset`, `count` |
@@ -179,7 +179,7 @@ Shapes are checked before anything is written; solids are watertight; textures a
 
 ## Building
 
-- `fast`: geometry, collision, entities; no baked light; seconds — iterate on layout.
+- `fast`: geometry, collision, entities; no baked light; seconds — iterate on layout in batches of 3–8 fixes, frames `fullbright` (`quality`).
 - `full`: + baked light (512 px, retried at 1024/2048) + bots' nav + the radar (an own `resource/overviews/<map>.txt` is kept); 0.5–3 minutes.
 - `final`: + visibility and 2048 px quality-2 light; 10+ minutes.
 - `release`: the map alone in its own addon for the Steam Workshop (section `publish`).
@@ -190,8 +190,8 @@ Light builds are queued; a map loaded in CS2 is unloaded first. `job_status`: `s
 ## Testing in game
 
 - One CS2 Workshop Tools session (addon from settings) serves everything through its console port; **one console client at a time** (the error names a holder). A window "Not responding" 30 s → ask the user to restart Workshop Tools, unless settings `restart_hung_cs2` let the MCP do it (`cs2_restart` in the result); a crash → `game_crash_report`.
-- `game_screenshot(map, views=[{"name","pos":[x,y,z],"ang":[pitch,yaw,0]}])`: loads the map if needed, moves a noclip camera (pos = feet, eye +64), checks it and returns PNG paths. Per view: `cmd` (console in place, e.g. `"ent_fire door1 Open"`), `wait`, `grep` (console lines, e.g. `"vsnd"` with `snd_showstart 1`), `keep:true` (no noclip: the view as the player or a script camera sees it). `"preview":true` on a view also makes that frame the map's loading-screen picture (and an icon). `views="auto"`: overviews, spawns, objectives, rooms (`offset`/`limit` page them); `views="rooms"`: one per layout room. ~3 s per view.
-- `script_test(map, steps)`: real input and checks — steps in section `scripting` (`use`, `hold`, `aim`, `mouse`, `expect`, `shot`, ...). Call `game_reset(map)` before and after: it leaves vehicles, turrets and drones, turns noclip off, restores HUD, accuracy and recoil, kicks bots, releases keys and restarts the round.
+- `game_screenshot(map, views=[{"name","pos":[x,y,z],"ang":[pitch,yaw,0]}])`: loads the map if needed, moves a noclip camera (pos = feet, eye +64), checks it and returns PNG paths. Per view: `cmd` (console in place, e.g. `"ent_fire door1 Open"`), `wait`, `grep` (console lines, e.g. `"vsnd"` with `snd_showstart 1`), `keep:true` (no noclip: as the player or a script camera sees it), `fullbright:true` (even light), `preview:true` (also the loading-screen picture). `views="auto"`: overviews, spawns, objectives, rooms (`offset`/`limit` page them); `views="rooms"`: one per layout room. ~3 s per view.
+- `script_test(map, steps)`: real input and checks — steps in section `scripting` (`use`, `hold`, `aim`, `mouse`, `expect`, `shot`, ...). Call `game_reset(map)` before and after (leaves vehicles, noclip off, HUD, accuracy, bots, keys, round).
 - **Testers' marks:** offer testers: "press F8 at each problem, then Y + text + Enter (several lines are fine)"; before fixing read `game_screenshot(views="marks")`: frame, `pos`/`ang`, note (`quality`).
 - Rounds start live (`mp_freezetime 0`, no intro); after a map load the tools wait out the bots' round restart.
 - `game_command("...", wait)` returns what the commands and the next `wait` seconds printed (script `Instance.Msg`, events). Aimed input (`setang` + `+attack`) needs `focus=true`. Avoid `maps *`.

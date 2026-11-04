@@ -465,5 +465,13 @@ def add_cables(project,m,op,refs):
     result=add_pipes(project,m,{'op':'add_pipes','points':points,'radius':radius,'sides':6,
                                'theme':op.get('theme','industrial'),**({'material':op['material']} if op.get('material') else {})},refs)
     result['op']='add_cables'
+    # visual_check finds cable ends fixed in the air (visual_cable_in_air) by these marks.
+    ends=json.dumps([[round(c,2) for c in start],[round(c,2) for c in end]])
+    want=set(result['ids'])
+    for node in reversed(m.world['children']):          # just attached: the last children (no map-wide scan)
+        if not want:break
+        if node.get('nodeID') in want:
+            want.discard(node.get('nodeID'))
+            if node.type=='CMapMesh':node.set('cs2map_tags','string','cable');node.set('cs2map_cable','string',ends)
     if result['ids'] and op.get('ref'):refs[op['ref']]=result['ids'][0];result['ref']=op['ref']
     return result

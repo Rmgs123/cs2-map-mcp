@@ -158,6 +158,7 @@ check_map/visual_check, full build, opened game frames and physical routes.
 - `map_edit` reuses the map it has just written while the file is unchanged, so a series of calls on a
   100 MB map reads it once. Every save still keeps a backup (compressed in the background: a 144 MB map
   becomes ~16 MB and the save does not wait for it).
-- Builds: `fast` (~20 s on a town map) for shape and placement frames; `full` and cubemaps once the look matters.
+- Builds: `fast` (~20 s on a town map) for shape and placement frames; `full` and cubemaps once the look matters
+  (the loop: `quality`, "Iterate in batches").
 - Keep source data of a map (generators, OSM extracts, drawn plans, heightmaps) in `my/maps/<map>/`: it is
   backed up with every save; `.local/tmp` is emptied after a day.

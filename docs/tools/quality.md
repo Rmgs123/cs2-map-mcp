@@ -85,6 +85,21 @@ The automatic captures were opened and reviewed for `mcp_accept`, `mcp_showcase`
 
 If CS2 has no visible Workshop Tools window, capture tools fail with a diagnostic. Do not use `maps *`; restore the tools window and retry.
 
+## Iterate in batches
+
+On a big map one rebuild costs minutes, so do not rebuild per fix:
+
+1. Collect 3–8 fixes in one area; run `visual_check` (with `box`) and `check_map` offline.
+2. Rebuild once with `fast` (geometry, collision, entities, scripts; no baked light) and check every fix on frames in a row with `"fullbright": true` on the views: unbaked shadows of a fast build hide objects, even light shows placement, floating, overlaps and gaps (CS2 prints a small `TOOLS_VIS_MODE_FULLBRIGHT` label in the corner of such frames; the light goes back after the views).
+3. Colour, materials, roofs, lamps and the backdrop need `full` + cubemaps: build it when a batch changed the look and at the end of a stage.
+4. Keep a set of fixed viewpoints and shoot them after every batch, so a fix does not break another place. Run the offline checks while a build runs.
+
+```json
+{"map":"my_town","views":[{"name":"gate","pos":[640,-320,0],"ang":[10,90,0],"fullbright":true}]}
+```
+
+If a frame is rejected with "frame did not change", the error says whether the CS2 window lost the front or someone uses the PC: CS2 does not render behind another window.
+
 ## Player marks (the tester's key)
 
 When a person walks the map in CS2 Workshop Tools, they press **F8** (settings `marks_key`) at every spot worth a fix. Each press saves the frame they see, the map, the eye position and view, and the time. A note is optional: after the key, open the chat (`Y`), type and press Enter, as many lines as needed. Every chat line until the next mark belongs to it while each comes within two minutes of the previous one (five minutes at most after the mark); the lines are joined with " / ".

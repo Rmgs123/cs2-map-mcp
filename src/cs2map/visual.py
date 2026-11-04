@@ -420,14 +420,18 @@ def _overlap(a, b, gap=0.0) -> bool:
     return all(a[0][i] < b[1][i] + gap and a[1][i] > b[0][i] - gap for i in range(3))
 
 
-def _terrain_float_checks(m, props) -> list:
+def _terrain_float_checks(m, props, meshes=()) -> list:
     """Props on a terrain whose base hangs over the slope: the bounding-box bottom is checked against the lowest
-    ground under the whole footprint, not only under the origin (rocks on hills floated with their downhill side)."""
+    ground under the whole footprint, not only under the origin (rocks on hills floated with their downhill side).
+    The ground is the terrain or a mesh top no more than 8 units above the base (27.10: grass on a bank mesh was
+    measured against the terrain under the bank)."""
     from . import terrain
     out = []
     plans = terrain.plans(m)
     if not plans:
         return out
+    from .visual_scene import TriIndex, _normal
+    tops = TriIndex([t for _, _, tris in meshes for t in tris if _normal(t)[2] > 0.5])
     for entry in props:
         # Static props only: physics bodies settle, and parented parts (wheels, rotors) move with their body.
         if entry.get("class") != "prop_static" or entry.get("props", {}).get("parentname"):
@@ -445,7 +449,17 @@ def _terrain_float_checks(m, props) -> list:
             if not (blo[0] <= lo[0] and hi[0] <= bhi[0] and blo[1] <= lo[1] and hi[1] <= bhi[1]):
                 continue
             pts = [(x, y) for x in (lo[0], (lo[0] + hi[0]) / 2, hi[0]) for y in (lo[1], (lo[1] + hi[1]) / 2, hi[1])]
-            ground = [terrain.sample(data, x, y)["z"] for x, y in pts]
+            # Other props carry it too (a box on a table, tyres in a pile, a car's glass inside its body).
+            carriers = [e["bounds"] for e in props if e is not entry and not _plant(e)
+                        and e["bounds"][0][2] <= lo[2] + 8 and e["bounds"][1][2] >= lo[2] - 8]
+            soil = [terrain.sample(data, x, y)["z"] for x, y in pts]
+            ground = [max([g] + [z for z in tops.vhits(x, y) if z <= lo[2] + 8]
+                          + [min(b[1][2], lo[2]) for b in carriers
+                             if b[0][0] <= x <= b[1][0] and b[0][1] <= y <= b[1][1]])
+                      for (x, y), g in zip(pts, soil)]
+            if any(g > s + 0.5 for g, s in zip(ground, soil)):
+                # On a structure: a footprint corner over its ledge (a roof edge, a wall top) is an overhang.
+                ground = [g for g in ground if g >= lo[2] - 64] or ground
             gap = lo[2] - min(ground)
             # Only props that stand on this terrain (their base is near it) and hang more than 8 units somewhere.
             # A bush's soft bottom may sit a hand above a slope; a crate or a bench may not.
@@ -1033,6 +1047,13 @@ LIP_MIN_SIDE = 48.0             # meshes narrower than this, or under ~120 x 120
 
 def _lip_ground(material: str) -> bool:
     return any(h in material for h in LIP_GROUND) and not any(x in material for x in ("roof", "tools", "shingle"))
+
+
+def _paved(node) -> bool:
+    """Paving for the edge checks: a ground material, or add_mesh "tags": ["paved"]."""
+    if 'paved' in str(node.get('cs2map_tags') or '').split(','):
+        return True
+    return any(_lip_ground(str(mat).lower()) for mat in node['meshData'].get('materials', []))
 
 
 def _lip_checks(m, meshes) -> list:
@@ -1666,7 +1687,16 @@ def _audit(project, m, box=None) -> list[dict]:
     problems.extend(_phantom_checks(m, meshes))
     problems.extend(_lip_checks(m, meshes))
     problems.extend(_wall_mount_checks(project, props, visible))
-    problems.extend(_terrain_float_checks(m, props))
+    problems.extend(_terrain_float_checks(m, props, meshes))
+    # Ported from a big town map's own checks (journal 26.10-03.11): what hangs on, stands on and stops at something.
+    from . import visual_scene
+    skip = scenery_ids(m)
+    problems.extend(visual_scene.wall_checks(project, props, visible, _mount_of, _frame))
+    problems.extend(visual_scene.cable_checks(m, props, visible))
+    problems.extend(visual_scene.door_window_checks(visible))
+    problems.extend(visual_scene.paved_slab_checks(m, meshes, _paved, skip))
+    problems.extend(visual_scene.clip_checks(m, meshes, visible, props, skip | outside_play_area_ids(m)))
+    problems.extend(visual_scene.fence_checks(m, meshes, _render_only_meshes(m)))
 
     # Large authored floors high above the scene need a visible support.  Use
     # the material name as a narrow intent signal so ceilings, sky, water and
