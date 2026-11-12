@@ -258,6 +258,25 @@ def notes_all() -> dict:
     return out
 
 
+_NOTES_CACHE: tuple | None = None        # (stamps of the two files, notes_all())
+
+
+def notes_cached() -> dict:
+    """notes_all() read again only when a notes file changed. For reading: do not change the records (a check
+    of a big map asked for one model's note 8 700 times and parsed both files every time)."""
+    global _NOTES_CACHE
+    stamp = []
+    for path in (CATALOG, NOTES):
+        try:
+            st = path.stat()
+            stamp.append((st.st_mtime_ns, st.st_size))
+        except OSError:
+            stamp.append(None)
+    if _NOTES_CACHE is None or _NOTES_CACHE[0] != stamp:
+        _NOTES_CACHE = (stamp, notes_all())
+    return _NOTES_CACHE[1]
+
+
 def validate_note(rec: dict) -> dict:
     fields = ('model', 'category', 'tags', 'style', 'front', 'mount', 'note', 'by', 'date', 'source', 'crc', 'rev')
     if set(rec) - set(fields) - {'origin'}:

@@ -44,7 +44,7 @@ async def main(argv: list[str]) -> int:
             last_job = None
             for tool, args in pairs:
                 if args.startswith('@'):                      # @file.json: arguments from a file
-                    args = Path(args[1:]).read_text(encoding='utf-8')
+                    args = Path(args[1:]).read_text(encoding='utf-8-sig')    # Windows PowerShell 5.1 writes a BOM
                 if last_job:                                  # "$job" = job id from the previous result
                     args = args.replace('$job', last_job)
                 call = json.loads(args or '{}')

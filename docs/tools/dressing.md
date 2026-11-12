@@ -89,6 +89,8 @@ stock gas-pipe fitting at intermediate points in themes that include it.
 The fitting is an upright decorative pipe assembly, not a generated elbow.
 Meshes and fittings have no collision. Keep the entire run above routes or
 against walls; this explicit operation does not infer room boundaries.
+`options` (both operations): mesh options as in `add_mesh`, for example
+`{"disableShadows": 1}` or `{"physicsType": "default"}` for a pipe players stand on.
 
 ```json
 {"op":"add_cables","start":[-80,-390,410],"end":[580,-390,410],

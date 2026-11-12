@@ -11,6 +11,7 @@ Everything a model needs to build a CS2 map with this MCP server (resource `cs2m
 | Remember lessons, own styles, recipes; the user's files | `my_notes`, `read_guide(section="my")`, `asset_search(kind="mine")` | `styles` |
 | New map, edit, build | `map_create` → `map_edit` (batches) → `check_map` → `map_build` → `job_status` | this core |
 | Look at the result | `game_screenshot` (views, `"auto"`, `"rooms"`) | this core |
+| Big maps: seconds per change | packages, region builds, offline frames, zone checks | `pipeline` |
 | Rooms and floors of a level | `set_map_type` | `type` (table above) |
 | Competitive map | `add_comp_plan`, `playtest(kind="competitive"/"timings")` | `competitive` |
 | Bots; a big map's nav | `point_nav_walkable`, `set_play_area`, `add_nav_markup`, `map_build` `bots` | `nav` |
@@ -132,10 +133,10 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 | `add_mode`, `add_arena`, `add_surf_ramp`, `add_bhop_platforms`, `add_movement_course` | game modes and movement maps (`modes`) |
 | `set_map_type` | `type` (table above) |
 | `add_layout`, `add_lift` | `layout` |
-| `add_comp_plan` | `competitive` |
+| `add_comp_plan`, `add_figures` | `competitive` |
 | `add_story` | `story` |
 | `add_paving`, `add_facade`, `add_building`, `add_district`, `add_kit_part` (quick fill, Inferno look) | `buildings`, `kits` |
-| `add_wear`, `dress_street` (Inferno look), `dress_room`, `add_trim`, `add_pipes`, `add_cables` | `wear`, `streetlife`, `dressing` |
+| `add_wear`, `dress_street`, `dress_room`, `add_trim`, `add_pipes`, `add_cables` | `wear`, `streetlife`, `dressing` |
 | `add_terrain`, `scatter`, `add_street`, `add_junction`, `add_fence`, `add_railing`, `add_bank`, `add_tree`, `add_utility_line` | `terrain` |
 | `add_water_body`, `add_backdrop`, `add_supports` | `outdoor` |
 | `cut_mesh`, `texture_faces`, `paint_blend`, `edit_mesh` | `geometry` |
@@ -192,9 +193,9 @@ Light builds are queued; a map loaded in CS2 is unloaded first. `job_status`: `s
 - One CS2 Workshop Tools session (addon from settings) serves everything through its console port; **one console client at a time** (the error names a holder). A window "Not responding" 30 s → ask the user to restart Workshop Tools, unless settings `restart_hung_cs2` let the MCP do it (`cs2_restart` in the result); a crash → `game_crash_report`.
 - `game_screenshot(map, views=[{"name","pos":[x,y,z],"ang":[pitch,yaw,0]}])`: loads the map if needed, moves a noclip camera (pos = feet, eye +64), checks it and returns PNG paths. Per view: `cmd` (console in place, e.g. `"ent_fire door1 Open"`), `wait`, `grep` (console lines, e.g. `"vsnd"` with `snd_showstart 1`), `keep:true` (no noclip: as the player or a script camera sees it), `fullbright:true` (even light), `preview:true` (also the loading-screen picture). `views="auto"`: overviews, spawns, objectives, rooms (`offset`/`limit` page them); `views="rooms"`: one per layout room. ~3 s per view.
 - `script_test(map, steps)`: real input and checks — steps in section `scripting` (`use`, `hold`, `aim`, `mouse`, `expect`, `shot`, ...). Call `game_reset(map)` before and after (leaves vehicles, noclip off, HUD, accuracy, bots, keys, round).
-- **Testers' marks:** offer testers: "press F8 at each problem, then Y + text + Enter (several lines are fine)"; before fixing read `game_screenshot(views="marks")`: frame, `pos`/`ang`, note (`quality`).
-- Rounds start live (`mp_freezetime 0`, no intro); after a map load the tools wait out the bots' round restart.
-- `game_command("...", wait)` returns what the commands and the next `wait` seconds printed (script `Instance.Msg`, events). Aimed input (`setang` + `+attack`) needs `focus=true`. Avoid `maps *`.
+- **Testers' marks:** offer testers: "press F8 at each problem, then Y + text + Enter"; before fixing read `game_screenshot(views="marks")`: frame, `pos`/`ang`, note (`quality`).
+- Rounds start live (`mp_freezetime 0`, no intro).
+- `game_command("...", wait)` returns what the commands and the next `wait` seconds printed (script `Instance.Msg`, events). CS2 works behind other windows (settings `game_focus`). Avoid `maps *`.
 - `game_launch(map)` reuses the running session or starts one (30–90 s), never the user's own game; `open_in_hammer=<map>` shows a map in Hammer (map_edit refuses to write it until it is closed there).
 
 ## Safety

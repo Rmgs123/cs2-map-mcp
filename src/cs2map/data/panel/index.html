@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cs2map panel</title>
+<style>
+:root {
+  color-scheme: light;
+  --plane: #f3f0e8; --ink: #17181a; --ink2: #4d4c47; --muted: #85827a;
+  --rule: #d8d4c8; --track: #e3dfd3; --wash: rgba(23, 24, 26, .045);
+  --compiler: #2a78d6; --cs2: #eb6834; --blender: #1baf7a; --other: #aaa69b;
+  --good: #0a8a0a; --warn: #b87d00; --bad: #c43333;
+  --ui: Bahnschrift, "DIN Alternate", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --plane: #15171a; --ink: #ecebe6; --ink2: #b9b7ad; --muted: #807e77;
+    --rule: #2b2e33; --track: #24272b; --wash: rgba(236, 235, 230, .05);
+    --compiler: #3987e5; --cs2: #d95926; --blender: #199e70; --other: #5c5f63;
+    --good: #2fb52f; --warn: #fab219; --bad: #e66767;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --plane: #15171a; --ink: #ecebe6; --ink2: #b9b7ad; --muted: #807e77;
+  --rule: #2b2e33; --track: #24272b; --wash: rgba(236, 235, 230, .05);
+  --compiler: #3987e5; --cs2: #d95926; --blender: #199e70; --other: #5c5f63;
+  --good: #2fb52f; --warn: #fab219; --bad: #e66767;
+}
+* { box-sizing: border-box; }
+html { background: var(--plane); }
+body { margin: 0; background: var(--plane); color: var(--ink); font: 14px/1.45 var(--ui); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+.mono { font-family: var(--mono); font-size: .9em; letter-spacing: -.01em; }
+.num { font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1320px; margin: 0 auto; padding: 0 28px 40px; }
+
+/* top strip */
+.top { display: flex; align-items: baseline; gap: 18px; padding: 18px 0 14px; }
+.mark { font-size: 19px; font-weight: 700; font-stretch: 80%; letter-spacing: .01em; }
+.mark i { display: inline-block; width: 9px; height: 9px; background: var(--cs2); margin-right: 8px; transform: translateY(-1px); }
+.top .sub { color: var(--muted); }
+.top .right { margin-left: auto; display: flex; gap: 18px; color: var(--ink2); }
+.demo { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--ink2); padding: 1px 6px; color: var(--ink2); }
+
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 372px; gap: 0 44px; align-items: start; }
+.col { display: grid; gap: 34px; min-width: 0; }
+@media (max-width: 1020px) { .grid { grid-template-columns: minmax(0, 1fr); gap: 34px; } .col { display: contents; } #now { order: 1; } #s-wait { order: 2; } #s-frames { order: 3; } #s-feed { order: 4; } #s-perm { order: 5; } #s-game { order: 6; } #s-load { order: 7; } .wrap { padding: 0 16px 32px; } .top .hide-s { display: none; } }
+
+/* a section is a ruled block of a printed form, not a card */
+section { border-top: 2px solid var(--ink); padding-top: 9px; min-width: 0; }
+.h { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; }
+.h h2 { margin: 0; font-size: 11.5px; font-weight: 600; letter-spacing: .11em; text-transform: uppercase; }
+.h .meta { margin-left: auto; color: var(--muted); font-size: 12.5px; }
+.h .count { color: var(--muted); font-size: 11.5px; letter-spacing: .06em; }
+
+/* now */
+.now-head { display: flex; align-items: flex-end; gap: 24px; }
+.kicker { display: flex; align-items: center; gap: 8px; color: var(--ink2); font-size: 12.5px; letter-spacing: .04em; }
+.live { width: 8px; height: 8px; background: var(--ink); animation: blink 1.6s steps(2, jump-none) infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .live { animation: none; } }
+.title { margin: 2px 0 0; font-size: 46px; line-height: 1.02; font-weight: 600; font-stretch: 78%; letter-spacing: -.005em; }
+.title .mono { font-size: 21px; font-weight: 400; color: var(--ink2); margin-left: 10px; font-stretch: normal; }
+.pct { margin-left: auto; font-size: 62px; line-height: .92; font-weight: 600; font-stretch: 78%; white-space: nowrap; }
+.pct small { font-size: 24px; font-weight: 400; color: var(--ink2); margin-left: 2px; }
+.stages { display: grid; gap: 3px; margin-top: 18px; grid-template-columns: var(--cols); }
+@media (max-width: 560px) { .stages { grid-template-columns: var(--colsm); } .stage:not(.cur) .lab { visibility: hidden; } .stage.cur .lab { overflow: visible; } .title { font-size: 38px; } .pct { font-size: 50px; } }
+.stage .line { height: 6px; background: var(--track); position: relative; }
+.stage .line b { position: absolute; inset: 0 auto 0 0; background: var(--ink); }
+.stage .lab { margin-top: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stage.done .lab { color: var(--ink2); }
+.stage.cur .lab { color: var(--ink); font-weight: 600; }
+.now-foot { display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap; margin-top: 14px; color: var(--ink2); }
+.now-foot .detail { color: var(--ink); }
+.now-foot .act { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+.idle .title { color: var(--ink2); }
+#now-info { display: contents; }
+#now-main:has(.stages) + .now-foot, .now-foot { margin-top: 14px; }
+#say { color: var(--warn); font-weight: 600; }
+[hidden] { display: none !important; }
+a.link { color: var(--ink2); }
+.btn { border: 1.5px solid var(--ink); background: none; padding: 5px 12px 4px; cursor: pointer; font-weight: 600; letter-spacing: .02em; border-radius: 2px; }
+.btn:hover { background: var(--ink); color: var(--plane); }
+.btn.quiet { border-color: var(--rule); font-weight: 400; color: var(--ink2); }
+.btn.quiet:hover { background: var(--wash); color: var(--ink); border-color: var(--ink2); }
+.btn:focus-visible, .sw:focus-visible, .thumb:focus-visible, .link:focus-visible { outline: 2px solid var(--compiler); outline-offset: 2px; }
+.link { background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; color: var(--ink2); }
+.link:hover { color: var(--ink); }
+
+/* frames */
+.frames { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 12px; }
+@media (max-width: 720px) { .frames { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.thumb { display: block; padding: 0; border: 0; background: none; text-align: left; cursor: zoom-in; min-width: 0; }
+.thumb .pic { position: relative; aspect-ratio: 16 / 9; background: var(--track); overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .25s; }
+.thumb:hover img { transform: scale(1.03); }
+.thumb .tag { position: absolute; left: 0; top: 0; background: var(--ink); color: var(--plane); font: 600 10.5px var(--mono); padding: 2px 5px; }
+.thumb .cap { display: flex; gap: 8px; margin-top: 5px; font-size: 12px; }
+.thumb .cap span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.thumb .cap time { margin-left: auto; color: var(--muted); }
+.thumb .note { color: var(--ink2); font-size: 12.5px; line-height: 1.3; margin-top: 2px; }
+
+/* activity */
+.feed { list-style: none; margin: 0; padding: 0; }
+.feed li { display: grid; grid-template-columns: 46px 15px minmax(0, 1fr) auto; gap: 0 8px; padding: 7px 0 8px; border-bottom: 1px solid var(--rule); }
+.feed li:last-child { border-bottom: 0; }
+.feed time { color: var(--muted); padding-top: 1px; }
+.feed .dot { width: 7px; height: 7px; margin: 7px 0 0 3px; background: var(--rule); }
+.feed li.run .dot { background: var(--ink); animation: blink 1.6s steps(2, jump-none) infinite; }
+.feed li.bad .dot { background: var(--bad); }
+.feed li.wait .dot { background: var(--warn); }
+.feed .l1 { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.feed .tool { font-weight: 600; }
+.feed .map { color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed .who { color: var(--muted); font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase; white-space: nowrap; }
+.feed .l2 { grid-column: 3 / -1; color: var(--ink2); }
+.feed .dur { color: var(--muted); text-align: right; padding-top: 1px; }
+.feed li.new { animation: slide .5s ease-out; }
+@keyframes slide { from { opacity: 0; transform: translateY(-6px); } }
+.st { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
+.st svg { width: 13px; height: 13px; flex: none; }
+.st.good { color: var(--good); } .st.warn { color: var(--warn); } .st.bad { color: var(--bad); }
+.st + span, .st ~ .txt { color: var(--ink2); font-weight: 400; }
+
+/* waiting for you */
+.ask { padding: 2px 0 14px; border-bottom: 1px solid var(--rule); margin-bottom: 12px; }
+.ask:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.ask h3 { margin: 0 0 3px; font-size: 15.5px; font-weight: 600; }
+.ask p { margin: 0 0 9px; color: var(--ink2); }
+.ask ul { margin: 0 0 10px; padding: 0; list-style: none; color: var(--ink2); }
+.ask ul li { padding-left: 14px; position: relative; }
+.ask ul li::before { content: ""; position: absolute; left: 1px; top: .62em; width: 5px; height: 5px; background: var(--warn); }
+.ask .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.none { color: var(--muted); margin: 0; }
+
+/* permissions */
+.perm { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; padding: 10px 0 11px; border-bottom: 1px solid var(--rule); }
+.perm:first-of-type { padding-top: 0; }
+.perm:last-child { border-bottom: 0; padding-bottom: 0; }
+.perm b { font-size: 15px; font-weight: 600; }
+.perm p { grid-column: 1; margin: 0; color: var(--ink2); font-size: 13px; line-height: 1.38; }
+.perm .extra { grid-column: 1; font-size: 13px; margin-top: 4px; color: var(--ink2); }
+.sw { grid-row: 1 / span 2; grid-column: 2; align-self: start; margin-top: 1px; width: 42px; height: 22px; border: 1.5px solid var(--ink2); background: none; border-radius: 2px; position: relative; cursor: pointer; padding: 0; }
+.sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 13px; height: 13px; background: var(--ink2); transition: left .14s ease-out; }
+.sw[aria-checked="true"] { background: var(--ink); border-color: var(--ink); }
+.sw[aria-checked="true"]::after { left: 23px; background: var(--plane); }
+
+/* game */
+dl.kv { margin: 0; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 6px 12px; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; }
+dl.kv dd small { display: block; color: var(--muted); font-size: 12.5px; }
+
+/* load */
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: -2px 0 14px; color: var(--ink2); font-size: 12.5px; }
+.legend i { display: inline-block; width: 9px; height: 9px; margin-right: 5px; }
+.legend .ln i { height: 2px; width: 14px; transform: translateY(-3px); }
+.res { margin-bottom: 18px; }
+.res:last-of-type { margin-bottom: 8px; }
+.res .rh { display: flex; align-items: baseline; gap: 8px; margin-bottom: 5px; }
+.res .rh b { font-size: 15px; font-weight: 600; }
+.res .rh span { margin-left: auto; color: var(--ink2); font-size: 13px; }
+.seg { display: flex; gap: 2px; height: 26px; }
+.seg div { border-radius: 3px; min-width: 0; color: #fff; font-size: 12px; line-height: 26px; padding-left: 6px; white-space: nowrap; overflow: hidden; transition: flex-grow .8s linear; }
+.seg .p-other { color: var(--ink); }
+.seg .p-free { background: var(--track); }
+.spark { position: relative; height: 40px; margin-top: 15px; border-bottom: 1px solid var(--rule); }
+.spark svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.spark .cross { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--ink2); display: none; pointer-events: none; }
+.spark .cap { position: absolute; right: 0; top: -11px; font-size: 10.5px; color: var(--muted); pointer-events: none; }
+details.nums { margin-top: 10px; color: var(--ink2); font-size: 13px; }
+details.nums summary { cursor: pointer; color: var(--ink2); }
+details.nums table { border-collapse: collapse; width: 100%; margin-top: 6px; font-variant-numeric: tabular-nums; }
+details.nums th, details.nums td { text-align: right; padding: 3px 0 3px 8px; border-bottom: 1px solid var(--rule); font-weight: 400; }
+details.nums th:first-child, details.nums td:first-child { text-align: left; padding-left: 0; }
+details.nums thead th { color: var(--muted); font-size: 12px; }
+
+#tip { position: fixed; z-index: 20; pointer-events: none; background: var(--ink); color: var(--plane); padding: 6px 9px 5px; font-size: 12.5px; line-height: 1.4; border-radius: 2px; display: none; max-width: 260px; }
+#tip b { font-weight: 600; } #tip i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; }
+
+dialog { border: 0; padding: 0; background: var(--plane); color: var(--ink); max-width: min(1280px, 94vw); }
+dialog::backdrop { background: rgba(10, 11, 12, .82); }
+dialog img { display: block; max-width: 100%; max-height: 82vh; }
+dialog .cap { display: flex; gap: 14px; padding: 9px 12px; align-items: baseline; }
+dialog .cap .x { margin-left: auto; }
+footer { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 36px; padding-top: 10px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 12.5px; }
+footer .right { margin-left: auto; display: flex; gap: 10px; }
+footer .link[aria-pressed="true"] { color: var(--ink); text-decoration: none; font-weight: 600; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-good" viewBox="0 0 14 14"><path d="M2 7.4l3.2 3.2L12 3.6" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 14 14"><path d="M7 1.2L13.2 12.6H.8z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 5.2v3.6M7 10v1.2" stroke="currentColor" stroke-width="1.8"/></symbol>
+  <symbol id="i-bad" viewBox="0 0 14 14"><path d="M2.5 2.5l9 9M11.5 2.5l-9 9" stroke="currentColor" stroke-width="2.2"/></symbol>
+</svg>
+<div class="wrap">
+  <header class="top">
+    <span class="mark"><i></i>cs2map</span>
+    <span class="sub hide-s" id="ver">panel</span>
+    <span class="demo" id="off" hidden>not answering · python tools/panel.py</span>
+    <span class="right num"><span class="mono hide-s" id="addr"></span><span id="clock" class="mono"></span></span>
+  </header>
+
+  <div class="grid">
+    <div class="col">
+      <section id="now"><div id="now-main"></div><div class="now-foot"><span id="now-info"></span><span class="act" id="now-act"></span></div></section>
+
+      <section id="s-frames">
+        <div class="h"><h2>Frames</h2><span class="count" id="fcount"></span><span class="meta">newest first · click to open</span></div>
+        <div class="frames" id="frames"></div>
+      </section>
+
+      <section id="s-feed">
+        <div class="h"><h2>Activity</h2><span class="meta"><a class="link" href="/log" target="_blank" rel="noopener">Open the full log</a></span></div>
+        <ol class="feed" id="feed"></ol>
+      </section>
+    </div>
+
+    <div class="col">
+      <section id="s-wait">
+        <div class="h"><h2>Waiting for you</h2><span class="count" id="acount"></span></div>
+        <div id="asks"></div>
+      </section>
+
+      <section id="s-perm">
+        <div class="h"><h2>Permissions</h2><span class="meta">the AI sees these</span></div>
+        <div class="perm">
+          <b id="p1">Mouse steps may take the focus</b>
+          <button class="sw" id="sw-focus" data-key="focus" role="switch" aria-checked="false" aria-labelledby="p1"></button>
+          <p>A test step with the real mouse brings CS2 to the front for under a second. Off: the steps wait in the list above.</p>
+          <div class="extra" id="focus-extra"></div>
+        </div>
+        <div class="perm">
+          <b id="p2">Heavy builds without asking</b>
+          <button class="sw" id="sw-heavy" data-key="heavy" role="switch" aria-checked="false" aria-labelledby="p2"></button>
+          <p>Light bakes and releases take 10–40 min and up to 15 GB. Off: the AI asks here first.</p>
+        </div>
+        <div class="perm">
+          <b id="p3">Builds yield to my programs</b>
+          <button class="sw" id="sw-low" data-key="low" role="switch" aria-checked="true" aria-labelledby="p3"></button>
+          <p>The compiler and Blender run below normal priority.</p>
+        </div>
+        <div class="perm">
+          <b id="p4">Restart a frozen CS2</b>
+          <button class="sw" id="sw-restart" data-key="restart" role="switch" aria-checked="true" aria-labelledby="p4"></button>
+          <p id="restart-text"></p>
+        </div>
+      </section>
+
+      <section id="s-game">
+        <div class="h"><h2>Game</h2></div>
+        <dl class="kv" id="game"></dl>
+      </section>
+
+      <section id="s-load">
+        <div class="h"><h2>Load</h2><span class="meta">share of this PC · last 10 min</span></div>
+        <div class="legend">
+          <span><i style="background:var(--compiler)"></i>Compiler</span>
+          <span><i style="background:var(--cs2)"></i>CS2</span>
+          <span><i style="background:var(--blender)"></i>Blender</span>
+          <span><i style="background:var(--other)"></i>Other programs</span>
+          <span class="ln"><i style="background:var(--ink)"></i>cs2map tools</span>
+          <span class="ln"><i style="background:var(--muted)"></i>everything</span>
+        </div>
+        <div id="load"></div>
+        <details class="nums"><summary>Numbers</summary><table id="numtable"></table></details>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    <span>A local page of this PC: nothing is sent anywhere.</span><span id="say" role="status" hidden></span>
+    <span class="right">Theme
+      <button class="link" type="button" data-theme-set="" aria-pressed="true">auto</button>
+      <button class="link" type="button" data-theme-set="light" aria-pressed="false">light</button>
+      <button class="link" type="button" data-theme-set="dark" aria-pressed="false">dark</button>
+    </span>
+  </footer>
+</div>
+<div id="tip" role="tooltip"></div>
+<dialog id="box"><img alt=""><div class="cap"><span class="mono" id="box-name"></span><span id="box-note"></span><button class="link x" type="button" id="box-x">Close</button></div></dialog>
+
+<script>
+const TOKEN = '__TOKEN__';
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const mmss = s => { s = Math.max(0, s); return s >= 3600 ? Math.floor(s / 3600) + ':' + String(Math.floor(s % 3600 / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0') : Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0'); };
+const hm = t => new Date(t * 1000).toTimeString().slice(0, 5);
+const took = s => s == null ? '' : s < 60 ? (s < 10 ? s.toFixed(1) : Math.round(s)) + ' s' : mmss(s);
+const icon = k => `<svg><use href="#i-${k}"/></svg>`;
+const nowS = () => Date.now() / 1000;
+const cache = new Map();
+function put(el, html) { if (cache.get(el) !== html) { cache.set(el, html); el.innerHTML = html; } }
+
+let S = null, offline = false, stopAsk = null, failures = 0;
+
+async function poll() {
+  try {
+    const r = await fetch('/api/state', {cache: 'no-store'});
+    if (!r.ok) throw new Error(r.status);
+    S = await r.json(); offline = false; failures = 0;
+  } catch (e) { if (++failures > 1) offline = true; }
+  draw();
+}
+async function act(body) {
+  try {
+    const r = await fetch('/api/action', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Panel-Token': TOKEN}, body: JSON.stringify(body)});
+    if (r.status === 403) { location.reload(); return; }
+    const j = await r.json();
+    if (j.error) say(j.error);
+  } catch (e) { say('The panel does not answer.'); }
+  poll();
+}
+let sayTimer = 0;
+function say(text) { const el = $('#say'); el.textContent = text; el.hidden = false; clearTimeout(sayTimer); sayTimer = setTimeout(() => { el.hidden = true; }, 6000); }
+
+/* ---------- now ---------- */
+function drawNow() {
+  const el = $('#now'), n = S.now, live = nowS() - S.time;
+  if (n.kind === 'job') {
+    const elapsed = n.elapsed + live, st = n.stages, cur = n.stage || [0, 0];
+    el.className = '';
+    put($('#now-main'), `<div class="h"><h2>Now</h2><span class="meta">job <span class="mono">${esc(n.short)}</span>${n.by ? ' · started by ' + esc(n.by) : ''}${n.more ? ' · ' + n.more + ' more running' : ''}</span></div>
+      <div class="now-head"><div>
+          <div class="kicker"><span class="live"></span><span>RUNNING</span><span class="num">${mmss(elapsed)}</span></div>
+          <h1 class="title">${esc(n.name)}<span class="mono">${esc(n.map || '')}</span></h1></div>
+        ${n.pct == null ? '' : `<div class="pct" aria-label="${Math.floor(n.pct)} percent done">${Math.floor(n.pct)}<small>%</small></div>`}</div>
+      ${st ? `<div class="stages" style="--cols:${st.map(s => 'minmax(64px,' + s[1] + 'fr)').join(' ')};--colsm:${st.map(s => 'minmax(0,' + s[1] + 'fr)').join(' ')}">
+        ${st.map((s, i) => `<div class="stage ${i < cur[0] ? 'done' : i === cur[0] ? 'cur' : ''}"><div class="line"><b style="width:${i < cur[0] ? 100 : i === cur[0] ? cur[1] * 100 : 0}%"></b></div><div class="lab">${s[0]}</div></div>`).join('')}
+      </div>` : ''}`);
+    const left = n.left_min ? `about ${n.left_min} min left` : n.pct == null ? (st ? 'no earlier build to compare with' : '') : 'longer than last time';
+    put($('#now-info'), `${n.step ? `<span class="detail">step ${n.step[0]} of ${n.step[1]}: ${esc(n.step[2])}</span>` : ''}<span class="detail">${esc(n.detail || '')}</span>${left ? `<span>${left}</span>` : ''}${n.preset ? `<span>preset <span class="mono">${esc(n.preset)}</span></span>` : ''}${n.low ? '<span>low priority</span>' : ''}`);
+    put($('#now-act'), stopAsk === n.id ? `<span>Stop? The build starts from zero next time.</span><button class="btn" type="button" data-do="stop-yes" data-id="${esc(n.id)}">Stop</button><button class="btn quiet" type="button" data-do="stop-no">Keep going</button>`
+      : `<button class="btn quiet" type="button" data-do="stop" data-id="${esc(n.id)}">Stop job</button>`);
+  } else if (n.kind === 'call') {
+    el.className = '';
+    put($('#now-main'), `<div class="h"><h2>Now</h2><span class="meta">${n.by ? 'asked by ' + esc(n.by) : ''}</span></div>
+      <div class="now-head"><div>
+          <div class="kicker"><span class="live"></span><span>RUNNING</span><span class="num">${mmss(nowS() - n.since)}</span></div>
+          <h1 class="title">${esc(n.name)}<span class="mono">${esc(n.what || '')}</span></h1></div></div>`);
+    put($('#now-info'), `<span>tool <span class="mono">${esc(n.tool)}</span></span>`);
+    put($('#now-act'), '');
+  } else {
+    el.className = 'idle';
+    const l = n.last, good = l && (l.state === 'succeeded' || l.state === 'ok');
+    const word = !l ? '' : good ? 'Finished' : {cancelled: 'Stopped', failed: 'Failed', bad: 'Failed', timeout: 'Timed out', lost: 'Lost', warn: 'Finished with notes'}[l.state] || l.state;
+    put($('#now-main'), `<div class="h"><h2>Now</h2></div>
+      <div class="kicker">${l ? `<span class="st ${good ? 'good' : l.state === 'cancelled' || l.state === 'warn' ? 'warn' : 'bad'}">${icon(good ? 'good' : l.state === 'cancelled' || l.state === 'warn' ? 'warn' : 'bad')}${word}</span><span class="num">${hm(l.t)}</span>` : ''}</div>
+      <h1 class="title">Nothing is running</h1>`);
+    put($('#now-info'), l ? `<span>Last: <span class="mono">${esc(l.title)}</span>${l.seconds != null ? ', ' + took(l.seconds) : ''}${l.text ? ' · ' + esc(l.text) : ''}</span>` : '<span>No tool call has been recorded yet.</span>');
+    put($('#now-act'), '');
+  }
+}
+
+/* ---------- frames ---------- */
+function drawFrames() {
+  const f = S.frames;
+  $('#fcount').textContent = f.total + ' on disk' + (f.marks ? ' · ' + f.marks + ' player marks' : '');
+  put($('#frames'), f.items.length ? f.items.map((x, i) => `<button class="thumb" type="button" data-i="${i}">
+      <div class="pic"><img src="/thumb?p=${encodeURIComponent(x.p)}" alt="${esc(x.name)}" loading="lazy">${x.mark ? '<span class="tag">F8</span>' : ''}</div>
+      <div class="cap"><span class="mono">${esc(x.name)}</span><time class="mono num">${hm(x.t)}</time></div>
+      ${x.note ? `<div class="note">“${esc(x.note)}”</div>` : ''}</button>`).join('') : '<p class="none">No frames yet.</p>');
+}
+$('#frames').addEventListener('click', e => {
+  const b = e.target.closest('.thumb'); if (!b || !S) return;
+  const f = S.frames.items[+b.dataset.i]; if (!f) return;
+  $('#box img').src = '/frame?p=' + encodeURIComponent(f.p); $('#box img').alt = f.name;
+  $('#box-name').textContent = f.name + (f.map ? ' · ' + f.map : '') + ' · ' + new Date(f.t * 1000).toLocaleString();
+  $('#box-note').textContent = f.note ? '“' + f.note + '”' : '';
+  $('#box').showModal();
+});
+$('#box-x').onclick = () => $('#box').close();
+$('#box').addEventListener('click', e => { if (e.target === $('#box')) $('#box').close(); });
+
+/* ---------- activity ---------- */
+function drawFeed() {
+  put($('#feed'), S.feed.length ? S.feed.map(a => {
+    const run = a.state === 'running', bad = a.state === 'bad' || a.state === 'lost', warn = a.state === 'warn';
+    const l2 = run ? 'running' : bad ? `<span class="st bad">${icon('bad')}${a.state === 'lost' ? 'Lost' : 'Failed'}</span>${a.text ? ` <span>· ${esc(a.text)}</span>` : ''}`
+      : warn ? `<span class="st warn">${icon('warn')}</span> <span>${esc(a.text || '')}</span>` : `<span>${esc(a.text || '')}</span>`;
+    return `<li class="${run ? 'run' : bad ? 'bad' : warn ? 'wait' : ''}">
+      <time class="mono num">${hm(a.t)}</time><span class="dot"></span>
+      <div class="l1"><span class="tool mono">${esc(a.tool)}</span><span class="map mono">${esc(a.what || '')}</span><span class="who">${esc(a.who || '')}</span></div>
+      <span class="dur mono num">${run ? mmss(nowS() - a.t) : took(a.seconds)}</span>
+      <div class="l2">${l2}</div></li>`;
+  }).join('') : '<li><span></span><span></span><div class="l2">No tool call has been recorded yet.</div></li>');
+}
+
+/* ---------- waiting for you ---------- */
+function drawAsks() {
+  const a = S.asks, out = [];
+  for (const b of a.builds) {
+    const what = b.preset === 'release' ? 'Build the Workshop release of' : b.preset === 'final' ? 'Run the final build of' : 'Bake the light of';
+    out.push(`<div class="ask"><h3>${what} <span class="mono">${esc(b.map)}</span>?</h3>
+      <p>Asked${b.who ? ' by ' + esc(b.who) : ''} at ${hm(b.asked)}. About ${b.minutes} min, up to ${b.memory_gb} GB of memory${S.perms.low ? ', every core at low priority' : ', every core'}.</p>
+      <div class="row"><button class="btn" type="button" data-do="build-yes" data-id="${esc(b.id)}">Allow once</button><button class="btn quiet" type="button" data-do="build-no" data-id="${esc(b.id)}">Not now</button></div></div>`);
+  }
+  const wait = a.tests.filter(t => t.state === 'waiting'), runs = a.tests.filter(t => t.state === 'running'), done = a.tests.filter(t => t.state === 'done').slice(-3);
+  if (wait.length || runs.length) out.push(`<div class="ask"><h3>${wait.length + runs.length} test${wait.length + runs.length > 1 ? 's need' : ' needs'} the real mouse</h3>
+      <ul>${[...runs, ...wait].map(t => `<li><span class="mono">script_test ${esc(t.map)}</span> · ${esc((t.needs || []).join(', '))}${t.state === 'running' ? ' · running now' : ` <button class="link" type="button" data-do="test-drop" data-id="${esc(t.id)}">remove</button>`}</li>`).join('')}</ul>
+      <div class="row">${a.tests_running ? '<span>Running. CS2 comes to the front for each mouse step.</span>' : '<button class="btn" type="button" data-do="tests-run">Run them now</button><span>CS2 comes to the front for each mouse step.</span>'}</div></div>`);
+  const count = out.length;
+  if (done.length) out.push(`<div class="ask"><h3>Deferred tests: results</h3><ul>${done.map(t => { const r = t.result || {}; return `<li><span class="mono">${esc(t.map)}</span> · ${r.ok ? 'passed' : 'failed'}${r.check_count ? ` (${r.passed} of ${r.check_count} checks)` : ''}${r.reason ? ': ' + esc(r.reason) : ''}${t.finished ? ' · ' + hm(t.finished) : ''}</li>`; }).join('')}</ul></div>`);
+  put($('#asks'), out.join('') || '<p class="none">Nothing. The tools work on their own.</p>');
+  $('#acount').textContent = count || '';
+}
+
+/* ---------- permissions ---------- */
+function drawPerms() {
+  const p = S.perms, set = (id, on) => $(id).setAttribute('aria-checked', on ? 'true' : 'false');
+  set('#sw-focus', p.focus); set('#sw-heavy', p.heavy); set('#sw-low', p.low); set('#sw-restart', p.restart);
+  put($('#focus-extra'), p.game_focus === 'never' ? (p.focus_until ? `On for ${mmss(p.focus_until - nowS())} more` : '<button class="link" type="button" data-do="focus-15">Allow for 15 min</button>')
+    : p.game_focus === 'always' ? 'Now CS2 comes to the front for every frame and test (<span class="mono">game_focus: always</span> in the settings).' : '');
+  put($('#restart-text'), `After ${Math.round(p.restart_seconds / 60)} min of “Not responding”. ${p.restart_user ? 'Also a Workshop Tools you started.' : 'Only a CS2 the tools started.'} Never a game you are playing.`);
+}
+
+/* ---------- game ---------- */
+function drawGame() {
+  const g = S.game, rows = [];
+  if (!g.running) {
+    rows.push(['Workshop Tools', 'Not running<small>the tools start it when a frame or a test needs it</small>']);
+  } else {
+    rows.push(['Workshop Tools', g.responding === false ? `<span class="st bad">${icon('bad')}Not responding</span>` : `<span class="st good">${icon('good')}Running</span>${g.responding ? ' <span>· responding</span>' : ''}`]);
+    rows.push(['Map', g.map ? `<span class="mono">${esc(g.map)}</span><small>loaded ${hm(g.loaded)}</small>` : 'None loaded by the tools']);
+    rows.push(['Window', ({front: 'In front right now', minimized: 'Minimized', behind: 'Behind your windows'}[g.window] || 'Unknown') + `<small>${g.focus_count ? `in front ${g.focus_count} time${g.focus_count > 1 ? 's' : ''} today, ${g.focus_seconds} s in total` : 'the tools have not brought it to the front today'}</small>`]);
+    rows.push(['Started by', g.by_tools ? 'The tools<small>they may close and restart it</small>' : 'You<small>the tools will not close it</small>']);
+  }
+  if (g.playing) rows.push(['Your game', 'You are playing CS2<small>game tools wait until you finish</small>']);
+  rows.push(['Sound', 'Not touched<small>mute Counter-Strike 2 in the Windows volume mixer</small>']);
+  put($('#game'), rows.map(r => `<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join(''));
+}
+
+/* ---------- load ---------- */
+const PARTS = [['compiler', 'Compiler'], ['cs2', 'CS2'], ['blender', 'Blender'], ['other', 'Other programs']];
+const RES = [['cpu', 'CPU'], ['mem', 'Memory'], ['gpu', 'GPU']];
+function series(a, n) { return a.map((v, i) => (i ? 'L' : 'M') + ((n - a.length + i) / (n - 1) * 100).toFixed(2) + ' ' + (40 - Math.min(100, v) * .36).toFixed(2)).join(''); }
+function drawLoad() {
+  const L = S.load, n = L.points;
+  put($('#load'), RES.map(([id, name]) => {
+    const v = L[id];
+    if (!v) return `<div class="res"><div class="rh"><b>${name}</b><span>no per-program counter on this PC</span></div></div>`;
+    const mcp = v.compiler + v.cs2 + v.blender, free = Math.max(0, 100 - v.total), h = L.history[id];
+    const say = id === 'mem' ? `${(v.total * L.mem_total_gb / 100).toFixed(1)} of ${L.mem_total_gb} GB in use` : `${Math.round(v.total)} % in use`;
+    const area = h.mcp.length > 1 ? `<path d="${series(h.mcp, n)}L100 40L${((n - h.mcp.length) / (n - 1) * 100).toFixed(2)} 40Z" fill="var(--ink)" opacity=".08"/>
+          <path d="${series(h.sys, n)}" fill="none" stroke="var(--muted)" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+          <path d="${series(h.mcp, n)}" fill="none" stroke="var(--ink)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>` : '';
+    return `<div class="res" data-res="${id}"><div class="rh"><b>${name}</b><span class="num">tools ${Math.round(mcp)} % · ${say}</span></div>
+      <div class="seg" role="img" aria-label="${name}: ${PARTS.map(([k, t]) => t + ' ' + Math.round(v[k]) + ' percent').join(', ')}, free ${Math.round(free)} percent">
+        ${PARTS.map(([k]) => v[k] >= .5 ? `<div class="p-${k}" data-part="${k}" style="flex:${v[k].toFixed(1)} 0 0;background:var(--${k})">${v[k] >= 11 ? Math.round(v[k]) + '%' : ''}</div>` : '').join('')}
+        <div class="p-free" data-part="free" style="flex:${free.toFixed(1)} 0 0"></div></div>
+      <div class="spark"><svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M0 4H100" stroke="var(--rule)" stroke-width="1" vector-effect="non-scaling-stroke"/>${area}</svg>
+        <span class="cap">100 %</span><span class="cross"></span></div></div>`;
+  }).join(''));
+  put($('#numtable'), `<thead><tr><th></th>${PARTS.map(p => `<th>${p[1]}</th>`).join('')}<th>Free</th></tr></thead><tbody>` +
+    RES.filter(([id]) => L[id]).map(([id, name]) => `<tr><td>${name}</td>${PARTS.map(([k]) => `<td>${Math.round(L[id][k])} %</td>`).join('')}<td>${Math.round(Math.max(0, 100 - L[id].total))} %</td></tr>`).join('') + '</tbody>');
+}
+const tip = $('#tip');
+function showTip(html, x, y) { tip.innerHTML = html; tip.style.display = 'block'; const w = tip.offsetWidth; tip.style.left = Math.min(innerWidth - w - 8, Math.max(8, x + 14)) + 'px'; tip.style.top = (y + 16) + 'px'; }
+let hover = null;                         // the load block is redrawn with the data: the tooltip follows it
+function hoverTip() {
+  if (!hover || !S) return;
+  const L = S.load, v = L[hover.res], name = (RES.find(r => r[0] === hover.res) || [])[1]; if (!v) return;
+  if (hover.part) {
+    const k = hover.part, x = k === 'free' ? Math.max(0, 100 - v.total) : v[k], label = k === 'free' ? 'Free' : PARTS.find(p => p[0] === k)[1];
+    showTip(`<i style="background:var(--${k === 'free' ? 'track' : k})"></i><b>${label}</b> · ${name}<br>${x.toFixed(0)} %${hover.res === 'mem' ? ' · ' + (x * L.mem_total_gb / 100).toFixed(1) + ' GB' : ''}`, hover.x, hover.y);
+  } else {
+    const h = L.history[hover.res], n = L.points, i = Math.round(hover.f * (n - 1)) - (n - h.mcp.length), sec = (h.mcp.length - 1 - i) * L.step;
+    if (i < 0 || i >= h.mcp.length) { tip.style.display = 'none'; return; }
+    showTip(`<b>${name}</b> · ${sec ? mmss(sec) + ' ago' : 'now'}<br>cs2map tools ${h.mcp[i].toFixed(0)} %<br>everything ${h.sys[i].toFixed(0)} %`, hover.x, hover.y);
+    const sp = $(`.res[data-res="${hover.res}"] .spark`); if (sp) { const c = $('.cross', sp); c.style.display = 'block'; c.style.left = (hover.f * 100) + '%'; }
+  }
+}
+$('#load').addEventListener('mousemove', e => {
+  const res = e.target.closest('.res[data-res]'); if (!res) { hover = null; tip.style.display = 'none'; return; }
+  const part = e.target.closest('[data-part]'), sp = e.target.closest('.spark');
+  if (part) hover = {res: res.dataset.res, part: part.dataset.part, x: e.clientX, y: e.clientY};
+  else if (sp) { const b = sp.getBoundingClientRect(); hover = {res: res.dataset.res, f: Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)), x: e.clientX, y: e.clientY}; }
+  else hover = null;
+  document.querySelectorAll('.cross').forEach(c => c.style.display = 'none');
+  if (hover) hoverTip(); else tip.style.display = 'none';
+});
+$('#load').addEventListener('mouseleave', () => { hover = null; tip.style.display = 'none'; document.querySelectorAll('.cross').forEach(c => c.style.display = 'none'); });
+
+/* ---------- buttons and switches ---------- */
+document.addEventListener('click', e => {
+  const sw = e.target.closest('.sw');
+  if (sw) {
+    const on = sw.getAttribute('aria-checked') !== 'true';
+    sw.setAttribute('aria-checked', on ? 'true' : 'false');
+    act({do: 'toggle', key: sw.dataset.key, on});
+    return;
+  }
+  const d = e.target.closest('[data-do]'); if (!d) return;
+  const what = d.dataset.do, id = d.dataset.id;
+  if (what === 'stop') { stopAsk = id; drawNow(); }
+  else if (what === 'stop-no') { stopAsk = null; drawNow(); }
+  else if (what === 'stop-yes') { stopAsk = null; act({do: 'stop_job', id}); }
+  else if (what === 'build-yes' || what === 'build-no') act({do: 'build', id, allow: what === 'build-yes'});
+  else if (what === 'tests-run') act({do: 'run_tests'});
+  else if (what === 'test-drop') act({do: 'drop_test', id});
+  else if (what === 'focus-15') act({do: 'focus15'});
+});
+
+/* ---------- theme ---------- */
+function theme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  document.querySelectorAll('[data-theme-set]').forEach(x => x.setAttribute('aria-pressed', x.dataset.themeSet === (t || '')));
+}
+document.querySelectorAll('[data-theme-set]').forEach(b => b.onclick = () => { theme(b.dataset.themeSet); try { localStorage.setItem('theme', b.dataset.themeSet); } catch (e) {} });
+try { theme(localStorage.getItem('theme') || ''); } catch (e) {}
+
+/* ---------- drawing ---------- */
+function draw() {
+  $('#clock').textContent = new Date().toTimeString().slice(0, 8);
+  $('#off').hidden = !offline;
+  if (!S) return;
+  $('#ver').textContent = 'panel · ' + S.version;
+  $('#addr').textContent = '127.0.0.1:' + S.port;
+  drawNow(); drawFrames(); drawFeed(); drawAsks(); drawPerms(); drawGame(); drawLoad(); hoverTip();
+}
+poll();
+setInterval(poll, 2000);
+setInterval(() => { $('#clock').textContent = new Date().toTimeString().slice(0, 8); if (S && !offline) { drawNow(); drawPerms(); } }, 1000);
+</script>
+</body>
+</html>

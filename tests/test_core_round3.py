@@ -39,7 +39,7 @@ class FakeGame:
         player = {'slot': 0, 'team': 2, 'alive': True, 'observing': False, 'health': 100, 'noclip': True,
                   'angles': {'pitch': 0, 'yaw': 0, 'roll': 0}}
         with mock.patch.multiple(game, command=self.command, getpos=self.getpos, _capture=self.capture,
-                                 _window=lambda title: None, wait_for_player=lambda s, timeout=0: None,
+                                 _window=lambda title, restore=True: None, wait_for_player=lambda s, timeout=0: None,
                                  player_state=lambda s: {'players': [player]}), \
                 mock.patch.object(game.time, 'sleep', lambda x: self.log.append(f'sleep {x}')):
             return game._views_locked(None, None, shots, True, 0.01)

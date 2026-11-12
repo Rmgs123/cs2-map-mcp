@@ -656,23 +656,36 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
         command('setang {} {} 0'.format(*route.angles(current[:3], target)[:2]), 1.0)
 
     def mouse(dx, dy):
-        system.mouse_move(int(dx), int(dy))
-        pause(.3)
+        if game.focus_policy(project.s) == 'never':
+            # No real mouse behind the user's windows: turn the view by what the mouse would have turned it
+            # (pixels x sensitivity x m_yaw / m_pitch). Scripts read the eye angles either way.
+            found = {}
+            for line in vconsole.run(['sensitivity', 'm_yaw', 'm_pitch'], wait=0.2):
+                m = re.match(r'\s*(sensitivity|m_yaw|m_pitch)\s*=\s*([-\d.]+)', line)
+                if m:
+                    found[m.group(1)] = float(m.group(2))
+            scale = found.get('sensitivity', 1.0)
+            current = game._getpos_values(game.getpos(project.s))
+            if current is None:
+                raise RuntimeError('mouse: getpos returned no view angles')
+            pitch = max(-89.0, min(89.0, current[3] + int(dy) * scale * found.get('m_pitch', 0.022)))
+            yaw = current[4] - int(dx) * scale * found.get('m_yaw', 0.022)
+            command(f'setang {pitch} {yaw} 0', .3)
+            return
+        with game.input_focus(project.s, 'mouse'):
+            system.mouse_move(int(dx), int(dy))
+            pause(.3)
 
     def click(at):
-        hwnd = game._window('Counter-Strike 2').hwnd
-        system.focus(hwnd)
-        for _ in range(20):
-            if system.foreground() == hwnd:
-                break
-            time.sleep(.05)
-        else:                                # never click into another program's window
-            raise RuntimeError('click: the CS2 window is not in front (another window holds the focus); not clicked')
-        system.click_window(hwnd, at[0], at[1])
-        pause(.3)
+        with game.input_focus(project.s, 'click') as hwnd:     # never clicks into another program's window
+            system.click_window(hwnd, at[0], at[1])
+            pause(.3)
 
     def focus_window(on):
         if on:
+            if game.focus_policy(project.s) == 'never':
+                raise RuntimeError('focus: settings game_focus is "never" (the game stays behind the user\'s '
+                                   'windows); drop the step - console input, aim and frames need no focus')
             focus_state.setdefault('previous', system.foreground())
             system.focus(game._window('Counter-Strike 2').hwnd)
         elif focus_state.get('previous'):
@@ -883,6 +896,8 @@ def script_test(project, map: str, steps='auto', timeout: float = 90) -> dict:
                         conn.listeners.remove(lines)
     except Exception as exc:
         reason = str(exc)
+    if focus_state.get('previous'):          # a "focus": true step without its "focus": false
+        system.focus(focus_state.pop('previous'))
     errors = _script_errors(lines)
     ok = reason is None and not errors and all(c['ok'] for c in checks)
     details = {'map': map, 'ok': ok, 'seconds': round(time.monotonic() - started, 2),

@@ -28,7 +28,7 @@ def register(mcp, project):
         use true (E, 0.15 s), hold {"key":"attack","seconds":0.9} (always released; keys: attack attack2 use forward back
         left right jump duck reload walk turnleft turnright), aim [x,y,z] or 'entity_name' (turns the view; waits 1 s for
         the client), mouse {"dx":40,"dy":0} (real mouse pixels), focus true|false (game window in front / give it back).
-        aim, hold, mouse and use need the game window in front (the runner keeps it there).
+        CS2 works behind other windows; only mouse and click bring it to the front for their step (settings game_focus).
         steps='auto' follows the sole add_story in the map. Returns ok, checks, unique JS errors, shots, log path.
         Example: [{"use":true},{"expect":"D_CONTROL drone1 enter","within":2},{"hold":{"key":"forward","seconds":1}},{"shot":"d8_fly"}].
         """

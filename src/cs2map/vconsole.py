@@ -18,6 +18,7 @@ import struct
 import threading
 import time
 import uuid
+from contextlib import contextmanager
 
 PORT = 29000
 VERSION = 0x00D40000
@@ -25,6 +26,13 @@ VERSION = 0x00D40000
 # keep the connection between tool calls: it is closed after this many idle seconds
 # (never while a listener is attached, e.g. during script_test / route_test).
 IDLE_CLOSE = 5.0
+# 'VFCS' + one byte tells the engine "the VConsole window is in the foreground". The engine then keeps rendering,
+# finishes map loads and runs its client (setang, +forward) although another program has the focus
+# (engine2: r_vconsole_foregroundforcerender, engine_no_focus_sleep_vconsole_suppress; both on by default).
+# Without it a CS2 that is not in front shows its last frame for ever and a map load stops at the loading screen
+# (measured 09.11, also with engine_no_focus_sleep 0). The state lasts as long as the socket: every new
+# connection says it again. The user's keyboard and mouse still reach only the program in front.
+AWAKE = True
 
 
 class VConsoleError(RuntimeError):
@@ -182,6 +190,15 @@ class _Connection:
         self.cv = threading.Condition()
         self.thread = threading.Thread(target=self._read, name='vconsole-reader', daemon=True)
         self.thread.start()
+        if AWAKE:
+            self.wake(True)
+
+    def wake(self, on: bool) -> None:
+        """Tell the engine the console window is (not) in the foreground: see AWAKE."""
+        try:
+            self.sock.sendall(_packet(b'VFCS', b'\x01' if on else b'\x00'))
+        except OSError:
+            self.alive = False
 
     def _read(self) -> None:
         stamped: list = []
@@ -234,6 +251,7 @@ _CONN_LOCK = threading.Lock()
 _RUN_LOCK = threading.RLock()
 _LAST_USE = 0.0
 _ACTIVE = 0
+_HOLDS = 0
 _REAPER: threading.Thread | None = None
 
 
@@ -261,7 +279,7 @@ def _reap() -> None:
             if conn is None or not conn.alive:
                 _CONN = None
                 return
-            if _ACTIVE or conn.listeners or time.monotonic() - _LAST_USE < IDLE_CLOSE:
+            if _ACTIVE or _HOLDS or conn.listeners or time.monotonic() - _LAST_USE < IDLE_CLOSE:
                 continue
             conn.close()
             _CONN = None
@@ -269,12 +287,33 @@ def _reap() -> None:
 
 
 def release() -> None:
-    """Close the connection now unless a session or listener still uses it (frees CS2 for other processes)."""
+    """Close the connection now unless a session, hold or listener still uses it (frees CS2 for other processes)."""
     global _CONN
     with _CONN_LOCK:
-        if _CONN is not None and not _ACTIVE and not _CONN.listeners:
+        if _CONN is not None and not _ACTIVE and not _HOLDS and not _CONN.listeners:
             _CONN.close()
             _CONN = None
+
+
+@contextmanager
+def hold(port: int = PORT, connect: bool = True):
+    """Keep the console connection open for the block, so CS2 stays awake (AWAKE) between the commands of one
+    operation: frames after a wait, a test that only listens. A connection that drops inside the block is opened
+    again by the next command and says "foreground" again. Without a running CS2 the block still runs.
+    connect=False opens nothing by itself: the connection is kept from the block's first command on."""
+    global _HOLDS
+    with _CONN_LOCK:
+        _HOLDS += 1
+    try:
+        if connect:
+            try:
+                _connection(port)
+            except VConsoleError:
+                pass                # the commands of the block report it in their own words
+        yield
+    finally:
+        with _CONN_LOCK:
+            _HOLDS -= 1
 
 
 def _session(commands: list[str], until, timeout: float, linger: float = 0.0,
@@ -375,6 +414,12 @@ def run_until(commands: list[str], pattern: str | tuple[str, ...], timeout: floa
     patterns = (pattern,) if isinstance(pattern, str) else tuple(pattern)
     return _session(commands, lambda lines, ended: any(p in ln for ln in lines for p in patterns),
                     timeout, port=port)
+
+
+def run_when(commands: list[str], done, timeout: float = 5.0, port: int = PORT) -> tuple[bool, list[str]]:
+    """Send commands, then read output until done(lines) says the answer is complete (an answer of several lines
+    may arrive in pieces), or the timeout passes."""
+    return _session(commands, lambda lines, ended: bool(done(lines)), timeout, port=port)
 
 
 def run_ended(commands: list[str], wait: float = 1.5, port: int = PORT) -> tuple[bool, list[str]]:

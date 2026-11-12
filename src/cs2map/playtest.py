@@ -159,7 +159,10 @@ def playtest_run(project, map_name: str, bots: int = 10, seconds: int = 60, spec
         sample_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
         out = _compact_summary(map_name, bots, started, samples, setup, final,
                                _nav_areas(project, map_name), str(sample_path), reloaded)
-        out['human'] = 'spectator' if spectate and bots else 'player'
+        # What happened, not what was asked: CS2 may keep the player in the team (seen on the self-check map).
+        seen = [p for p in (samples[-1]['players'] if samples else []) if not p.get('bot')]
+        playing = any(p.get('team') in (2, 3) and not p.get('observing') for p in seen)
+        out['human'] = 'spectator' if spectate and bots and not playing else 'player'
         return out
 
 

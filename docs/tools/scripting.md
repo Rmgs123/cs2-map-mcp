@@ -33,7 +33,7 @@ The full API with comments is in the CS2 install: `content/csgo_addons/cs_script
 
 ## `script_test`: play a scenario like a player
 
-`script_test(map, steps, timeout=90)` runs under one game lock with the game window in front, collects every console line and JS error and returns `ok`, `checks`, `errors`, `shots`, `log` (a JS exception makes `ok=false`). Call `game_reset(map)` before and after. Do not touch the mouse or keyboard while it runs. `steps="auto"` plays the map's `add_story`.
+`script_test(map, steps, timeout=90)` runs under one game lock, CS2 behind your windows, collects console lines and JS errors and returns `ok`, `checks`, `errors`, `shots`, `log` (a JS exception makes `ok=false`). Call `game_reset(map)` before and after. Only `mouse` and `click` bring the game window to the front, for that step; with `game_focus: "never"` `mouse` turns the view by `setang` and a `click` test is `deferred` to the panel (result: `status`). `steps="auto"` plays the map's `add_story`.
 
 | Step (one action each) | Meaning |
 | --- | --- |
@@ -47,7 +47,7 @@ The full API with comments is in the CS2 install: `content/csgo_addons/cs_script
 | `{"expect":"regex","within":3}` | a console line after the previous action |
 | `{"shot":"name"}` | a frame of what the player sees now (no noclip; vehicle and drone cameras stay) |
 | `{"spread":{"shots":5,"interval":0.5,"max_deg":1}}` | fire that many single shots where the view points and pair each with its first impact by game tick (an impact can come before its gun-fire event): the result's `spread` gives `deg_mean/max` and `miss_mean/max` (units off the view line), every shot in the log; `max_deg` makes it a check. Riders of a moving vehicle: measured 0.2° parked, ~0.75° at 330 u/s (the ~1.4-tick lag) |
-| `{"press":"button"}`, `{"fire":"name input"}`, `{"say":"text"}`, `{"wait":2}`, `{"focus":true}` | button Press, entity input, chat, pause, window focus |
+| `{"press":"button"}`, `{"fire":"name input"}`, `{"say":"text"}`, `{"wait":2}`, `{"focus":true}` | button Press, entity input, chat, pause, game window in front until `{"focus":false}` |
 
 Mechanics print telemetry on a cheat command `<name>_state <token>` (e.g. `d8_control_drone1_state t1`, `v9_control_jeep_state t1`, `t9_turret_gun1_state t1`, `m9_range_state t1`, `w9_rail_state`): position, HP, camera, the player's pawn and the last 8 events — `expect` the token. Several keys at once: `{"cmd":"+sprint"}` then `hold` another key, `{"cmd":"-sprint"}` after.
 

@@ -23,6 +23,10 @@ const EXITS = config.exits ?? [[-8, 80, 90], [-8, -80, 90], [-20, 0, 170], [-135
 const HALF = config.size ? [config.size[0] / 2, config.size[1] / 2] : [118, 58];
 const RIDE = config.passengers;          // {floor, roof, spots}: players inside the body ride with it
 const DOORS = RIDE?.doors ?? [];
+// passengers.crouch: a cabin lower than a standing player (a car). Riders are crouched players (hull 54): they board
+// with crouch held, the low roof keeps them crouched (the engine never stands a player up without room), and they
+// always get off outside a door.
+const CROUCH = !!RIDE?.crouch, HULL = CROUCH ? 54 : 72;
 const PILOT = config.pilot ?? {scale: .5, at: config.seat};
 // Turning radius follows the wheelbase (the stock SUV's 122 units gave the original 120).
 const PROBE = config.size ? Math.max(125, HALF[0] + 30) : 125;    // crash probe ahead of the body centre
@@ -109,6 +113,23 @@ const seatCore = {...core, input: (name, fn) => core.input(name, e => {
     fn(e);
 })};
 const seat = Seat({core: seatCore, camera, hud, target: () => body, pawn: E.pawn, decoy: () => decoy, reach: config.reach,
+    // A hollow body with open doorways: a view through a doorway crosses the whole cabin and hits nothing of the body
+    // (12.11: E at the driver's door of a van did nothing). The view, up to what it hits first, crossing the cabin
+    // box in the body frame counts as aiming at the car.
+    aimed: RIDE ? (p, ray) => {
+        if (!valid(body)) return false;
+        const a = bodyFrame(p.GetEyePosition()), b = bodyFrame(ray.end);
+        const lo = [-HALF[0], -HALF[1], RIDE.floor], hi = [HALF[0], HALF[1], RIDE.roof];
+        let t0 = 0, t1 = 1;
+        for (let i = 0; i < 3; i++) {
+            const d = b[i] - a[i];
+            if (Math.abs(d) < 1e-6) { if (a[i] < lo[i] || a[i] > hi[i]) return false; continue; }
+            const u = (lo[i] - a[i]) / d, v = (hi[i] - a[i]) / d;
+            t0 = Math.max(t0, Math.min(u, v)); t1 = Math.min(t1, Math.max(u, v));
+            if (t0 > t1) return false;
+        }
+        return true;
+    } : undefined,
     allow(p) {
         if (!valid(body) || riders.has(p)) return false;
         if (health.dead) return {reason: 'destroyed', respawn: health.respawnIn(Instance.GetGameTime())};
@@ -131,7 +152,8 @@ const seat = Seat({core: seatCore, camera, hud, target: () => body, pawn: E.pawn
     onExit(p, reason) {
         motor(null); steerAngle = 0; crawl = false;
         // A body with passengers: the driver stays inside (the generic search may pick a spot in the hull).
-        if (DOORS.length && valid(p) && p.IsAlive() && !['reset', 'round', 'disconnect', 'death'].includes(reason)) aisle(p);
+        // A low cabin has no floor to stand on: its driver gets out at an exit point like the driver of a plain car.
+        if (DOORS.length && !CROUCH && valid(p) && p.IsAlive() && !['reset', 'round', 'disconnect', 'death'].includes(reason)) aisle(p);
         lastExit = {reason, position: valid(p) ? p.GetAbsOrigin() : null};
         if (valid(p)) p.SetParent(valid(pilotParent) ? pilotParent : undefined);
         pilotParent = undefined;
@@ -291,10 +313,10 @@ function atDriverDoor(p) {
     const q = bodyFrame(p.GetAbsOrigin());
     return Math.hypot(q[0] - DOOR.at[0], q[1] - DOOR.at[1]) < DOOR.radius && Math.abs(q[2] - DOOR.at[2]) < 40;
 }
-// Room for a standing player at a spot of the body as it is now: nothing solid (the body, a wall it scrapes, another
-// player) in the hull, 1 unit above the feet.
+// Room for a rider (standing, or crouched in a low cabin) at a spot of the body as it is now: nothing solid (the
+// body, a wall it scrapes, another player) in the hull, 1 unit above the feet.
 function roomAt(at, p) {
-    const s = {...at, z: at.z + 1}, t = core.boxTrace({start: s, end: s, mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: 72},
+    const s = {...at, z: at.z + 1}, t = core.boxTrace({start: s, end: s, mins: {x: -16, y: -16, z: 0}, maxs: {x: 16, y: 16, z: HULL},
         ignoreEntity: loose(p)});
     return !t.startedInSolid && !t.didHit;
 }
@@ -314,7 +336,8 @@ function placeRider(p, r, dt) {
     let target = core.add(at, v, dt);
     // Moving: the teleport every tick cannot be avoided, so a crouched rider letting go of crouch gets the feet raised
     // by the stand-up drop for that tick: they stand up onto the floor instead of into it.
-    if ((p.IsDucked() || p.IsDucking()) && !p.IsInputPressed(CSInputs.DUCK)) target = {...target, z: target.z + UNDUCK};
+    // (A low cabin: nobody stands up, the roof keeps the crouch.)
+    if (!CROUCH && (p.IsDucked() || p.IsDucking()) && !p.IsInputPressed(CSInputs.DUCK)) target = {...target, z: target.z + UNDUCK};
     p.Teleport({position: target, velocity: zero});
 }
 // Every tick: a spot that has no room (the body pressed on a wall, a player in it) moves its rider to another free
@@ -334,7 +357,11 @@ function doorOrder(door) {
         Math.abs(DOORS[a].at[0] - DOORS[door].at[0]) - Math.abs(DOORS[b].at[0] - DOORS[door].at[0]));
 }
 const fullLogged = new Map();
+const standing = new Map();  // slot -> until when the "crouch and press E" prompt shows (a low cabin)
+const stoodSince = new Map();
 function board(p, door) {
+    // A low cabin takes only a fully crouched player: a standing hull put under its roof is stuck in the body.
+    if (CROUCH && !p.IsDucked()) return false;
     for (const d of doorOrder(door)) {
         const s = freeSpot(d, p);
         if (s < 0) continue;
@@ -372,7 +399,8 @@ function leave(p, reason, out = false) {
     if (!valid(p) || !p.IsAlive()) { riders.delete(p); core.log('leave', {slot: valid(p) ? core.slot(p) : null, reason}); return true; }
     let spot = null;
     // With a driver (or a route test) or at speed nobody stands loose inside: off through a door, or stay on.
-    if (speed >= 60 || out || seat.player || auto) {
+    // A low cabin has no room to stand in: always off through a door.
+    if (speed >= 60 || out || seat.player || auto || CROUCH) {
         for (const d of doorOrder(r.door)) if ((spot = doorOutside(d, p))) break;
         if (!spot && reason === 'use') { core.log('exit_blocked', {slot: core.slot(p)}); blocked.set(core.slot(p), Instance.GetGameTime() + 1.5); return false; }
     }
@@ -417,6 +445,14 @@ function passengers(dt) {
     // Riders are held every tick: players merely standing on a physics body weigh it down and it does not move.
     for (const [p, r] of [...riders]) {
         if (!valid(p) || !p.IsAlive() || p === seat.player) { riders.delete(p); continue; }
+        if (CROUCH) {
+            // A rider who stands under the low roof (the model's roof is higher than `roof` says, or open) is stuck
+            // in the body: off through a door, with the reason in the log.
+            const now = Instance.GetGameTime(), s = core.slot(p);
+            if (p.IsDucked() || p.IsDucking()) stoodSince.delete(s);
+            else if (!stoodSince.has(s)) stoodSince.set(s, now);
+            else if (now - stoodSince.get(s) > .3) { stoodSince.delete(s); leave(p, 'stood_up', true); continue; }
+        }
         holdRider(p, r, dt);
         const q = riders.get(p);
         if (q && core.dist(p.GetAbsOrigin(), transform(DOORS[q.door].spots[q.spot])) > 64) leave(p, 'lost', true);
@@ -445,10 +481,13 @@ function passengers(dt) {
             // At the driver's place E takes the wheel (Seat); anywhere else at a door or inside it boards.
             if (edge && !health.dead && !driverDoor) {
                 if (riding) leave(p, 'use');
-                else if (door >= 0 || inside) board(p, door >= 0 ? door : nearestDoor(p));
+                else if (door >= 0 || inside) {
+                    if (CROUCH && !p.IsDucked()) { standing.set(s, now + 2.5); core.log('board_refused', {slot: s, reason: 'standing'}); }
+                    else board(p, door >= 0 ? door : nearestDoor(p));
+                }
             }
             hint(p, health.dead ? null : riders.has(p) ? ((blocked.get(s) ?? 0) > now ? RIDE.hint.blocked : RIDE.hint.ride) :
-                 driverDoor ? RIDE.hint.drive : (door >= 0 || inside) ? RIDE.hint.board : null);
+                 driverDoor ? RIDE.hint.drive : (door >= 0 || inside) ? ((standing.get(s) ?? 0) > now ? RIDE.hint.crouch : RIDE.hint.board) : null);
         }
         if (ride && !riders.has(p) && !aboard(p) && p.GetGroundEntity?.() === body) {
             const d = doorAt(p);
@@ -506,8 +545,16 @@ core.command('v9_control_' + config.name + '_route', token => {
 function autoKeys(now) {
     const o = body.GetAbsOrigin(), t = auto.pts[auto.i];
     if (Math.hypot(t.x - o.x, t.y - o.y) < 160) {
-        core.log('route_point', {i: auto.i, at: o}); auto.i++;
+        core.log('route_point', {i: auto.i, at: o}); auto.i++; auto.near = null;
         if (auto.i >= auto.pts.length) { core.log('route_done', {at: o, hp: health.hp}); auto = null; return null; }
+    }
+    // Circling a point it cannot turn to (the point is inside the turning circle at this speed): the body never comes
+    // closer for 8 s. Without this it drove round the point for good and the test only saw a timeout.
+    const left = Math.hypot(auto.pts[auto.i].x - o.x, auto.pts[auto.i].y - o.y);
+    if (!auto.near || left < auto.near.d - 16) auto.near = {d: left, at: now};
+    else if (now - auto.near.at > 8) {
+        core.log('route_stuck', {at: o, i: auto.i, hp: health.hp, reason: 'circling', closest: Math.round(auto.near.d)});
+        auto = null; return null;
     }
     const tgt = auto.pts[auto.i], want = Math.atan2(tgt.y - o.y, tgt.x - o.x) / rad;
     const err = ((want - body.GetAbsAngles().yaw + 540) % 360) - 180;
@@ -647,7 +694,7 @@ function setup() {
     Instance.EntFireAtTarget({target: body, input: 'DisableAutoSleeping'});
     leaveAll('round'); prompt.find();
     for (const s of shown.keys()) prompt.hideSlot(s);      // per player: hideAll does not override a shown prompt
-    health.restore(); hud.hideAll(); prompt.hideAll(); shown.clear(); useHeld.clear(); toggled.clear(); seat.clearEdges(); lastTime = Instance.GetGameTime(); lastCrash = -10;
+    health.restore(); hud.hideAll(); prompt.hideAll(); shown.clear(); useHeld.clear(); toggled.clear(); standing.clear(); stoodSince.clear(); seat.clearEdges(); lastTime = Instance.GetGameTime(); lastCrash = -10;
     contacts = 0; grounded = false; lastExit = lastSafe = entrySafe = null; motor(null);
     core.log('ready', {position: body.GetAbsOrigin(), hp: health.hp}); Instance.SetNextThink(lastTime + .016);
 }
@@ -707,4 +754,7 @@ core.state(() => { const p = peak; peak = {bump: 0, droop: 0, pitch: 0, roll: 0,
     speed: rounded(speed), kph: rounded(speed * .09144), contacts, grounded, travel: travel.map(rounded), crawl,
     steer: rounded(steerAngle), spin: rounded(spin), camera: camera.mode(), chase: camera.chase,
     engine: motorMode, exit: lastExit, stats: health.stats,
+    ...(RIDE ? {riders: [...riders].filter(([p]) => valid(p)).map(([p, r]) => ({slot: core.slot(p), door: r.door, spot: r.spot,
+        ducked: p.IsDucked(),
+        off: rounded(core.dist(p.GetAbsOrigin(), transform(DOORS[r.door].spots[r.spot])))}))} : {}),
     wheels: wheels.filter(valid).map(w => ({position: compact(w.GetAbsOrigin()), angles: compact(w.GetAbsAngles())}))}; });

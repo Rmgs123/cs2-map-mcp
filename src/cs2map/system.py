@@ -111,9 +111,11 @@ def hammer_state(map_file: Path) -> dict:
 
 
 def focus(hwnd: int) -> bool:
-    """Bring a window to the foreground (CS2 only finishes loading / renders properly when focused).
-    Uses the Alt-key trick so Windows allows a background process to switch focus."""
-    user32.ShowWindow(hwnd, 9)                    # SW_RESTORE
+    """Bring a window to the foreground (real keyboard and mouse input reach only the window in front).
+    Uses the Alt-key trick so Windows allows a background process to switch focus. Only a minimized window is
+    restored: SW_RESTORE on a maximized one would shrink it (the user's own window, when focus is given back)."""
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, 9)                # SW_RESTORE
     user32.keybd_event(0x12, 0, 0, 0)             # Alt down
     ok = bool(user32.SetForegroundWindow(hwnd))
     user32.keybd_event(0x12, 0, 2, 0)             # Alt up

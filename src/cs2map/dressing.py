@@ -430,8 +430,12 @@ def tube(start,end,radius,material,sides):
 
 
 def add_pipes(project,m,op,refs):
-    extra=set(op)-{'op','points','radius','sides','theme','material','fittings','ref'}
+    extra=set(op)-{'op','points','radius','sides','theme','material','fittings','options','ref'}
     if extra:raise OpError('unknown add_pipes fields: '+', '.join(sorted(extra)))
+    # Mesh options as in add_mesh (renderToCubemaps, disableShadows, tintColor...); render-only unless said otherwise.
+    options=op.get('options') or {}
+    if not isinstance(options,dict):raise OpError('options must be an object of mesh options, as in add_mesh')
+    options={'physicsType':'none',**options}
     points=op.get('points')
     if not isinstance(points,list) or not 2<=len(points)<=33:raise OpError('points must contain 2..33 world positions')
     points=[vector(v,'points') for v in points]; radius=number(op.get('radius',4),'radius',.25,32)
@@ -442,18 +446,18 @@ def add_pipes(project,m,op,refs):
     fitting=op.get('fittings',False)
     if not isinstance(fitting,bool):raise OpError('fittings must be true or false')
     pieces=[tube(a,b,radius,material,sides) for a,b in zip(points,points[1:])]
-    items=[_mesh_item(project,m,piece,'pipe',{'physicsType':'none'}) for piece in pieces]
+    items=[_mesh_item(project,m,piece,'pipe',options) for piece in pieces]
     if fitting:
         prop=next((p for p in data['props'] if p['key']=='pipe_fitting'),None)
         if not prop:raise OpError('this theme has no pipe_fitting; use industrial/warehouse/harbor/sewer')
         for pt in points[1:-1]:
             node=m.new_entity('prop_dynamic',{'model':prop['model'],'solid':0},pt,defaults=project.catalog.defaults('prop_dynamic'));m.attach(node)
             items.append({'kind':'fitting','ids':[node['nodeID']],'model':prop['model']})
-    return _result(m,op,refs,items,material=material,visual_only=True)
+    return _result(m,op,refs,items,material=material,visual_only=options.get('physicsType')=='none')
 
 
 def add_cables(project,m,op,refs):
-    extra=set(op)-{'op','start','end','sag','radius','segments','material','theme','ref'}
+    extra=set(op)-{'op','start','end','sag','radius','segments','material','theme','options','ref'}
     if extra:raise OpError('unknown add_cables fields: '+', '.join(sorted(extra)))
     start=vector(op.get('start'),'start'); end=vector(op.get('end'),'end')
     sag=number(op.get('sag',12),'sag',0,256); radius=number(op.get('radius',.75),'radius',.1,4)
@@ -463,7 +467,8 @@ def add_cables(project,m,op,refs):
     for i in range(count+1):
         t=i/count; pt=[start[j]+(end[j]-start[j])*t for j in range(3)]; pt[2]-=4*sag*t*(1-t); points.append(pt)
     result=add_pipes(project,m,{'op':'add_pipes','points':points,'radius':radius,'sides':6,
-                               'theme':op.get('theme','industrial'),**({'material':op['material']} if op.get('material') else {})},refs)
+                               'theme':op.get('theme','industrial'),**({'material':op['material']} if op.get('material') else {}),
+                               **({'options':op['options']} if op.get('options') else {})},refs)
     result['op']='add_cables'
     # visual_check finds cable ends fixed in the air (visual_cable_in_air) by these marks.
     ends=json.dumps([[round(c,2) for c in start],[round(c,2) for c in end]])

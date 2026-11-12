@@ -44,8 +44,17 @@ def build(params):
     if not (clearance < floor < floor + sill < floor + head <= top and sill < door_top <= head):
         raise ValueError("bus_body: need clearance < floor < floor+window_bottom < floor+window_top <= height-roof "
                          "and window_bottom < door_top <= window_top")
-    if width < 48 or length < 96 or floor + 72 > top:
-        raise ValueError("bus_body: a player (72 tall) must fit between the floor and the roof")
+    # low: a car or van cabin for crouched riders (add_controllable passengers.crouch): 60..74 inside.
+    low = bool(params.get("low", False))
+    inside = top - floor
+    if width < 48 or length < 96:
+        raise ValueError("bus_body: at least 96 long and 48 wide")
+    if low and not 60 <= inside < 75:
+        raise ValueError(f"bus_body low: the cabin is {inside:g} high inside (height - roof - floor); crouched riders "
+                         "need 60..74 (a crouched player is 54 tall, 3 under the feet and over the head for bumps)")
+    if not low and inside < 72:
+        raise ValueError(f"bus_body: a player (72 tall) must fit between the floor and the roof (now {inside:g}); "
+                         'for a low cabin with crouched riders (passengers.crouch) add "low": true and keep 60..74')
     x0, x1 = -length / 2, length / 2
     y_in = width / 2 - wall
     holes = {"+y": [], "-y": []}

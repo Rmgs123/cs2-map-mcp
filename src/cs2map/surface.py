@@ -13,6 +13,9 @@ import functools
 from typing import Any, Literal
 
 RAW: dict[str, Any] = {}
+# The published tools by name, as an AI client calls them (public parameters, journal): filled by register().
+# A pipeline manifest's "tool" steps call these.
+PUBLIC: dict[str, Any] = {}
 
 
 class Collector:
@@ -94,12 +97,20 @@ def register(mcp, project) -> list[str]:
                     ADDON_SETTINGS.reset(token)
         return wrapper
 
+    def heavy(name: str, preset: str):
+        """The refusal of a heavy build the user has not allowed (settings heavy_builds "ask"), else None."""
+        from . import activity, config, permits
+        try:
+            return permits.heavy_gate(project.s, name, preset, activity.client(mcp), config.panel_url(project.s))
+        except Exception:                    # noqa: BLE001 - a broken state file must not block builds
+            return None
+
     # ---- start ---------------------------------------------------------------------------------------------
     @mcp.tool()
     def status() -> dict:
-        """Check the environment: CS2 (path, running, Workshop Tools mode), the addon and its newest maps, Blender,
-        Node.js, Source2Viewer, running and recent jobs, the latest crash dump. Call first.
-        Returns {cs2, addon, blender, node, source2viewer, jobs_running, recent_jobs, ...}."""
+        """Check the environment: CS2 (running, Workshop Tools mode), the addon and its newest maps, Blender,
+        Node.js, jobs, the latest crash dump, what the user allows. Call first.
+        Returns {cs2, addon, blender, node, jobs_running, recent_jobs, permissions, ...}."""
         return R['status']()
 
     @mcp.tool()
@@ -116,8 +127,7 @@ def register(mcp, project) -> list[str]:
                  name: str | None = None, text: str | None = None, data: Any = None, append: bool = False) -> dict:
         """Your local layer my/ (kept between chats, never in git): note = a lesson or the user's taste, recipe =
         a batch that worked (text/data), style = an own look (data; map_edit "style":"my:<name>"), feedback = a
-        problem with this MCP for its author (a tool error not yours, a wrong guide, a missing feature; name = tool,
-        text = wanted / happened / workaround) in my/feedback.md. Read notes before work, write after findings.
+        problem with this MCP for its author (name = tool, text = wanted / happened / workaround) in my/feedback.md.
         append=true adds to a note. Returns {notes, recipes, styles} | {text, data} | {files}."""
         return R['my_notes'](action, kind, name, text, data, append)
 
@@ -129,7 +139,7 @@ def register(mcp, project) -> list[str]:
         """Create a map in the addon. name: a-z0-9_. template: basic (sky, sun, fog; recommended) | empty |
         defuse/hostage/wingman (Valve gameplay templates). type picks the checks and end tests (competitive,
         story, mode, sandbox, hideseek, custom = default; it never limits what you build).
-        Example: map_create(name="arena", type="competitive"). Returns {map, path, type}."""
+        Returns {map, path, type}."""
         return R['map_create'](name, template, overwrite, type)
 
     @mcp.tool()
@@ -163,14 +173,20 @@ def register(mcp, project) -> list[str]:
         return R['map_info'](name, classname, kind, ids, full, offset, limit)
 
     @mcp.tool()
-    def map_edit(name: str, operations: list[dict[str, Any]], dry_run: bool = False, force: bool = False) -> dict:
+    def map_edit(name: str, operations: list[dict[str, Any]] | None = None, dry_run: bool = False,
+                 force: bool = False, packages: Any = None) -> dict:
         """Apply a batch of operations atomically (all or nothing, one save, automatic backup). Every operation
         and field is in the guide (read_guide); unknown fields are refused. dry_run=true validates without saving;
         "ref":"x" names a result for later "@x"; force=true writes a map open in Hammer without unsaved edits.
         Example: [{"op":"add_mesh","shape":{"shape":"box","mins":[0,0,-16],"maxs":[1024,1024,0]},
         "material":"materials/dev/dev_measuregeneric01.vmat"},
         {"op":"add_entity","classname":"info_player_terrorist","origin":[100,0,8],"angles":[0,90,0]}].
+        Big maps: packages=[files] | "pipeline.json": a job replays only what changed (guide pipeline).
         Returns {ok, results: [{op, id, ...}], backup}."""
+        if packages is not None:
+            if operations:
+                raise ValueError('give operations or packages, not both')
+            return R['map_apply'](name, packages, dry_run, force)
         return R['map_edit'](name, operations, dry_run, force)
 
     @mcp.tool()
@@ -184,11 +200,14 @@ def register(mcp, project) -> list[str]:
 
     @mcp.tool()
     def map_build(name: str, preset: Literal['fast', 'nav', 'full', 'final', 'release'] = 'fast',
-                  bots: bool | None = None, vis: bool | None = None) -> dict:
+                  bots: bool | None = None, vis: bool | None = None, region: Any = None) -> dict:
         """Compile in the background. preset: fast (geometry; seconds) | nav (+ bots) | full (+ light: RTX
         GPU) | final (+ visibility, slow) | release (own Workshop addon). bots/vis null = auto (off over the nav
-        limit / on open maps); poll job_status."""
-        return R['map_build'](name, preset, bots, vis)
+        limit / on open maps). region=[[x0,y0],[x1,y1]] | boxes | "marks": only that zone, as map
+        <name>_region (guide pipeline). Poll job_status."""
+        if region is not None:
+            return R['map_build'](name, preset, bots, vis, region)
+        return heavy(name, preset) or R['map_build'](name, preset, bots, vis)
 
     @mcp.tool()
     def job_status(job: str, wait_seconds: float = 20, log_lines: int = 15, cancel: bool = False) -> dict:
@@ -206,10 +225,10 @@ def register(mcp, project) -> list[str]:
         return R['check_map'](name)
 
     @mcp.tool()
-    def visual_check(name: str, limit: int = 200, box: list[list[float]] | None = None) -> dict:
+    def visual_check(name: str, limit: int = 200, box: Any = None) -> dict:
         """Scene audit: floating or intersecting props, z-fighting, meshes over or under terrain, wall parts off
-        walls, paved slabs, invisible walls. box=[[x0,y0],[x1,y1]]: one zone. Returns {ok, problems (ids,
-        fixes; first `limit`), summary.by_code}."""
+        walls, paving edges and gaps, invisible walls. box=[[x0,y0],[x1,y1]]: one zone. Returns {ok, problems
+        (ids, fixes; `limit` of them), summary: by_code, zones}."""
         return R['visual_check'](name, limit, box)
 
     # ---- references -----------------------------------------------------------------------------------------
@@ -476,18 +495,24 @@ def register(mcp, project) -> list[str]:
             return R['script_reload'](name, code)
         return R['script_write'](name, code)
 
-    @mcp.tool()
     @on_release
+    def run_script_test(map, steps, timeout):
+        return R['script_test'](map, steps, timeout)
+
+    @mcp.tool()
     def script_test(map: str, steps: list[dict[str, Any]] | Literal['auto'] = 'auto', timeout: float = 90) -> dict:
-        """Play a scenario in CS2 with real input, console checks and frames (one lock, timeout 1..90 s). Steps,
+        """Play a scenario in CS2 with real input, console checks and frames (timeout 1..90 s). Steps,
         one action each: cmd 'console' (+wait s), walk [x,y,z] (teleport, feet), go [x,y,z] (physical), use true
         (E), hold {"key":"attack|forward|back|left|right|jump|duck|reload|walk|use","seconds":1}, aim [x,y,z] or
         'entity', mouse {"dx":40,"dy":0} (real mouse), click [x,y] (window fractions: HUD buttons), expect 'regex'
-        (+within s), shot 'name', wait s, press 'button', fire 'name input', say 'chat', focus true|false, spread
+        (+within s), shot 'name', wait s, press 'button', fire 'name input', say 'chat', spread
         {"shots":5} (shot accuracy, deg and units). "auto" plays
         add_story. game_reset before and after. Example: [{"use":true},{"expect":"enter","within":2},
         {"hold":{"key":"forward","seconds":1}},{"shot":"drive"}]. Returns {ok, checks, errors, shots, log}."""
-        return R['script_test'](map, steps, timeout)
+        from . import activity, config, permits
+        # A click or a held focus while the user keeps the game behind their windows: the test waits for them.
+        held = permits.defer_test(project.s, map, steps, timeout, activity.client(mcp), config.panel_url(project.s))
+        return held or run_script_test(map, steps, timeout)
 
     # ---- light ------------------------------------------------------------------------------------------------
     @mcp.tool()
@@ -498,7 +523,7 @@ def register(mcp, project) -> list[str]:
         the compiled map). Returns {ok, build, cubemaps, reason}."""
         if cubemaps_only:
             return R['lighting_bake_cubemaps'](name, min(timeout, 600))
-        return R['lighting_build'](name, preset, cubemaps, timeout)
+        return heavy(name, preset) or R['lighting_build'](name, preset, cubemaps, timeout)
 
     @mcp.tool()
     def lighting_measure(path: str) -> dict:
@@ -518,8 +543,8 @@ def register(mcp, project) -> list[str]:
     @mcp.tool()
     def game_command(command: str, wait: float = 1.5, focus: bool = False) -> dict:
         """Console commands to the running CS2 (one per line); returns the printed output. Useful: sv_cheats 1,
-        getpos, bot_add_ct, ent_fire <name> <input>, snd_showstart 1. focus=true keeps the
-        game window in front (needed for setang before +attack). Returns {output}."""
+        getpos, bot_add_ct, ent_fire <name> <input>, snd_showstart 1. focus=true keeps the background CS2 awake for
+        the whole wait. Returns {output}."""
         return R['game_command'](command, wait, focus)
 
     @mcp.tool()
@@ -527,16 +552,17 @@ def register(mcp, project) -> list[str]:
     def game_screenshot(map: str | None = None,
                         views: list[dict[str, Any]] | Literal['auto', 'rooms', 'marks'] | None = None,
                         name: str | None = None, pos: list[float] | None = None, ang: list[float] | None = None,
-                        hide_hud: bool = True, window: Literal['game', 'hammer'] = 'game', offset: int = 0,
-                        limit: int | None = None) -> dict:
+                        hide_hud: bool = True, window: Literal['game', 'hammer', 'offline'] = 'game',
+                        offset: int = 0, limit: int | None = None) -> dict:
         """Photograph the game (PNG paths; open them). map: loaded first (reloaded if rebuilt). views: [{"name",
         "pos":[x,y,z] feet (eye +64), "ang":[pitch,yaw,0], "cmd": console run in place, "wait", "grep",
-        "keep": true = no noclip (a script camera), "fullbright": true, "preview": true = also the loading-screen
-        picture}] |
-        "auto" (overviews, spawns, objectives, rooms) | "rooms" (one per layout room) | "marks" (frames a
-        tester marked: map, pos, ang, time, note); offset/limit page them. Or one view by name/pos/ang.
-        window="hammer": Hammer.
+        "keep": true = no noclip (a script camera), "fullbright": true, "preview": true = also the loading
+        picture}] | "auto" (overviews, spawns, objectives, rooms) | "rooms" | "marks" (what a tester marked:
+        pos, ang, note; offset/limit page them). Or one view by name/pos/ang. window: "hammer" | "offline" =
+        the saved map drawn without CS2 (also {"top"|"side": box}; guide pipeline).
         Returns {shots: [{name, path}]}."""
+        if window == 'offline':
+            return R['map_preview'](map, views, name, pos, ang)
         if views == 'marks':
             return R['game_marks'](map, offset, limit)
         if views == 'rooms':
@@ -615,8 +641,11 @@ def register(mcp, project) -> list[str]:
         return R['mode_setup'](map, mode)
 
     # ---- the published schemas: compact ---------------------------------------------------------------------
+    from . import activity
     names = []
     for tool in mcp._tool_manager.list_tools():
         tool.parameters = compact_schema(tool.parameters)
+        tool.fn = activity.logged(tool.name, tool.fn, mcp)      # every call goes to the shared journal (the panel)
+        PUBLIC[tool.name] = tool.fn
         names.append(tool.name)
     return names

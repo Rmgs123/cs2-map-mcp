@@ -88,6 +88,10 @@ def _size(value):
 
 
 HINTS = {'board': 'E: get in', 'ride': 'E: get out', 'drive': 'E: drive', 'blocked': 'No room to get out'}
+# passengers.crouch (a cabin lower than a standing player): boarding needs the crouch key held.
+CROUCH_HINTS = {**HINTS, 'board': 'Ctrl+E: get in', 'crouch': 'Hold Ctrl (crouch) and press E'}
+STAND, DUCKED, HEADROOM = 72, 54, 3          # player hulls; room over a rider's head for bumps and tilt
+RIDER_APART = 45.3                           # 32 * sqrt(2): closer world-axis hulls overlap at some headings
 
 
 def _passengers(ride):
@@ -95,9 +99,13 @@ def _passengers(ride):
     `at` is the doorway (body frame) and `spots` the standing places (feet) of the passengers who got in there. E near a
     door (or inside) puts a player on a random free spot of that door's group, E again lets them off; anyone standing
     inside when the body starts moving is put on a spot. Riders keep their weapons and look around. hint: the prompt
-    texts {board, ride, drive}."""
-    if not isinstance(ride, dict) or set(ride) - {'floor', 'roof', 'doors', 'hint'}:
-        raise ValueError('passengers must be {floor, roof, doors: [{at, radius, spots}], hint}')
+    texts {board, ride, drive}. crouch: the cabin is lower than a standing player (a car): riders sit crouched, board
+    with the crouch key held (Ctrl+E) and always get off outside a door."""
+    if not isinstance(ride, dict) or set(ride) - {'floor', 'roof', 'doors', 'hint', 'crouch'}:
+        raise ValueError('passengers must be {floor, roof, doors: [{at, radius, spots}], hint, crouch}')
+    crouch = ride.get('crouch', False)
+    if not isinstance(crouch, bool):
+        raise ValueError('passengers.crouch is true (a cabin lower than a standing player) or false')
     doors = ride.get('doors', [])
     if not isinstance(doors, list) or not 1 <= len(doors) <= 8:
         raise ValueError('passengers.doors must list 1..8 doors {at: [x,y,z], radius, spots: [[x,y,z], ...]}')
@@ -115,11 +123,45 @@ def _passengers(ride):
     if total > 32:
         raise ValueError('at most 32 passenger spots')
     hint = ride.get('hint', {})
-    if not isinstance(hint, dict) or set(hint) - set(HINTS) or any(not isinstance(v, str) or len(v) > 64 for v in hint.values()):
-        raise ValueError('passengers.hint is {board, ride, drive, blocked}: texts up to 64 characters')
-    return {'floor': mechanics.number(ride.get('floor', 24), 'passengers.floor', 0, 200),
-            'roof': mechanics.number(ride.get('roof', 140), 'passengers.roof', 40, 400),
-            'doors': out, 'hint': {**HINTS, **hint}}
+    texts = CROUCH_HINTS if crouch else HINTS
+    if not isinstance(hint, dict) or set(hint) - set(texts) or any(not isinstance(v, str) or len(v) > 64 for v in hint.values()):
+        raise ValueError(f'passengers.hint is {{{", ".join(texts)}}}: texts up to 64 characters')
+    floor = mechanics.number(ride.get('floor', 24), 'passengers.floor', 0, 200)
+    roof = mechanics.number(ride.get('roof', 140), 'passengers.roof', 40, 400)
+    room = round(roof - floor, 2)
+    if crouch:
+        # Measured in CS2 (a 4-seat SUV): under a roof lower than a standing hull the engine keeps the crouch itself;
+        # 1 unit over the heads was crushed at 1.5 degrees of pitch; riders closer than 32*sqrt(2) overlap at some
+        # headings (world-axis hulls), log "stuck on object" and stall the car.
+        # 12.11, a van over a 4.5-degree bump at 500 u/s: 1 unit over the head and the rider had "no room" and was
+        # put out; 4 units under the feet and over the head rode it.
+        low, high = DUCKED + 2 * HEADROOM, STAND + HEADROOM
+        if not low <= room < high:
+            raise ValueError(f'passengers.crouch: the cabin is {room} high inside (roof - floor); crouched riders '
+                             f'need {low} or more ({DUCKED} tall, {HEADROOM} under the feet and over the head for '
+                             f'bumps) and less than {high} (from there a rider stands up: drop crouch at '
+                             f'{STAND + 2 * HEADROOM}+)')
+        spots = [s for d in out for s in d['spots']]
+        for s in spots:
+            # 12.11, a pistol at 300 units, measured: feet 3 over the floor - the rider hangs in the air (CS2 finds the
+            # ground within 2 units under the feet), 2.25 degrees wide parked; 2 over - 0.11 parked but 4-6 moving
+            # (in the air again on every tick's move); 1 over - 0.10 parked, 1.2 at 300 u/s (only the 1.4-tick lag).
+            if not floor + .5 <= s[2] <= floor + 1.5:
+                raise ValueError(f'passengers.crouch: spot {s} (feet): z must be {floor + 1} (1 over the floor: CS2 '
+                                 'finds the ground only close under the feet; higher and a rider of the moving car '
+                                 'is in the air and shoots 4-6 degrees wide)')
+        close = [(a, b) for i, a in enumerate(spots) for b in spots[i + 1:]
+                 if math.hypot(a[0] - b[0], a[1] - b[1]) < RIDER_APART]
+        if close:
+            a, b = close[0]
+            raise ValueError(f'passengers.crouch: spots {a[:2]} and {b[:2]} are '
+                             f'{round(math.hypot(a[0] - b[0], a[1] - b[1]), 1)} apart; riders closer than '
+                             f'{RIDER_APART} (32 x sqrt 2) overlap when the car turns and stall it: move them apart '
+                             '(in a small car: diagonal seats) or drop one')
+    elif room < STAND + 2 * HEADROOM:
+        raise ValueError(f'passengers: the cabin is {room} high inside (roof - floor), standing riders need '
+                         f'{STAND + 2 * HEADROOM}: for a low cabin (a car) add "crouch": true')
+    return {'floor': floor, 'roof': roof, 'doors': out, 'hint': {**texts, **hint}, **({'crouch': True} if crouch else {})}
 
 
 def validate(spec, m=None):
@@ -204,7 +246,8 @@ def _scale(spec):
         ride = spec['passengers']
         spec['passengers'] = _passengers({'floor': one(ride['floor']), 'roof': one(ride['roof']), 'hint': ride['hint'],
                                           'doors': [{'at': vec(d['at']), 'radius': one(d['radius']),
-                                                     'spots': [vec(s) for s in d['spots']]} for d in ride['doors']]})
+                                                     'spots': [vec(s) for s in d['spots']]} for d in ride['doors']],
+                                          **({'crouch': True} if ride.get('crouch') else {})})
     if 'pilot' in spec:
         spec['pilot'] = {**spec['pilot'], 'at': vec(spec['pilot']['at'])}
     cam = spec['camera']

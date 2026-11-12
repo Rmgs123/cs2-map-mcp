@@ -33,6 +33,15 @@ SLAB_STEP = 32.0          # samples along a paved edge
 SLAB_OUT = 12.0           # the ground is read this far outside the edge
 SLAB_SHOW = 7.0           # an edge this high over the ground shows its side (a kerb is up to ~6)
 SLAB_REPORT = 64.0        # ... over this much length is reported
+GAP_STEP = 16.0           # samples along a free paved edge for gaps and patches
+GAP_REACH = 96.0          # another paving this close across lower ground makes a gap
+GAP_LEVEL = 24.0          # ... when its top is within this of the edge's height
+GAP_DEEP = 2.0            # ... and everything between them lies this much under both
+GAP_HEAD = 72.0           # what hangs higher than this over the strip (a canopy, a roof) does not fill it
+GAP_REPORT = 48.0         # units of edge per pair of meshes
+PATCH_AREA = 93000.0      # 60 m2 of top: a smaller paving piece that joins nothing is a patch
+PATCH_MIN = 3100.0        # 2 m2: smaller pieces are objects (a step, a slab under a post)
+PATCH_FREE = 0.9          # the share of its outline with nothing beside it
 CLIP_STEP = 32.0
 CLIP_NEAR = 28.0          # something visible this close to a clip makes it a real barrier
 CLIP_REPORT = 64.0
@@ -44,6 +53,26 @@ _FENCE = ('fence', 'railing', 'rail_', 'grate', 'grille', 'chainlink', 'chain_li
           'lattice', 'plank', 'palisade', 'netting')
 _CLIP = ('toolsplayerclip', 'toolsclip')
 _NOT_GROUND = ('roof', 'facade', 'plaster', 'wall', 'trim', 'parapet')     # tops nobody walks to a clip on
+
+
+class Zone:
+    """One zone of a map under audit (visual_check box=...). Only the meshes within `context` units of the box
+    are loaded, so a check that adds up samples along a long mesh (a road, a clip, a joint) counts those in the
+    zone only: further out its neighbours are missing and bare ground would be read where a kerb stands."""
+
+    def __init__(self, box, report: float, context: float):
+        (self.x0, self.y0), (self.x1, self.y1) = box
+        self.report, self.context = report, context
+
+    def reports(self, x: float, y: float) -> bool:
+        """Is the place in the zone (findings there are the zone's)?"""
+        r = self.report
+        return self.x0 - r <= x <= self.x1 + r and self.y0 - r <= y <= self.y1 + r
+
+    def known(self, x: float, y: float, reach: float) -> bool:
+        """Is everything within `reach` units of the place loaded?"""
+        r = self.context - reach
+        return self.x0 - r <= x <= self.x1 + r and self.y0 - r <= y <= self.y1 + r
 
 
 class TriIndex:
@@ -97,6 +126,19 @@ class TriIndex:
         ok &= (u >= -1e-6) & (v >= -1e-6) & (u + v <= 1 + 1e-6)
         z = a[:, 2] + u * (b[:, 2] - a[:, 2]) + v * (c[:, 2] - a[:, 2])
         return z[ok]
+
+    def heights(self, xs, ys, idx) -> np.ndarray:
+        """(points, len(idx)) z of triangles `idx` on vertical lines at the points (xs, ys); nan where a line
+        misses the triangle."""
+        a, b, c = self.a[idx], self.b[idx], self.c[idx]
+        x, y = np.asarray(xs, dtype=float)[:, None], np.asarray(ys, dtype=float)[:, None]
+        d = (b[:, 0] - a[:, 0]) * (c[:, 1] - a[:, 1]) - (c[:, 0] - a[:, 0]) * (b[:, 1] - a[:, 1])
+        ok = np.abs(d) > 1e-9
+        d = np.where(ok, d, 1.0)
+        u = ((x - a[:, 0]) * (c[:, 1] - a[:, 1]) - (c[:, 0] - a[:, 0]) * (y - a[:, 1])) / d
+        v = ((b[:, 0] - a[:, 0]) * (y - a[:, 1]) - (x - a[:, 0]) * (b[:, 1] - a[:, 1])) / d
+        z = a[:, 2] + u * (b[:, 2] - a[:, 2]) + v * (c[:, 2] - a[:, 2])
+        return np.where(ok & (u >= -1e-6) & (v >= -1e-6) & (u + v <= 1 + 1e-6), z, np.nan)
 
     def ray(self, origin, direction, tmax: float, tmin: float = 0.0) -> float | None:
         """Nearest t in [tmin, tmax] where the ray meets a triangle (either side)."""
@@ -153,6 +195,24 @@ def _point_tri_distance(p, a, b, c) -> np.ndarray:
     return np.where(inside, np.abs(dist_plane), edges)
 
 
+def unit_nz(arr: np.ndarray) -> np.ndarray:
+    """z of the unit normal of every triangle of an (n, 3, 3) array: _normal(t)[2] for all at once, in the same
+    arithmetic, so a threshold picks the same triangles."""
+    e1, e2 = arr[:, 1] - arr[:, 0], arr[:, 2] - arr[:, 0]
+    nx = e1[:, 1] * e2[:, 2] - e1[:, 2] * e2[:, 1]
+    ny = e1[:, 2] * e2[:, 0] - e1[:, 0] * e2[:, 2]
+    nz = e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]
+    ln = np.sqrt(nx * nx + ny * ny + nz * nz)
+    return nz / np.where(ln == 0, 1.0, ln)
+
+
+def tris_of(groups, keep=None) -> np.ndarray:
+    """The triangles of (node, box, triangles) groups as one array, in their order; keep(unit normal z) picks
+    some (walls, tops). The arrays are made once per mesh inside checks.scene_cache()."""
+    arr = checks.tri_arrays([tris for _, _, tris in groups])
+    return arr if keep is None or not len(arr) else arr[keep(unit_nz(arr))]
+
+
 def _unit(v):
     ln = math.sqrt(sum(x * x for x in v)) or 1.0
     return tuple(x / ln for x in v)
@@ -199,7 +259,7 @@ def wall_checks(project, props, visible, mount_of, frame_of) -> list:
     cands = [e for e in props if _wall_part(project, e, mount_of)]
     if not cands:
         return []
-    walls = TriIndex([t for _, _, tris in visible for t in tris if abs(_normal(t)[2]) < STEEP])
+    walls = TriIndex(tris_of(visible, lambda nz: np.abs(nz) < STEEP))
     panes = None
     out = []
     for entry in cands:
@@ -281,8 +341,9 @@ def cable_checks(m, props, visible) -> list:
     if not cables:
         return []
     cable_ids = {id(n) for n, _ in cables}
-    anchors = TriIndex([t for n, _, tris in visible if id(n) not in cable_ids for t in tris])
-    boxes = [e['bounds'] for e in props]
+    anchors = TriIndex(tris_of([g for g in visible if id(g[0]) not in cable_ids]))
+    box_lo = np.array([e['bounds'][0] for e in props], dtype=float).reshape(-1, 3) - CABLE_REACH
+    box_hi = np.array([e['bounds'][1] for e in props], dtype=float).reshape(-1, 3) + CABLE_REACH
     out, seen = [], set()
     for node, ends in cables:
         for p in ends:
@@ -291,13 +352,14 @@ def cable_checks(m, props, visible) -> list:
                 continue
             if anchors.distance(p, CABLE_REACH) is not None:
                 continue
-            if any(all(lo[i] - CABLE_REACH <= p[i] <= hi[i] + CABLE_REACH for i in range(3)) for lo, hi in boxes):
+            if len(box_lo) and bool(np.any(np.all((box_lo <= p) & (p <= box_hi), axis=1))):
                 continue
             seen.add(key)
             out.append(checks.problem('warning', 'visual_cable_in_air', node.get('nodeID'),
                 f"a cable end at {[round(x) for x in p]} is fixed to nothing (no wall, pole, pipe or model within "
                 f"{CABLE_REACH:g} units)", 'Move the end onto a wall, a pole or an insulator model; cables meeting '
                 'in the air need a pole there'))
+            out[-1]['at'] = [round(x, 1) for x in p]
     return out
 
 
@@ -356,6 +418,13 @@ def door_window_checks(visible) -> list:
 def paved_slab_checks(m, meshes, paved, skip=frozenset()) -> list:
     """Free edges of paved tops standing over the terrain beside them. `paved(node)` says which meshes are
     paving."""
+    return paved_checks(m, meshes, paved, skip, ('slab',))
+
+
+def paved_checks(m, meshes, paved, skip=frozenset(), kinds=('slab', 'gap', 'patch'), zone: Zone | None = None) -> list:
+    """What is wrong at the edges of paving that lies on the terrain: visual_paved_slab (an edge standing over
+    the ground), visual_paved_gap (soil between two pavings), visual_paved_patch (a piece that joins nothing).
+    zone: the audit of one zone, where an edge is judged by its part in the zone."""
     from . import terrain
     plans = terrain.plans(m)
     if not plans:
@@ -371,12 +440,56 @@ def paved_slab_checks(m, meshes, paved, skip=frozenset()) -> list:
                     return None
         return None
 
-    cands = [(n, b, tris) for n, b, tris in meshes if n.get('nodeID') not in skip and paved(n)]
-    if not cands:
+    paving = _paving(meshes, paved, skip, ground)
+    if not paving:
         return []
-    every = TriIndex([t for _, _, tris in meshes for t in tris])
+    every = TriIndex(tris_of(meshes))
     out = []
-    for node, bound, tris in cands:
+    for node, tops, own, free in (paving if 'slab' in kinds else ()):
+        length = worst = 0.0
+        where = None
+        for a, b, nx, ny, ln in free:
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            steps = max(1, int(ln // SLAB_STEP))
+            for s in range(steps):
+                f = (s + 0.5) / steps
+                q = (a[0] + dx * f, a[1] + dy * f, a[2] + (b[2] - a[2]) * f)
+                if zone and not zone.reports(q[0], q[1]):
+                    continue
+                x, y = q[0] + nx * SLAB_OUT, q[1] + ny * SLAB_OUT
+                if len(own.vhits(x, y)):
+                    continue                             # its own top goes on (a notch, a bend)
+                g = ground(x, y)
+                if g is None or q[2] - g < SLAB_SHOW:
+                    continue
+                # Anything of another mesh over the terrain there (a top, a lower road beside a kerb, a wall) means
+                # the edge is not standing over bare ground: steps between meshes are visual_paved_lip's.
+                if any(z > g + 0.5 for z in every.vhits(x, y)):
+                    continue
+                length += ln / steps
+                if q[2] - g > worst:
+                    worst, where = q[2] - g, q
+        if length >= SLAB_REPORT:
+            out.append(checks.problem('warning', 'visual_paved_slab', node.get('nodeID'),
+                f"{length / 39.37:.1f} m of the edge of paved mesh {node.get('nodeID')} stand {SLAB_SHOW:g}+ units "
+                f"over the ground (up to {worst:.0f}, near {[round(x) for x in where]}): its side shows as a band",
+                'Sink the edge into the ground: raise the terrain along it to 2-4 units under the top, or lower '
+                'the paving; a kerb or a chamfer mesh along the edge also hides it'))
+            out[-1]['at'] = [round(x, 1) for x in where]
+    if 'gap' in kinds:
+        out.extend(_paved_gap_checks(paving, every, ground, zone))
+    if 'patch' in kinds:
+        out.extend(_paved_patch_checks(paving, every, zone))
+    return out
+
+
+def _paving(meshes, paved, skip, ground) -> list:
+    """The paving meshes lying on the terrain: [(node, top triangles, TriIndex of the tops, free edges)]. A free
+    edge is (a, b, nx, ny, length): an edge used by one top triangle, with its normal pointing out of the top."""
+    out = []
+    for node, bound, tris in meshes:
+        if node.get('nodeID') in skip or not paved(node):
+            continue
         if min(bound[1][0] - bound[0][0], bound[1][1] - bound[0][1]) < 48 or bound[1][2] - bound[0][2] > 96:
             continue                                     # kerbs, posts and walls are not ground paving
         tops = [t for t in tris if _normal(t)[2] > 0.7]
@@ -400,9 +513,7 @@ def paved_slab_checks(m, meshes, paved, skip=frozenset()) -> list:
                 a, b = t[i], t[(i + 1) % 3]
                 key = tuple(sorted((tuple(round(x, 1) for x in a), tuple(round(x, 1) for x in b))))
                 edges.setdefault(key, []).append((a, b, t))
-        own = TriIndex(tops)
-        length = worst = 0.0
-        where = None
+        free = []
         for items in edges.values():
             if len(items) != 1:
                 continue
@@ -415,29 +526,118 @@ def paved_slab_checks(m, meshes, paved, skip=frozenset()) -> list:
             cx, cy = sum(p[0] for p in t) / 3, sum(p[1] for p in t) / 3
             if (cx - a[0]) * nx + (cy - a[1]) * ny > 0:
                 nx, ny = -nx, -ny                        # outward: away from its own triangle
-            steps = max(1, int(ln // SLAB_STEP))
-            for s in range(steps):
-                f = (s + 0.5) / steps
-                q = (a[0] + dx * f, a[1] + dy * f, a[2] + (b[2] - a[2]) * f)
-                x, y = q[0] + nx * SLAB_OUT, q[1] + ny * SLAB_OUT
-                if len(own.vhits(x, y)):
-                    continue                             # its own top goes on (a notch, a bend)
-                g = ground(x, y)
-                if g is None or q[2] - g < SLAB_SHOW:
-                    continue
-                # Anything of another mesh over the terrain there (a top, a lower road beside a kerb, a wall) means
-                # the edge is not standing over bare ground: steps between meshes are visual_paved_lip's.
-                if any(z > g + 0.5 for z in every.vhits(x, y)):
-                    continue
-                length += ln / steps
-                if q[2] - g > worst:
-                    worst, where = q[2] - g, q
-        if length >= SLAB_REPORT:
-            out.append(checks.problem('warning', 'visual_paved_slab', node.get('nodeID'),
-                f"{length / 39.37:.1f} m of the edge of paved mesh {node.get('nodeID')} stand {SLAB_SHOW:g}+ units "
-                f"over the ground (up to {worst:.0f}, near {[round(x) for x in where]}): its side shows as a band",
-                'Sink the edge into the ground: raise the terrain along it to 2-4 units under the top, or lower '
-                'the paving; a kerb or a chamfer mesh along the edge also hides it'))
+            free.append((a, b, nx, ny, ln))
+        out.append((node, tops, TriIndex(tops), free))
+    return out
+
+
+def _edge_samples(free, step: float):
+    """Points along free edges every `step` units: (point on the edge, outward nx, ny, the length it stands for)."""
+    for a, b, nx, ny, ln in free:
+        steps = max(1, int(ln // step))
+        for s in range(steps):
+            f = (s + 0.5) / steps
+            yield ((a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f), nx, ny, ln / steps)
+
+
+def _paved_gap_checks(paving, every: TriIndex, ground, zone: Zone | None = None) -> list:
+    """visual_paved_gap: soil showing in a strip between two pavings (27.10, a town map: a footway broken by a
+    driveway with grass between the pieces). From a free paved edge another paving's top lies 12..96 units
+    straight out at about the same height, and everything between them up to head height is lower than both
+    (a kerb or a wall standing in the strip fills it; a canopy over it does not)."""
+    if len(paving) < 2:
+        return []
+    tris, owner = [], []
+    for k, (_, tops, _, _) in enumerate(paving):
+        tris.extend(tops)
+        owner.extend([k] * len(tops))
+    index = TriIndex(tris)
+    owner = np.asarray(owner, dtype=np.int64)
+    reach = np.arange(SLAB_OUT, GAP_REACH + 0.1, 6.0)
+    found: dict = {}                    # (node id a, node id b) -> {side k: [length, depth, width, where]}
+    for k, (node, _, own, free) in enumerate(paving):
+        for q, nx, ny, part in _edge_samples(free, GAP_STEP):
+            if zone and not zone.reports(q[0], q[1]):
+                continue
+            if len(own.vhits(q[0] + nx * SLAB_OUT, q[1] + ny * SLAB_OUT)):
+                continue                                 # its own top goes on (a notch, a bend)
+            xs, ys = q[0] + nx * reach, q[1] + ny * reach
+            idx = index.near(float(xs.min()), float(xs.max()), float(ys.min()), float(ys.max()))
+            if not len(idx):
+                continue
+            z = index.heights(xs, ys, idx)               # (points, triangles), nan where the point is off it
+            level = np.abs(z - q[2])
+            mine = (owner[idx] == k)[None, :] & (level < 8)
+            other = (owner[idx] != k)[None, :] & (level <= GAP_LEVEL)
+            hit = None
+            for j in range(len(reach)):
+                if mine[j].any():
+                    break                                # back on its own paving: this way is not out
+                if other[j].any():
+                    col = np.where(other[j], z[j], -np.inf)
+                    best = int(np.argmax(col))
+                    hit = (float(reach[j]), float(col[best]), int(owner[idx[best]]))
+                    break
+            if hit is None:
+                continue
+            width, zo, ko = hit
+            mx, my = q[0] + nx * width / 2, q[1] + ny * width / 2
+            low = min(q[2], zo)
+            between = [float(v) for v in every.vhits(mx, my) if v <= low + GAP_HEAD]
+            g = ground(mx, my)
+            if g is not None:
+                between.append(g)
+            if not between or max(between) >= low - GAP_DEEP:
+                continue                                 # filled (a kerb, a filler, the ground at their level)
+            other_id = paving[ko][0].get('nodeID')
+            pair = tuple(sorted((node.get('nodeID'), other_id)))
+            side = found.setdefault(pair, {}).setdefault(k, [0.0, 0.0, 0.0, q])
+            side[0] += part
+            side[2] = max(side[2], width)
+            if low - max(between) > side[1]:
+                side[1], side[3] = low - max(between), q
+    out = []
+    for (a, b), sides in found.items():
+        length, depth, width, where = max(sides.values(), key=lambda s: s[0])     # seen from both: the longer side
+        if length < GAP_REPORT:
+            continue
+        out.append(checks.problem('warning', 'visual_paved_gap', a,
+            f"paved meshes {a} and {b} leave a strip up to {width:.0f} units wide along {length / 39.37:.1f} m near "
+            f"{[round(x) for x in where]} where the ground lies {depth:.0f} units lower: soil shows between them",
+            'Join them: extend one paving to the other or add a paving mesh between them; a kerb or the terrain '
+            'raised to their level also closes the strip'))
+        out[-1].update({'ids': [a, b], 'at': [round(x, 1) for x in where]})
+    return out
+
+
+def _paved_patch_checks(paving, every: TriIndex, zone: Zone | None = None) -> list:
+    """visual_paved_patch: a small piece of paving that joins nothing (asphalt rectangles lying alone in a
+    yard). Under 60 m2 of top, and along 90 % of its outline nothing of another mesh stands 12 units out at its
+    level: no paving, kerb or wall. In a zone audit a piece is judged only when its whole outline is loaded."""
+    out = []
+    for node, tops, own, free in paving:
+        if zone and not all(zone.known(p[0], p[1], SLAB_OUT + 4) for a, b, *_ in free for p in (a, b)):
+            continue
+        arr = np.asarray(tops, dtype=float).reshape(-1, 3, 3)
+        e1, e2 = arr[:, 1] - arr[:, 0], arr[:, 2] - arr[:, 0]
+        area = float(np.abs(e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]).sum() / 2)
+        if not PATCH_MIN <= area < PATCH_AREA:
+            continue
+        total = alone = 0
+        for q, nx, ny, _ in _edge_samples(free, GAP_STEP):
+            x, y = q[0] + nx * SLAB_OUT, q[1] + ny * SLAB_OUT
+            if len(own.vhits(x, y)):
+                continue
+            total += 1
+            alone += not any(v >= q[2] - 8 for v in every.vhits(x, y))
+        if total >= 4 and alone >= PATCH_FREE * total:
+            centre = [round(float(v), 1) for v in arr.reshape(-1, 3).mean(axis=0)]
+            out.append(checks.problem('warning', 'visual_paved_patch', node.get('nodeID'),
+                f"paved mesh {node.get('nodeID')} ({area / 1550:.1f} m2) near {[round(v) for v in centre]} joins no "
+                "other paving, kerb or wall: a stray piece of paving on the ground",
+                'Join it to the paving it belongs to or remove it; a pad meant to stand alone needs a border '
+                '(a kerb, a frame) to read as one'))
+            out[-1]['at'] = centre
     return out
 
 
@@ -447,7 +647,7 @@ def _is_clip(node) -> bool:
     return bool(mats) and all(any(c in mat for c in _CLIP) for mat in mats)
 
 
-def clip_checks(m, meshes, visible, props, skip=frozenset()) -> list:
+def clip_checks(m, meshes, visible, props, skip=frozenset(), zone: Zone | None = None) -> list:
     """visual_bare_clip: a player clip with nothing visible within CLIP_NEAR where a player meets it."""
     clips = [(n, b, tris) for n, b, tris in meshes if _is_clip(n) and n.get('nodeID') not in skip]
     if not clips:
@@ -466,7 +666,7 @@ def clip_checks(m, meshes, visible, props, skip=frozenset()) -> list:
             tops.extend((points[0], points[i], points[i + 1]) for i in range(1, len(points) - 1))
     floors = TriIndex(tops)
     # Walls, fence boards, railing posts: steep visible faces (a sloped ground beside the clip is no barrier).
-    seen_tris = TriIndex([t for _, _, tris in visible for t in tris if abs(_normal(t)[2]) < 0.7])
+    seen_tris = TriIndex(tris_of(visible, lambda nz: np.abs(nz) < 0.7))
     from . import terrain
     plans = terrain.plans(m)
 
@@ -510,6 +710,8 @@ def clip_checks(m, meshes, visible, props, skip=frozenset()) -> list:
                 for s in range(steps):
                     f = (s + 0.5) / steps
                     x, y = a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f
+                    if zone and not zone.reports(x, y):
+                        continue
                     ox, oy = x + n[0] * 24, y + n[1] * 24       # where a player walks up to it
                     g = ground(ox, oy, z_hi)
                     if g is None or z_lo > g + 48 or z_hi < g + 48:
@@ -529,6 +731,7 @@ def clip_checks(m, meshes, visible, props, skip=frozenset()) -> list:
                 f"{bare / 39.37:.1f} m of player clip {node.get('nodeID')} stand with nothing visible within "
                 f"{CLIP_NEAR:g} units (an invisible wall) near {[round(v) for v in where]}",
                 'Put a visible barrier there (add_fence, a wall, a railing) or move the clip onto one'))
+            out[-1]['at'] = [round(v, 1) for v in where]
     return out
 
 
@@ -537,7 +740,7 @@ def fence_checks(m, meshes, render_only, skip=frozenset()) -> list:
     out = []
     if not render_only:
         return out
-    solid = TriIndex([t for _, _, tris in meshes for t in tris if abs(_normal(t)[2]) < 0.7])
+    solid = TriIndex(tris_of(meshes, lambda nz: np.abs(nz) < 0.7))
     for node in render_only:
         if node.get('nodeID') in skip:
             continue

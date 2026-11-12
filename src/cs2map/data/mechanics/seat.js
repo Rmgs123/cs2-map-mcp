@@ -128,9 +128,10 @@ function Seat(cfg) {
             if (!edge) continue;
             if (p === player) { exit("use"); continue; }
             if (player) continue;
-            const t = targets(), hit = core.eyeRay(p, cfg.reach || 96).hitEntity;
-            // Parts parented to the object count too (a bus window, a turret shield).
-            if (t.length && core.valid(hit) && (t.includes(hit) || t.includes(hit.GetParent?.()))) enter(p);
+            const t = targets(), ray = core.eyeRay(p, cfg.reach || 96), hit = ray.hitEntity;
+            // Parts parented to the object count too (a bus window, a turret shield). aimed(p, ray): the object's
+            // own test for a view that crosses it and touches nothing of it (the open doorway of a hollow body).
+            if (t.length && ((core.valid(hit) && (t.includes(hit) || t.includes(hit.GetParent?.()))) || cfg.aimed?.(p, ray))) enter(p);
         }
         if (player) holster();
     }

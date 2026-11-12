@@ -101,6 +101,30 @@ elseif ($Apply -and (Test-Path $settings)) {
     & $Py -c "from cs2map.config import update_settings, RESTART_HUNG_DEFAULT; update_settings({'restart_hung_cs2': $flag, 'restart_hung_cs2_seconds': RESTART_HUNG_DEFAULT, 'restart_hung_cs2_user': $userFlag})"
     Say "  restart_hung_cs2 = $($flag.ToLower()), restart_hung_cs2_user = $($userFlag.ToLower()) in config\settings.json" 'Green'
 } else { Say '  would ask whether the MCP may restart a hung CS2 it launched (restart_hung_cs2)' 'Yellow' }
+# Asked once per install as well.
+$focus = & $Py -c "import json,pathlib; p=pathlib.Path(r'$settings'); d=json.loads(p.read_text(encoding='utf-8-sig')) if p.is_file() else {}; print(d.get('game_focus', ''))" 2>$null
+if ($focus) { Say "  CS2 window focus: $focus (game_focus in config\settings.json)" 'Green' }
+elseif ($Apply -and (Test-Path $settings)) {
+    Say '  CS2 works behind your windows: frames, map loads and tests do not take the focus. Only a test step with the'
+    Say '  real mouse (rare) brings the game window to the front for under a second and gives the focus back.'
+    Say '  The game sound stays as it is: mute Counter-Strike 2 in the Windows volume mixer if it disturbs you.'
+    $never = Ask '  Never let the CS2 window come to the front (mouse steps are emulated, HUD clicks refused)?'
+    $value = if ($never) { 'never' } else { 'input_only' }
+    & $Py -c "from cs2map.config import update_settings; update_settings({'game_focus': '$value'})"
+    Say "  game_focus = $value in config\settings.json" 'Green'
+} else { Say '  would ask when the CS2 window may take the focus (game_focus)' 'Yellow' }
+# Asked once per install as well: the status page.
+$panel = & $Py -c "import json,pathlib; p=pathlib.Path(r'$settings'); d=json.loads(p.read_text(encoding='utf-8-sig')) if p.is_file() else {}; print('' if 'panel' not in d else ('on, http://127.0.0.1:%d/' % d.get('panel_port', 8717) if d['panel'] else 'off'))" 2>$null
+if ($panel) { Say "  status page (panel): $panel (panel in config\settings.json)" 'Green' }
+elseif ($Apply -and (Test-Path $settings)) {
+    Say '  The panel is a page in your browser (this PC only, http://127.0.0.1:8717/): what the tools are doing now,'
+    Say '  the newest frames, the load of the PC, and switches for what the AI may do without asking (take the focus'
+    Say '  for mouse steps, start long light bakes). The MCP server starts it; nothing is sent anywhere.'
+    $on = Ask '  Turn the panel on?'
+    $flag = if ($on) { 'True' } else { 'False' }
+    & $Py -c "from cs2map.config import update_settings; update_settings({'panel': $flag})"
+    Say "  panel = $($flag.ToLower()) in config\settings.json$(if ($on) { '; open http://127.0.0.1:8717/ once an AI client runs' })" 'Green'
+} else { Say '  would ask whether to turn on the status page (panel)' 'Yellow' }
 
 # 3. Blender ----------------------------------------------------------------------------------------------------
 Say '3. Blender'

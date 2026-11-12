@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
+import json
 import re
 import threading
 from functools import cached_property
 from pathlib import Path
 from typing import Any
 
-from . import addon, compiler, fgd, game, materials, mesh, release, resource, shapes, system, vpk  # release: job recovery
+from . import addon, compiler, fgd, game, materials, mesh, pipeline, release, resource, shapes, system, vpk  # pipeline, release: job recovery
+from . import config
 from .config import Settings, check_name, ensure_inside, load_settings, writable_roots
 from .dmx import Element
 from .jobs import JobManager
@@ -28,6 +30,9 @@ DRY_RUN = ContextVar('cs2map_map_edit_dry_run', default=False)
 MAX_REPORTED_FAILURES = 20      # a map_edit names at most this many failed operations
 # Settings for one call that works on another addon (a release addon: game tools with map="<addon>/<map>").
 ADDON_SETTINGS = ContextVar('cs2map_addon_settings', default=None)
+# Set by pipeline.apply for its one map_edit call: {'order': [package tags]}. Lifts the 2000 operations limit
+# (the operations come from files, not from one MCP message) and records the order of the packages in the map.
+PACKAGE_CALL = ContextVar('cs2map_package_call', default=None)
 
 
 class OpError(ValueError):
@@ -100,11 +105,43 @@ def _compact_shot(shot: dict) -> dict:
 class Project:
     @property
     def s(self) -> Settings:
-        return ADDON_SETTINGS.get() or self._s
+        override = ADDON_SETTINGS.get()
+        if override is not None:
+            return override
+        if self._live:
+            self._refresh_settings()
+        return self._s
 
     @s.setter
     def s(self, value: Settings) -> None:
         self._s = value
+        self._live = False                 # settings given by code stay as given
+
+    def _refresh_settings(self) -> None:
+        """The standing choices (config.LIVE_KEYS: focus, heavy builds, priority...) follow config/settings.json
+        while the server runs: the panel's toggles and the user's own edits apply to the next tool call. Paths and
+        the addon never change under a running server. A broken file keeps the last good values."""
+        import dataclasses
+        import os
+        import time
+        now = time.monotonic()
+        if now - self._settings_checked < 1.0:
+            return
+        self._settings_checked = now
+        try:
+            mtime = os.stat(config.SETTINGS_FILE).st_mtime_ns
+        except OSError:
+            return
+        if mtime == self._settings_mtime:
+            return
+        try:
+            fresh = load_settings(config.SETTINGS_FILE)
+        except Exception:                  # noqa: BLE001 - half-written or wrong: read again a second later
+            return
+        self._settings_mtime = mtime
+        self._s = dataclasses.replace(self._s, **{k: getattr(fresh, k) for k in config.LIVE_KEYS})
+        if hasattr(self, 'jobs'):
+            self.jobs.low_priority = self._s.build_priority == 'low'
 
     def released(self, map: str | None):
         """For map="<addon>/<map>" (a map built with map_build(..., "release")): (settings token, map name)."""
@@ -121,8 +158,16 @@ class Project:
         return ADDON_SETTINGS.set(rs), name
 
     def __init__(self, settings: Settings | None = None):
+        import os
         self.s = settings or load_settings()
+        self._settings_checked = 0.0
+        try:
+            self._settings_mtime = os.stat(config.SETTINGS_FILE).st_mtime_ns
+        except OSError:
+            self._settings_mtime = None
+        self._live = settings is None and not os.environ.get('CS2MAP_OFFLINE')
         self.jobs = JobManager(self.s.logs)
+        self.jobs.low_priority = getattr(self.s, 'build_priority', 'low') == 'low'
         self._lock = threading.RLock()
         self._tex_cache: dict[str, tuple[int, int]] = {}
         # The map last saved by us, parsed from the bytes we wrote: (path, mtime_ns, size, document).
@@ -210,10 +255,12 @@ class Project:
             pass
         if mylayer.feedback_count():
             out['feedback'] = f'{mylayer.feedback_count()} entries in my/feedback.md (problems for the MCP author)'
-        from . import marks
+        from . import marks, permits
         waiting = marks.summary(self.s)
         if waiting:
             out['marks'] = waiting
+        # The user's standing choices (the panel's toggles) and what waits for them there.
+        out['permissions'] = permits.summary(self.s, config.panel_url(self.s))
         if running:
             try:
                 out['cs2']['responding'] = not game.hung(self.s)
@@ -289,7 +336,10 @@ class Project:
                                'under another name')
             m = VMap.from_template(self.s.cs2_path, template)
             maptypes.store(m, kind)
+            m.world.set('cs2map_template', 'string', template)     # a clean replay of its packages starts from it
             saved = self.save(m, name)
+            from . import pipeline
+            pipeline.forget(self.s, name)
             return {'map': name, 'template': template, 'type': kind, **saved, **m.summary()}
 
     def map_list(self) -> dict:
@@ -393,48 +443,104 @@ class Project:
 
     # -- editing ---------------------------------------------------------------------------------
     def map_edit(self, name: str, operations: list[dict], dry_run: bool = False, force: bool = False) -> dict:
-        """Apply a batch of operations atomically: all succeed and the map is saved once, or nothing changes."""
+        """Apply a batch of operations atomically: all succeed and the map is saved once, or nothing changes.
+
+        {"op": "replace_batch", "tag": ...} starts a package: the nodes an earlier call made with this tag are
+        removed and every node made until the next such marker (or the end) gets the tag. Several packages in one
+        call share one load and one save (pipeline.apply builds such calls from package files)."""
         if not isinstance(operations, list) or not operations:
             raise OpError('operations must be a non-empty list')
-        if len(operations) > 2000:
+        call = PACKAGE_CALL.get()
+        if len(operations) > 2000 and call is None:
             raise OpError(f'at most 2000 operations per call (got {len(operations)}): split the batch into calls of '
                           '2000 or fewer ("ref" names carry over to later calls; tools/mcp_call.py splits a big '
                           'map_edit itself)')
         with self._lock:
+            if call is None:
+                from . import pipeline
+                pipeline.check_free(self.s, name)       # a pipeline job of another process is rebuilding this map
             m = self.load(name)
             refs: dict[str, int] = {}
             results = []
-            batch = self._replace_batch(m, operations[0]) if isinstance(operations[0], dict) and \
-                operations[0].get('op') == 'replace_batch' else None
-            if batch:
-                results.append(batch['result'])
-                operations = operations[1:]
+            state = None                              # the packages recorded in the map (read at the first marker)
+            owner: dict[int, str] = {}                # nodeID -> package tag
+            batch: dict | None = None
+
+            def track(node: Element) -> None:
+                if batch is not None and node.get('nodeID') in batch['before']:
+                    batch['touches'].add(owner.get(node['nodeID'], ''))
+
+            def close() -> None:
+                nonlocal batch
+                if batch is None:
+                    return
+                done, batch = batch, None
+                done['result']['tagged'] = self._tag_batch(m, done['tag'], done['before'], owner)
+                touches = sorted(done['touches'] - {done['tag']})
+                needs = done['needs']
+                undeclared = [x for x in touches if x and needs is not None and x not in needs]
+                if undeclared:
+                    raise OpError(f'package {done["tag"]} uses or changes nodes of package(s) {", ".join(undeclared)} '
+                                  f'that are not in its "needs": add them (they are then rebuilt together)')
+                if '' in touches:
+                    done['result']['outside'] = ('this package uses or changes nodes that belong to no package: a '
+                                                 'later replay cannot undo such a change')
+                state['packages'][done['tag']] = {'hash': done['hash'], 'needs': needs, 'touches': touches,
+                                                  'ops': done['ops'], 'nodes': done['result']['tagged'],
+                                                  'game': fgd.signature(str(self.s.cs2_path))}
+                state['order'] = [x for x in state['order'] if x != done['tag']] + [done['tag']]
+
             token = DRY_RUN.set(bool(dry_run))       # operations that write resources skip them in a dry run
-            failed: list[str] = []
+            failed: list[tuple[str, str]] = []
+            m.tracker = track
             try:
                 # Every operation runs even after a failure, so one call names all the broken ones (25.10: a batch
                 # of 400 meshes took 8 runs, one error each). Nothing is saved when any fails.
                 for i, op in enumerate(operations):
+                    if isinstance(op, dict) and op.get('op') == 'replace_batch':
+                        if state is None:
+                            state = self.packages_state(m)
+                            owner = self._owners(m)
+                        if not failed:
+                            close()
+                        batch = self._replace_batch(m, op, owner, state)
+                        results.append(batch['result'] if batch else {'op': 'replace_batch', 'removed': op['remove']})
+                        continue
                     try:
                         result = self._apply(m, op, refs)
                         self._keep_ref(m, op, result)
                         results.append(result)
+                        if batch is not None:
+                            batch['ops'] += 1
                     except (OpError, MeshError, MapError, KeyError, ValueError, TypeError) as e:
                         kind = op.get('op') if isinstance(op, dict) else repr(op)
                         ref = f' ref {op["ref"]}' if isinstance(op, dict) and op.get('ref') else ''
-                        failed.append((f'#{i} ({kind}{ref})', str(e)))
+                        where = f'#{i}' if batch is None or call is None else f'package {batch["tag"]} #{batch["ops"]}'
+                        if batch is not None:
+                            batch['ops'] += 1
+                        failed.append((f'{where} ({kind}{ref})', str(e)))
                         if len(failed) >= MAX_REPORTED_FAILURES:
                             break
+                if not failed:
+                    close()
             finally:
                 DRY_RUN.reset(token)
+                m.tracker = None
             if len(failed) == 1:
                 raise OpError(f'operation {failed[0][0]} failed: {failed[0][1]}. Nothing was saved.')
             if failed:
                 more = f' (stopped after {MAX_REPORTED_FAILURES})' if len(failed) >= MAX_REPORTED_FAILURES else ''
                 raise OpError(f'{len(failed)} operations failed{more}; a later one may fail only because of an '
                               'earlier one: ' + ' | '.join(f'{w}: {e}' for w, e in failed) + '. Nothing was saved.')
-            if batch:
-                batch['result']['tagged'] = self._tag_batch(m, batch['tag'], batch['before'])
+            if state is not None:
+                # Counted once, after every package ran: a later package may remove nodes of an earlier one.
+                counts = self.package_nodes(m)
+                for tag, entry in state['packages'].items():
+                    entry['nodes'] = counts.get(tag, 0)
+                if call is not None:
+                    state['order'] = [x for x in call['order'] if x in state['packages']] + \
+                                     [x for x in state['order'] if x not in call['order']]
+                m.world.set(self.PACKAGES_KEY, 'string', json.dumps(state, separators=(',', ':'), sort_keys=True))
             out: dict[str, Any] = {'map': name, 'applied': len(results), 'results': results, 'refs': refs}
             if dry_run:
                 m.to_bytes()   # full encode + parse check
@@ -444,16 +550,68 @@ class Project:
             out['summary'] = m.summary()
             return out
 
+    def map_apply(self, name: str, packages, dry_run: bool = False, force: bool = False) -> dict:
+        """map_edit(packages=...): bring the map to its packages in one background job (pipeline.py). packages:
+        the ordered list of package files, or a manifest (pipeline.json) that also runs the stale generators."""
+        from . import pipeline
+        try:
+            return pipeline.start(self, name, packages, dry_run, force)
+        except pipeline.PipelineError as e:
+            raise OpError(str(e)) from None
+
     REF_KEY = 'cs2map_ref'
     BATCH_KEY = 'cs2map_batch'
+    PACKAGES_KEY = 'cs2map_packages'
 
-    def _replace_batch(self, m: VMap, op: dict) -> dict:
-        """{"op": "replace_batch", "tag": "market"} as the FIRST operation: the nodes an earlier call made with this
-        tag are removed, and every node this call makes gets it. One generator's part of a big map is redone in
-        place instead of rebuilding the map from all its batches (18/23.10: 4 min for a change in one zone)."""
-        tag = op.get('tag')
-        if set(op) - {'op', 'tag'} or not isinstance(tag, str) or not re.fullmatch(r'\w{1,64}', tag):
-            raise OpError('replace_batch: {"op": "replace_batch", "tag": "<letters, digits, _>"} as the first operation')
+    def packages_state(self, m: VMap) -> dict:
+        """The packages recorded in a map: {'order': [tags], 'packages': {tag: {hash, needs, touches, ops, nodes,
+        game}}}; game = fgd.signature when the package was applied."""
+        try:
+            state = json.loads(m.world.get(self.PACKAGES_KEY) or '{}')
+        except ValueError:
+            state = {}
+        if not isinstance(state, dict):
+            state = {}
+        state.setdefault('order', [])
+        state.setdefault('packages', {})
+        return state
+
+    def package_nodes(self, m: VMap) -> dict[str, int]:
+        """{package tag: how many nodes carry it}: a change of this number means hand edits (pipeline.plan)."""
+        counts: dict[str, int] = {}
+        for n in m.iter_nodes():
+            tag = n.get(self.BATCH_KEY)
+            if tag:
+                counts[tag] = counts.get(tag, 0) + 1
+        return counts
+
+    def _owners(self, m: VMap) -> dict[int, str]:
+        """nodeID -> the package tag of the nearest tagged ancestor (or of the node itself)."""
+        owner: dict[int, str] = {}
+        stack = [(c, None) for c in m.world.get('children', []) if isinstance(c, Element)]
+        while stack:
+            node, tag = stack.pop()
+            tag = node.get(self.BATCH_KEY) or tag
+            if tag and 'nodeID' in node:
+                owner[node['nodeID']] = tag
+            stack.extend((c, tag) for c in node.get('children', []) if isinstance(c, Element))
+        return owner
+
+    def _replace_batch(self, m: VMap, op: dict, owner: dict[int, str], state: dict) -> dict | None:
+        """{"op": "replace_batch", "tag": "market"}: the nodes an earlier call made with this tag are removed, and
+        every node made from here to the next marker gets it. One generator's part of a big map is redone in
+        place instead of rebuilding the map from all its batches (18/23.10: 4 min for a change in one zone).
+        Optional "hash" and "needs" are recorded for pipeline.apply. {"op": "replace_batch", "remove": [tags]}
+        only removes the nodes of those packages and forgets them (returns None)."""
+        tag, drop = op.get('tag'), op.get('remove')
+        if drop is not None:
+            if set(op) - {'op', 'remove'} or not isinstance(drop, list) or not all(isinstance(x, str) for x in drop):
+                raise OpError('replace_batch: {"op": "replace_batch", "remove": ["<tag>", ...]}')
+        elif (set(op) - {'op', 'tag', 'hash', 'needs'} or not isinstance(tag, str) or not re.fullmatch(r'\w{1,64}', tag)
+              or not (op.get('needs') is None or (isinstance(op['needs'], list)
+                                                  and all(isinstance(x, str) for x in op['needs'])))):
+            raise OpError('replace_batch: {"op": "replace_batch", "tag": "<letters, digits, _>"}')
+        tags = set(drop) if drop is not None else {tag}
         removed = 0
 
         def prune(parent: Element) -> None:
@@ -461,8 +619,14 @@ class Project:
             kids = parent.get('children', [])
             keep = []
             for c in kids:
-                if isinstance(c, Element) and c.get(self.BATCH_KEY) == tag:
-                    removed += 1 + sum(1 for _ in m.iter_nodes(c))
+                if isinstance(c, Element) and c.get(self.BATCH_KEY) in tags:
+                    for n in [c, *m.iter_nodes(c)]:
+                        removed += 1
+                        owner.pop(n.get('nodeID'), None)
+                        if m._node_ids is not None:
+                            m._node_ids.discard(n.get('nodeID'))
+                        if m._ref_ids is not None:
+                            m._ref_ids.discard(n.get('referenceID'))
                     continue
                 keep.append(c)
                 if isinstance(c, Element):
@@ -470,11 +634,18 @@ class Project:
             if len(keep) != len(kids):
                 parent['children'] = keep
         prune(m.world)
-        m._node_ids = m._ref_ids = None
+        m._max_id = None                 # the id tables lost only the removed nodes: no walk of the whole map
+        for x in tags:
+            state['packages'].pop(x, None)
+        state['order'] = [x for x in state['order'] if x not in tags]
+        if drop is not None:
+            return None
         before = {n['nodeID'] for n in m.iter_nodes() if 'nodeID' in n}
-        return {'tag': tag, 'before': before, 'result': {'op': 'replace_batch', 'tag': tag, 'removed': removed}}
+        return {'tag': tag, 'before': before, 'touches': set(), 'ops': 0, 'hash': op.get('hash'),
+                'needs': op.get('needs'),
+                'result': {'op': 'replace_batch', 'tag': tag, 'removed': removed}}
 
-    def _tag_batch(self, m: VMap, tag: str, before: set) -> int:
+    def _tag_batch(self, m: VMap, tag: str, before: set, owner: dict[int, str] | None = None) -> int:
         """Tag the roots of the subtrees this batch made (their children go with them)."""
         tagged = 0
 
@@ -487,6 +658,8 @@ class Project:
                 if new and not parent_new:
                     c.set(self.BATCH_KEY, 'string', tag)
                     tagged += 1
+                if new and owner is not None:
+                    owner[c['nodeID']] = tag
                 walk(c, new)
         walk(m.world, False)
         return tagged
@@ -514,6 +687,8 @@ class Project:
             ents = m.entities(targetname=ref)
             if len(ents) != 1:
                 raise OpError(f'{len(ents)} entities named {ref!r}; use a numeric id')
+            if m.tracker is not None:
+                m.tracker(ents[0])
             return ents[0]
         return m.node(int(ref))
 
@@ -682,10 +857,19 @@ class Project:
         raise OpError(f'unknown op {kind!r}; ops: {", ".join((*CORE_OPS, *self.extra_ops))}')
 
     # -- building ----------------------------------------------------------------------------------
-    def map_build(self, name: str, preset: str = 'fast', bots: bool | None = None, vis: bool | None = None) -> dict:
+    def map_build(self, name: str, preset: str = 'fast', bots: bool | None = None, vis: bool | None = None,
+                  region=None) -> dict:
         self._map_file(name)
+        if region is not None:                       # one zone as a throwaway map <name>_region: seconds
+            from . import region as regions
+            if preset == 'release':
+                raise MapError('a region is a quick look at one zone: release builds the whole map')
+            return regions.build(self, name, region, preset)
         if preset == 'release':                      # the map alone in its own addon, for the Workshop
-            from . import release
+            from . import pipeline, release
+            wait = pipeline.release_gate(self.s, name)
+            if wait:
+                raise MapError(wait)
             return release.start(self, name, bots=bots, vis=vis)
         if preset not in compiler.PRESETS:
             raise MapError(f'preset must be one of {sorted([*compiler.PRESETS, "release"])}')
@@ -952,7 +1136,7 @@ class Project:
     def game_command(self, command: str, wait: float = 1.5, focus: bool = False) -> dict:
         wait = min(max(wait, 0.2), 20)
         if focus:
-            with game.exclusive(), game.focused():
+            with game.exclusive(), game.awake(self.s):
                 return self._console_answer(command, game.command(self.s, command, wait))
         return self._console_answer(command, game.command(self.s, command, wait))
 
@@ -1001,6 +1185,14 @@ class Project:
                 raise MapError('views="auto" needs map')
             from .playtest import _auto_views
             shots = _auto_views(self, map)
+        if map:
+            from . import region as regions
+            cut = regions.info(map)
+            if cut and cut.get('preset') in ('fast', 'nav'):
+                # A region built without light: unbaked shadows hide objects, so its frames are lit evenly.
+                for v in shots:
+                    if isinstance(v, dict):
+                        v.setdefault('fullbright', True)
         wants_preview = [str(v.get('name') or 'view') for v in shots if isinstance(v, dict) and v.pop('preview', False)]
         result = game.views(self.s, map, shots, hide_hud, deadline=deadline)
         out = {'map': result.get('map'), 'reloaded': result.get('reloaded'),
@@ -1016,6 +1208,24 @@ class Project:
                 from . import preview
                 out['preview'] = preview.install(self, target, frame)
         return out
+
+    def map_preview(self, map: str | None, views=None, name: str | None = None, pos=None, ang=None) -> dict:
+        """game_screenshot(window="offline"): the saved map drawn without CS2 (preview3d.py), in seconds."""
+        from . import preview3d
+        if not map:
+            raise MapError('window="offline" needs map (the source map is drawn; nothing is loaded in CS2)')
+        self._map_file(map)
+        if views == 'marks':
+            from . import marks
+            found = [x for x in marks.listing(self.s, map, 0, preview3d.MAX_VIEWS)['shots'] if x.get('pos')]
+            if not found:
+                raise MapError(f'no player marks with a position for map {map}')
+            views = [{'name': x['name'], 'pos': x['pos'], 'ang': x.get('ang') or [0, 0, 0]} for x in found]
+        elif isinstance(views, str):
+            views = None                              # "auto", "rooms": the default overview
+        if not views and pos is not None:
+            views = [{'name': name or 'view', 'pos': pos, 'ang': ang}]
+        return preview3d.render(self, map, views)
 
     def hammer_open(self, name: str) -> dict:
         self._map_file(name)

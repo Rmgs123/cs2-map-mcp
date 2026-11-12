@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import random
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Iterator, Sequence
@@ -62,7 +63,11 @@ class VMap:
         self.path = Path(path) if path else None
         self._node_ids: set[int] | None = None
         self._ref_ids: set[int] | None = None
+        self._max_id: int | None = None              # the highest node id of _max_ids (next_node_id)
+        self._max_ids: set[int] | None = None
         self.written: dmx.Document | None = None     # set by save(): the parsed copy of the bytes written
+        # Called with every node found by id (Project.map_edit: which package's nodes a package uses or changes).
+        self.tracker = None
 
     # -- loading / creating ---------------------------------------------------
     @classmethod
@@ -165,6 +170,8 @@ class VMap:
     def node(self, node_id: int) -> Element:
         for n in self.iter_nodes():
             if n.get('nodeID') == node_id:
+                if self.tracker is not None:
+                    self.tracker(n)
                 return n
         raise MapError(f'no node with id {node_id}')
 
@@ -189,7 +196,9 @@ class VMap:
 
     def next_node_id(self) -> int:
         ids = self.node_ids()
-        nid = max(ids, default=0) + 1
+        if self._max_id is None or self._max_ids is not ids:
+            self._max_id, self._max_ids = max(ids, default=0), ids      # one pass; then kept up to date
+        self._max_id = nid = self._max_id + 1
         ids.add(nid)
         return nid
 
@@ -293,6 +302,16 @@ class VMap:
     def attach(self, node: Element, parent: Element | None = None) -> Element:
         parent = parent or self.world
         parent['children'] = list(parent['children']) + [node]
+        # A node moved to another parent (remove + attach) is in the map again: its ids are taken.
+        if self._node_ids is not None or self._ref_ids is not None:
+            for n in (node, *self.iter_nodes(node)):
+                nid, rid = n.get('nodeID'), n.get('referenceID')
+                if self._node_ids is not None and isinstance(nid, int):
+                    self._node_ids.add(nid)
+                    if self._max_id is not None and nid > self._max_id:
+                        self._max_id = nid
+                if self._ref_ids is not None and rid is not None:
+                    self._ref_ids.add(rid)
         return node
 
     def remove(self, node: Element) -> None:
@@ -300,8 +319,17 @@ class VMap:
         if parent is None:
             raise MapError('node is not in this map')
         parent['children'] = [c for c in parent['children'] if c is not node]
-        self._node_ids = None
-        self._ref_ids = None
+        # The ids of the removed subtree are free again. Forgetting only them (not the whole table) keeps a big
+        # batch linear: a full walk of the map per new node made 24 000 nodes cost minutes (11.11).
+        if self._node_ids is not None or self._ref_ids is not None:
+            for n in (node, *self.iter_nodes(node)):
+                nid, rid = n.get('nodeID'), n.get('referenceID')
+                if self._node_ids is not None and isinstance(nid, int):
+                    self._node_ids.discard(nid)
+                    if nid == self._max_id:
+                        self._max_id = None
+                if self._ref_ids is not None and rid is not None:
+                    self._ref_ids.discard(rid)
 
     # -- entity editing --------------------------------------------------------------
     def set_keyvalues(self, ent: Element, keyvalues: dict[str, Any]) -> None:
@@ -420,7 +448,16 @@ class VMap:
             f.write(data)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, target)
+        # A running Workshop Tools (asset browser, file watcher) or an antivirus may hold the old file for a
+        # moment: "Access is denied" then is not a failure of the edit (10.11: 3 of 789 tests under load).
+        for attempt in range(8):
+            try:
+                os.replace(tmp, target)
+                break
+            except PermissionError:
+                if attempt == 7:
+                    raise
+                time.sleep(0.25)
         backups.submit(job, settings)
         self.path = target
         # The self-check parse is exactly what loading the new file gives: keep it, so the next load of an

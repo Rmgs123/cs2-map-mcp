@@ -24,6 +24,9 @@ import psutil
 
 CREATE_NO_WINDOW = 0x08000000
 CREATE_BREAKAWAY_FROM_JOB = 0x01000000
+# A job started below normal priority leaves the PC responsive while a build uses every core; its children
+# (resourcecompiler, VRAD3, Blender) inherit the class. It costs nothing while nobody else wants the CPU.
+BELOW_NORMAL_PRIORITY_CLASS = 0x00004000
 SRC_ROOT = Path(__file__).resolve().parents[1]
 # CS2MAP_OFFLINE=1 (tests while the game is in use, machines without CS2): these programs never start as jobs.
 OFFLINE_BLOCKED = {'resourcecompiler.exe', 'cs2.exe', 'vrad3.exe'}
@@ -61,6 +64,7 @@ class JobManager:
         self.jobs: dict[str, Job] = {}
         self._procs: dict[str, subprocess.Popen] = {}
         self._lock = threading.Lock()
+        self.low_priority = False        # settings "build_priority": "low" (Project sets it)
 
     def start(self, kind: str, title: str, argv: list[str], cwd: Path, timeout: float | None = None,
               on_finish: Callable[[Job, str], dict] | None = None, env: dict | None = None,
@@ -80,13 +84,14 @@ class JobManager:
         wrapped = [sys.executable, '-m', 'cs2map.jobexit', str(self._exit_file(job_id)), '--', *job.argv]
         # MCP clients put the server into a Windows job object that is killed with it; break away
         # so a build survives a server restart (falls back if the job object forbids breakaway).
+        flags = CREATE_NO_WINDOW | (BELOW_NORMAL_PRIORITY_CLASS if self.low_priority else 0)
         try:
             proc = subprocess.Popen(wrapped, cwd=str(cwd), stdout=fh, stderr=subprocess.STDOUT,
                                     stdin=subprocess.DEVNULL, env=run_env,
-                                    creationflags=CREATE_NO_WINDOW | CREATE_BREAKAWAY_FROM_JOB)
+                                    creationflags=flags | CREATE_BREAKAWAY_FROM_JOB)
         except OSError:
             proc = subprocess.Popen(wrapped, cwd=str(cwd), stdout=fh, stderr=subprocess.STDOUT,
-                                    stdin=subprocess.DEVNULL, env=run_env, creationflags=CREATE_NO_WINDOW)
+                                    stdin=subprocess.DEVNULL, env=run_env, creationflags=flags)
         job.pid = proc.pid
         with self._lock:
             self.jobs[job_id] = job
@@ -108,8 +113,8 @@ class JobManager:
         job.exit_code = proc.returncode
         job.seconds = round(time.monotonic() - t0, 1)
         job.finished = _dt.datetime.now().isoformat(timespec='seconds')
-        if job.state == 'cancelled':
-            state = 'cancelled'
+        if job.state == 'cancelled' or self._cancel_file(job.id).exists():
+            state = 'cancelled'            # by this process, or by another one (the panel's "Stop job")
         state = state or ('succeeded' if proc.returncode == 0 else 'failed')
         if on_finish:
             try:
@@ -132,6 +137,10 @@ class JobManager:
     def _exit_file(self, job_id: str) -> Path:
         return self.log_dir / f'{Path(job_id).name}.exit'
 
+    def _cancel_file(self, job_id: str) -> Path:
+        """A mark that somebody stopped the job: the process that watches it reports "cancelled", not "failed"."""
+        return self.log_dir / f'{Path(job_id).name}.cancel'
+
     def get(self, job_id: str) -> Job:
         job = self.jobs.get(job_id)
         if job is None:
@@ -148,10 +157,18 @@ class JobManager:
     def _recover(self, job: Job) -> None:
         """Finish a job whose watcher died, from its .exit file and log; 'lost' if there is none."""
         exit_file = self._exit_file(job.id)
+        cancelled = self._cancel_file(job.id).exists()
         try:
             job.exit_code = int(exit_file.read_text(encoding='ascii').strip())
         except (OSError, ValueError):
-            job.state = 'lost'
+            job.state = 'cancelled' if cancelled else 'lost'
+            if cancelled:
+                self._save(job)
+            return
+        if cancelled:
+            job.finished = _dt.datetime.fromtimestamp(exit_file.stat().st_mtime).isoformat(timespec='seconds')
+            job.state = 'cancelled'
+            self._save(job)
             return
         job.finished = _dt.datetime.fromtimestamp(exit_file.stat().st_mtime).isoformat(timespec='seconds')
         job.seconds = round(exit_file.stat().st_mtime - _dt.datetime.fromisoformat(job.started).timestamp(), 1)
@@ -178,11 +195,22 @@ class JobManager:
         return self.get(job_id)
 
     def cancel(self, job_id: str) -> Job:
+        """Stop a running job: one this process started, or one of another server process (the panel, a second
+        chat). The mark file tells whoever watches the job that it was stopped on purpose."""
         job = self.get(job_id)
         proc = self._procs.get(job_id)
-        if job.state == 'running' and proc is not None:
+        if job.state != 'running':
+            return job
+        try:
+            self._cancel_file(job.id).write_text(str(os.getpid()), encoding='ascii')
+        except OSError:
+            pass
+        if proc is not None:
             job.state = 'cancelled'
             _kill_tree(proc.pid)
+        elif job.pid and psutil.pid_exists(job.pid):
+            _kill_tree(job.pid)
+            job.state = 'cancelled'        # its own watcher saves the final record; this copy answers the caller
         return job
 
     def tail(self, job_id: str, lines: int = 40) -> list[str]:

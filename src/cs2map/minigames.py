@@ -326,6 +326,9 @@ def add_minigame(project, m, op, refs):
 
 def map_edit_wrapper(project, original):
     def edit(name, operations, dry_run=False, force=False):
+        from .project import PACKAGE_CALL
+        if PACKAGE_CALL.get() is not None:      # packages (pipeline.apply): one pass, no preview run
+            return original(name, operations, dry_run, force)
         has = isinstance(operations, list) and any(isinstance(x, dict) and x.get('op') == 'add_minigame' for x in operations)
         if not has:
             return original(name, operations, dry_run, force)

@@ -88,6 +88,52 @@ class Schema(unittest.TestCase):
         with patch('cs2map.visual.model_bounds', return_value=coach), self.assertRaises(ValueError):
             vehicles.fit(object(), roofless)
 
+    def van(self, **ride):
+        doors = [{'at': [0, -74, 0], 'radius': 64, 'spots': [[50, -28, 19], [-45, -28, 19]]},
+                 {'at': [-45, 74, 0], 'radius': 40, 'spots': [[-45, 28, 19]]}]
+        return {'name': 'van', 'kind': 'car', 'size': [250, 124], 'seat': [52, 28, 44],
+                'door': {'at': [52, 74, 0], 'radius': 40},
+                'passengers': {'crouch': True, 'floor': 18, 'roof': 80, 'doors': doors, **ride}}
+
+    def test_low_cabin_riders_crouch(self):
+        """12.11, measured in CS2 on a van with a 62-unit cabin: the numbers the recipe is held to."""
+        s = control.validate(self.van())
+        self.assertEqual(control.validate(copy.deepcopy(s)), s)
+        ride = s['passengers']
+        self.assertIs(ride['crouch'], True)
+        self.assertEqual(ride['hint']['board'], 'Ctrl+E: get in')
+        self.assertIn('crouch', ride['hint'])
+        self.assertEqual(control.validate(self.van(hint={'crouch': 'Duck!'}))['passengers']['hint']['crouch'], 'Duck!')
+        code, _, _, _ = control.generate(s)
+        self.assertIn('const CROUCH = !!RIDE?.crouch', code)
+        bus = control.validate({'name': 'bus', 'kind': 'car', 'size': [590, 140], 'passengers': {
+            'doors': [{'at': [220, -78, 14], 'spots': [[165, -24, 26]]}]}})['passengers']
+        self.assertNotIn('crouch', bus)                              # a bus keeps its recorded configuration
+        self.assertNotIn('crouch', bus['hint'])
+        scaled = control.validate(dict(self.van(), scale=1.1))['passengers']
+        self.assertIs(scaled['crouch'], True)
+        self.assertEqual((scaled['floor'], scaled['roof']), (19.8, 88))
+        for change, word in [
+            ({'roof': 76}, 'need 60'),                               # 58 inside: 1 unit over the head, put out on a bump
+            ({'roof': 96}, 'drop crouch'),                           # 78 inside: riders stand
+            ({'doors': [{'at': [0, -74, 0], 'spots': [[50, -28, 21]]}]}, 'z must be 19'),      # in the air: shots go wide
+            ({'doors': [{'at': [0, -74, 0], 'spots': [[50, -28, 18]]}]}, 'z must be 19'),
+            ({'doors': [{'at': [0, -74, 0], 'spots': [[20, -16, 19], [20, 16, 19]]}]}, '32.0 apart'),
+            ({'crouch': 1}, 'true'),
+            ({'hint': {'duck': 'x'}}, 'crouch'),
+        ]:
+            with self.subTest(change=change), self.assertRaises(ValueError) as ctx:
+                control.validate(self.van(**change))
+            self.assertIn(word, str(ctx.exception))
+        with self.assertRaises(ValueError) as ctx:                   # a standing cabin that is too low names the way out
+            control.validate({'name': 'bus', 'kind': 'car', 'size': [590, 140], 'passengers': {
+                'floor': 24, 'roof': 90, 'doors': [{'at': [220, -78, 14], 'spots': [[165, -24, 26]]}]}})
+        self.assertIn('"crouch": true', str(ctx.exception))
+        with self.assertRaises(ValueError) as ctx:                   # the hint of a standing bus has no crouch text
+            control.validate({'name': 'bus', 'kind': 'car', 'size': [590, 140], 'passengers': {
+                'hint': {'crouch': 'x'}, 'doors': [{'at': [220, -78, 14], 'spots': [[165, -24, 26]]}]}})
+        self.assertIn('hint', str(ctx.exception))
+
     def test_relative_origin_and_yaw_wheel_positions(self):
         with patch.object(vehicles.layout, 'point', return_value=([100, 200, 8], None)):
             s = control.validate({'name': 'car1', 'kind': 'car', 'origin': {'room': 'yard'}, 'yaw': 90}, object())

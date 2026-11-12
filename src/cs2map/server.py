@@ -103,6 +103,7 @@ RAW.update({
     'map_info': lambda name, classname=None, kind=None, ids=None, full=False, offset=0, limit=200:
         project.map_info(name, classname, kind, None, ids, full, offset, limit),
     'map_edit': project.map_edit,
+    'map_apply': project.map_apply,
     'map_backups': project.map_backups,
     'map_restore': project.map_restore,
     'map_build': project.map_build,
@@ -114,6 +115,7 @@ RAW.update({
     'game_launch': project.game_launch,
     'game_command': project.game_command,
     'game_screenshot': project.game_screenshot,
+    'map_preview': project.map_preview,
     'hammer_open': project.hammer_open,
     'game_stop': project.game_stop,
 })
@@ -147,6 +149,10 @@ def main() -> None:
     housekeeping.start_background(project.s)          # disk limits for screenshots/logs/backups (at most hourly)
     from . import backups
     backups.start_periodic(project.s)                 # changed maps, sources snapshot, tiers (every 30 min)
+    if project.s.panel:                               # the status page for the person at the PC (one per PC)
+        import threading
+        from . import panel
+        threading.Thread(target=panel.ensure_started, args=(project.s,), daemon=True).start()
     mcp.run('stdio')
 
 

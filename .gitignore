@@ -26,6 +26,7 @@
 !/tools/selfcheck.py
 !/tools/dependencies.py
 !/tools/backups.py
+!/tools/panel.py
 
 # Local settings and paths of this computer
 /config/settings.json

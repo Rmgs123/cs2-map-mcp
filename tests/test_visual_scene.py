@@ -95,6 +95,61 @@ class VisualScene(unittest.TestCase):
         self.assertEqual(self.codes(found), ['visual_paved_slab'])
         self.assertNotEqual(found[0]['id'], low.get('nodeID'))
 
+    def paved(self, boxes, kinds=('gap', 'patch'), zone=None):
+        """visual_paved_gap / visual_paved_patch of asphalt boxes [(mins, maxs, material?)] over flat ground at z 0."""
+        plans = [{'bounds': ((-4000, -4000, -100), (4000, 4000, 100))}]
+        m = VMap.from_template(SETTINGS.cs2_path, 'empty')
+        for lo, hi, *mat in boxes:
+            m.attach(m.new_mesh(mesh.box(lo, hi, material=mat[0] if mat else 'materials/test/asphalt.vmat')))
+        with patch('cs2map.terrain.plans', return_value=plans), patch('cs2map.terrain.sample', return_value={'z': 0.0}):
+            return visual_scene.paved_checks(m, visual._solid_meshes(m), visual._paved, kinds=kinds, zone=zone)
+
+    def test_a_zone_judges_a_long_edge_by_its_part_in_the_zone(self):
+        # 100 m of road standing 10 units over the ground; the zone holds 400 units of it (+64 around)
+        road = ([-2000, -128, -30], [2000, 128, 10])
+        whole = self.paved([road], kinds=('slab',))
+        zone = visual_scene.Zone([[0, -300], [400, 300]], 64, 256)
+        part = self.paved([road], kinds=('slab',), zone=zone)
+        self.assertEqual((self.codes(whole), self.codes(part)), (['visual_paved_slab'], ['visual_paved_slab']))
+        metres = lambda found: float(found[0]['message'].split(' m ')[0])
+        self.assertGreater(metres(whole), 200)
+        self.assertAlmostEqual(metres(part), 2 * 544 / 39.37, delta=0.2)      # both long edges, 17 samples of 32 units
+        self.assertTrue(-64 <= part[0]['at'][0] <= 464, part[0]['at'])
+        # nothing of it in the zone: no finding, although the mesh was loaded as a neighbour
+        away = visual_scene.Zone([[0, 400], [400, 800]], 64, 256)
+        self.assertEqual(self.paved([road], kinds=('slab',), zone=away), [])
+        # a stray piece whose outline leaves what the zone audit loaded is not judged at all
+        piece = ([-100, 600, -30], [100, 760, 4])
+        self.assertEqual(self.codes(self.paved([piece], zone=visual_scene.Zone([[-200, 500], [200, 900]], 64, 256))),
+                         ['visual_paved_patch'])
+        self.assertEqual(self.paved([piece], zone=visual_scene.Zone([[-1000, 500], [-380, 900]], 64, 256)), [])
+
+    def test_soil_between_two_pavings(self):
+        road = ([-800, -128, -30], [800, 128, 4])                  # 40 m x 6.5 m: too big for a patch
+        walk = ([-800, 168, -30], [800, 400, 4])                   # 40 units of bare ground between them
+        found = self.paved([road, walk])
+        self.assertEqual(self.codes(found), ['visual_paved_gap'])  # one finding for the pair, not one per side
+        self.assertIn('up to 42 units wide', found[0]['message'])     # probed every 6 units: 40 reads as <= 42
+        self.assertEqual(len(found[0]['ids']), 2)
+        # joined edge to edge, or with a kerb in the strip: no gap
+        self.assertEqual(self.paved([road, ([-800, 128, -30], [800, 400, 4])]), [])
+        kerb = ([-800, 128, -30], [800, 168, 6], 'materials/test/plaster_wall.vmat')
+        self.assertEqual(self.paved([road, walk, kerb]), [])
+        # a step of more than 24 units is a terrace, and 200 units apart are two streets
+        self.assertEqual(self.paved([road, ([-800, 168, -30], [800, 400, 40])]), [])
+        self.assertEqual(self.paved([road, ([-800, 328, -30], [800, 600, 4])]), [])
+
+    def test_a_stray_piece_of_paving(self):
+        road = ([-800, -128, -30], [800, 128, 4])
+        piece = ([-100, 600, -30], [100, 760, 4])                  # 5 x 4 m alone in the yard
+        found = self.paved([road, piece])
+        self.assertEqual(self.codes(found), ['visual_paved_patch'])
+        self.assertIn('20.6 m2', found[0]['message'])
+        self.assertEqual(self.paved([road, ([-100, 128, -30], [100, 288, 4])]), [])      # a driveway off the road
+        wall = ([-100, 760, -30], [100, 776, 96], 'materials/test/plaster_wall.vmat')
+        fence = ([-116, 600, -30], [-100, 760, 96], 'materials/test/plaster_wall.vmat')
+        self.assertEqual(self.paved([road, piece, wall, fence]), [])                     # a porch in a corner
+
     def test_tag_paved_marks_paving(self):
         m = VMap.from_template(SETTINGS.cs2_path, 'empty')
         res = self.p._apply(m, {'op': 'add_mesh', 'name': 'east pad', 'tags': ['paved', 'east'],

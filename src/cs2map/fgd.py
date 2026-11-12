@@ -310,11 +310,30 @@ class Catalog:
         return info
 
 
+def _files(cs2_path) -> list[Path]:
+    game = Path(cs2_path) / 'game'
+    return sorted((game / 'core').glob('*.fgd')) + sorted((game / 'csgo').glob('*.fgd'))
+
+
+@lru_cache(maxsize=2)
+def signature(cs2_path: str) -> str:
+    """A digest of the game's entity definitions. A game update that changes them changes what the same operations
+    write (the keyvalues of a fresh entity), so a map's packages remember it (pipeline.plan)."""
+    import hashlib
+    h = hashlib.sha1()
+    for f in _files(cs2_path):
+        try:
+            h.update(f.name.encode() + b'\0' + f.read_bytes())
+        except OSError:
+            pass
+    return h.hexdigest()[:12]
+
+
 @lru_cache(maxsize=2)
 def _load(cs2_path: str) -> Catalog:
     game = Path(cs2_path) / 'game'
     classes: dict[str, EntityClass] = {}
-    files = sorted((game / 'core').glob('*.fgd')) + sorted((game / 'csgo').glob('*.fgd'))
+    files = _files(cs2_path)
     if not files:
         raise FileNotFoundError(f'no FGD files under {game}')
     # core definitions first, then csgo (which extends/overrides them)

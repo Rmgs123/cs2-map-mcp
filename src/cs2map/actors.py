@@ -259,6 +259,9 @@ def add_actor(project, m, op, refs):
 
 def map_edit_wrapper(project, original):
     def edit(name, operations, dry_run=False, force=False):
+        from .project import PACKAGE_CALL
+        if PACKAGE_CALL.get() is not None:      # packages (pipeline.apply): one pass, no preview run
+            return original(name, operations, dry_run, force)
         if not isinstance(operations, list) or not any(isinstance(o, dict) and o.get('op') == 'add_actor' for o in operations):
             return original(name, operations, dry_run, force)
         with project._lock:

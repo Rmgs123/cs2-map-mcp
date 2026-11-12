@@ -28,6 +28,18 @@ class ConfigError(RuntimeError):
 
 RESTART_HUNG_DEFAULT = 180     # seconds a Workshop Tools window must stay "Not responding" before a restart
 RESTART_HUNG_MIN = 60          # map loads and light bakes freeze the window for up to ~1 min
+# "game_focus": 'never' = CS2 always works behind the user's windows (steps that need a real mouse are emulated or
+# refused); 'input_only' = it comes to the front only for a step with real mouse input and gives the focus back at
+# once; 'always' = in front for every frame and test (the behaviour before 1.4).
+GAME_FOCUS = ('never', 'input_only', 'always')
+BUILD_PRIORITY = ('low', 'normal')
+# "heavy_builds": 'allow' = light bakes and releases start when the AI asks; 'ask' = they are refused with their
+# cost until the user allows them in the panel (permits.heavy_gate).
+HEAVY_BUILDS = ('allow', 'ask')
+PANEL_PORT = 8717
+# Settings a running server reads again when config/settings.json changes (the panel's toggles write them).
+LIVE_KEYS = ('game_focus', 'build_priority', 'heavy_builds', 'restart_hung_cs2', 'restart_hung_cs2_seconds',
+             'restart_hung_cs2_user', 'panel', 'panel_port')
 
 
 @dataclass(frozen=True)
@@ -43,6 +55,11 @@ class Settings:
     restart_hung_cs2_seconds: int = RESTART_HUNG_DEFAULT   # how long it must hang first (>= RESTART_HUNG_MIN)
     restart_hung_cs2_user: bool = False   # settings "restart_hung_cs2_user": also a Workshop Tools the user started
     marks_key: str = 'F8'              # settings "marks_key": the CS2 key of player marks (marks.py); '' = off
+    game_focus: str = 'input_only'     # settings "game_focus": when the CS2 window may take the focus (GAME_FOCUS)
+    build_priority: str = 'low'        # settings "build_priority": 'low' = compiler and Blender jobs below normal
+    heavy_builds: str = 'allow'        # settings "heavy_builds": 'ask' = light bakes wait for the user's yes (panel)
+    panel: bool = False                # settings "panel": the server starts the local status page (panel.py)
+    panel_port: int = PANEL_PORT       # settings "panel_port": its port on 127.0.0.1
 
     # -- CS2 layout ----------------------------------------------------------
     @property
@@ -207,7 +224,23 @@ def load_settings(path: Path = SETTINGS_FILE) -> Settings:
     marks_key = data.get('marks_key', 'F8')
     if not isinstance(marks_key, str) or not re.fullmatch(r'[A-Za-z0-9_]{0,16}', marks_key):
         raise ConfigError('settings "marks_key" must be a CS2 key name such as "F8" (or "" to turn marks off)')
+    game_focus = data.get('game_focus', 'input_only')
+    if game_focus not in GAME_FOCUS:
+        raise ConfigError(f'settings "game_focus" must be one of {", ".join(GAME_FOCUS)}')
+    build_priority = data.get('build_priority', 'low')
+    if build_priority not in BUILD_PRIORITY:
+        raise ConfigError(f'settings "build_priority" must be one of {", ".join(BUILD_PRIORITY)}')
+    heavy_builds = data.get('heavy_builds', 'allow')
+    if heavy_builds not in HEAVY_BUILDS:
+        raise ConfigError(f'settings "heavy_builds" must be one of {", ".join(HEAVY_BUILDS)}')
+    panel, port = data.get('panel', False), data.get('panel_port', PANEL_PORT)
+    if not isinstance(panel, bool):
+        raise ConfigError('settings "panel" must be true or false')
+    if isinstance(port, bool) or not isinstance(port, int) or not 1024 <= port <= 65535:
+        raise ConfigError('settings "panel_port" must be a port number 1024..65535')
     s = Settings(cs2_path=cs2, addon=addon, compile_threads=int(data.get('compile_threads', 0)),
+                 game_focus=game_focus, build_priority=build_priority, heavy_builds=heavy_builds,
+                 panel=panel, panel_port=port,
                  blender=str(data.get('blender') or ''), limits=tuple(sorted(limits.items())),
                  backups_dir=str(os.environ.get('CS2MAP_BACKUPS') or data.get('backups_dir') or ''),
                  backup_sources=tuple(sources), restart_hung_cs2=restart, restart_hung_cs2_seconds=int(seconds),
@@ -216,13 +249,20 @@ def load_settings(path: Path = SETTINGS_FILE) -> Settings:
     return s
 
 
+def panel_url(s: Settings) -> str | None:
+    """The address of the status page when settings "panel" is on."""
+    return f'http://127.0.0.1:{s.panel_port}/' if getattr(s, 'panel', False) else None
+
+
 def update_settings(values: dict, path: Path = SETTINGS_FILE) -> dict:
     """Set keys in config/settings.json, keeping the others (setup.ps1 asks the per-install questions with it)."""
     path = Path(path)
     data = json.loads(path.read_text(encoding='utf-8-sig')) if path.is_file() else {}
     data.update(values)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    tmp = path.with_suffix('.json.tmp')       # replaced in one step: a running server never reads half a file
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + '\n', encoding='utf-8')
+    os.replace(tmp, path)
     return data
 
 

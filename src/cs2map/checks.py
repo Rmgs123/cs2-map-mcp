@@ -10,6 +10,8 @@ from __future__ import annotations
 import math
 import fnmatch
 import json
+import threading
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +80,16 @@ def _transform(node, points):
     scales = _vec(node.get('scales'), (1, 1, 1))
     pitch, yaw, roll = (math.radians(x) for x in _vec(node.get('angles')))
     cp,sp,cy,sy,cr,sr=math.cos(pitch),math.sin(pitch),math.cos(yaw),math.sin(yaw),math.cos(roll),math.sin(roll)
+    if len(points) > 24:
+        # The same arithmetic in the same order on whole columns: the result is equal bit for bit, a terrain of
+        # 60 000 vertices takes milliseconds.
+        import numpy as np
+        v=np.asarray(points,dtype=np.float64).reshape(-1,3)
+        x,y,z=v[:,0]*scales[0],v[:,1]*scales[1],v[:,2]*scales[2]
+        y,z=cr*y-sr*z,sr*y+cr*z
+        x,z=cp*x+sp*z,-sp*x+cp*z
+        x,y=cy*x-sy*y,sy*x+cy*y
+        return list(zip((x+origin[0]).tolist(),(y+origin[1]).tolist(),(z+origin[2]).tolist()))
     result=[]
     for p in points:
         x,y,z=(float(p[i])*scales[i] for i in range(3))
@@ -88,11 +100,59 @@ def _transform(node, points):
     return result
 
 
+_SCENE = threading.local()
+
+
+@contextmanager
+def scene_cache():
+    """While open, the vertices and triangles of a mesh node are worked out once and shared by every check of
+    the same map (which nobody edits meanwhile): a scene audit asked for them five times per mesh."""
+    outer = getattr(_SCENE, 'data', None)
+    if outer is None:
+        _SCENE.data = {}
+    try:
+        yield
+    finally:
+        if outer is None:
+            _SCENE.data = None
+
+
+def _cached(kind, obj, make):
+    data = getattr(_SCENE, 'data', None)
+    if data is None:
+        return make()
+    hit = data.get((kind, id(obj)))
+    if hit is None:
+        hit = data[(kind, id(obj))] = (obj, make())      # obj is kept alive: its id is not reused while cached
+    return hit[1]
+
+
 def _vertices(node):
-    md = node['meshData']
-    streams = md['vertexData']['streams']
-    data = next((st['data'] for st in streams if st.get('semanticName') == 'position'), streams[0]['data'])
-    return _transform(node, data)
+    """World positions of a mesh node's vertices (do not change the returned list: it may be shared)."""
+    def make():
+        md = node['meshData']
+        streams = md['vertexData']['streams']
+        data = next((st['data'] for st in streams if st.get('semanticName') == 'position'), streams[0]['data'])
+        return _transform(node, data)
+    return _cached('vertices', node, make)
+
+
+def tri_list(node):
+    """list(_triangles(node)), shared inside scene_cache()."""
+    return _cached('triangles', node, lambda: list(_triangles(node)))
+
+
+def tri_array(tris):
+    """A triangle list as an (n, 3, 3) float array, made once per list inside scene_cache()."""
+    import numpy as np
+    return _cached('array', tris, lambda: np.asarray(tris, dtype=np.float64).reshape(-1, 3, 3))
+
+
+def tri_arrays(lists):
+    """The triangles of several lists in one (n, 3, 3) array, in the order of the lists."""
+    import numpy as np
+    parts = [tri_array(tris) for tris in lists if tris]
+    return np.concatenate(parts) if parts else np.zeros((0, 3, 3), dtype=np.float64)
 
 
 def _triangles(node):
@@ -256,6 +316,7 @@ def check_map(project, name: str) -> dict:
     """Return ``{ok, problems}`` for map *name* without modifying it."""
     from .terrain import expand_layers
     m = expand_layers(project, project.load(name))
+    m.checked_name = name                # read from the disk and not changed: area checks may keep their findings
     problems: list[dict] = []
     meshes = list(_all_meshes(m))
     solids=[(n,b) for n,b in meshes if _is_solid_mesh(n)]

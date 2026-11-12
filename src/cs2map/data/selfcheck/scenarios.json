@@ -23,9 +23,9 @@
   {"expect":"W_WEAPON rail state .*\"owner\":0","within":3},{"aim":[900,560,60]},
   {"hold":{"key":"attack","seconds":1.2}},{"expect":"W_WEAPON rail shot","within":3},{"shot":"sc_rail_shot"}],
  "ability": [
-  {"walk":[2175,275,8]},{"wait":0.6},{"expect":"A10_ABILITY zone grant","within":3},{"focus":true},
+  {"walk":[2175,275,8]},{"wait":0.6},{"expect":"A10_ABILITY zone grant","within":3},
   {"hold":{"key":"jump","seconds":0.05}},{"wait":0.35},{"hold":{"key":"jump","seconds":0.05}},
-  {"expect":"A10_ABILITY zone double_jump","within":3},{"shot":"sc_double_jump"},{"focus":false}],
+  {"expect":"A10_ABILITY zone double_jump","within":3},{"shot":"sc_double_jump"}],
  "story": [
   {"walk":[920,1500,8]},{"aim":[920,1588,56]},{"use":true},{"expect":"S_STORY sc_story stage wake done","within":3},
   {"walk":[940,1325,8]},{"expect":"S_STORY sc_story complete","within":3},{"shot":"sc_story_done"}]

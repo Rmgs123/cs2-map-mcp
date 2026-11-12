@@ -8,10 +8,12 @@ skipped rather than guessed.
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import itertools
 import json
 import math
+import os
 import re
 import subprocess
 from pathlib import Path
@@ -167,6 +169,18 @@ def model_bounds(project, model: str) -> tuple[tuple[float, float, float], tuple
     scratch = PROJECT_ROOT / ".local" / "scratch" / "Q" / "model_bounds"
     scratch.mkdir(parents=True, exist_ok=True)
     tmp = scratch / (hashlib.sha256(data).hexdigest()[:24] + ".vmdl_c")
+    # The answer for this very file (by its digest) from an earlier process: no resourceinfo run (a big map has
+    # 130+ models, a tenth of a second each, in every fresh check, preview or region cut).
+    kept = tmp.with_suffix(".bounds.json")
+    try:
+        lo, hi, block = json.loads(kept.read_text(encoding="utf-8"))
+        result = (tuple(float(x) for x in lo), tuple(float(x) for x in hi), str(block))
+        if len(result[0]) == 3 and len(result[1]) == 3:
+            cache[rel] = result
+            project._visual_model_bounds = cache
+            return result
+    except (OSError, ValueError, TypeError):
+        pass
     if not tmp.exists():
         tmp.write_bytes(data)
     native = project.s.game_bin / "resourceinfo.exe"
@@ -215,6 +229,10 @@ def model_bounds(project, model: str) -> tuple[tuple[float, float, float], tuple
     result = (tuple(v - .05 for v in raw[0]), tuple(v + .05 for v in raw[1]), used)
     cache[rel] = result
     project._visual_model_bounds = cache
+    try:
+        kept.write_text(json.dumps(result), encoding="utf-8")
+    except OSError:
+        pass
     return result
 
 
@@ -277,14 +295,16 @@ def _mesh_data(node: Element):
         return None
 
 
-def _solid_meshes(m):
+def _solid_meshes(m, keep=None):
+    """[(node, world box, triangles)] of the meshes that are not helpers. keep(box) false: the triangles are
+    None (a check of one zone needs the boxes of the whole map, the triangles only near the zone)."""
     result = []
     for node in m.iter_nodes():
         if node.type != "CMapMesh" or _is_helper(node):
             continue
         bounds = checks._mesh_bounds(node)
         if bounds:
-            result.append((node, bounds, list(checks._triangles(node))))
+            result.append((node, bounds, checks.tri_list(node) if keep is None or keep(bounds) else None))
     return result
 
 
@@ -345,8 +365,14 @@ def _penetration(entry_bounds, triangles) -> str | None:
     return None
 
 
+@functools.lru_cache(maxsize=8192)
+def _plant_model(model: str) -> bool:
+    lower = model.lower()
+    return any(x in lower for x in _PLANT_MODEL)
+
+
 def _plant(entry) -> bool:
-    return any(x in entry["model"].lower() for x in _PLANT_MODEL)
+    return _plant_model(entry["model"])
 
 
 def _core_box(entry):
@@ -430,8 +456,13 @@ def _terrain_float_checks(m, props, meshes=()) -> list:
     plans = terrain.plans(m)
     if not plans:
         return out
-    from .visual_scene import TriIndex, _normal
-    tops = TriIndex([t for _, _, tris in meshes for t in tris if _normal(t)[2] > 0.5])
+    from .visual_scene import TriIndex, tris_of
+    tops = TriIndex(tris_of(meshes, lambda nz: nz > 0.5))
+    import numpy as np
+    solid = [e for e in props if not _plant(e)]           # what may carry another prop
+    solid_row = {id(e): i for i, e in enumerate(solid)}
+    solid_lo = np.array([e["bounds"][0] for e in solid], dtype=np.float64).reshape(-1, 3)
+    solid_hi = np.array([e["bounds"][1] for e in solid], dtype=np.float64).reshape(-1, 3)
     for entry in props:
         # Static props only: physics bodies settle, and parented parts (wheels, rotors) move with their body.
         if entry.get("class") != "prop_static" or entry.get("props", {}).get("parentname"):
@@ -450,8 +481,12 @@ def _terrain_float_checks(m, props, meshes=()) -> list:
                 continue
             pts = [(x, y) for x in (lo[0], (lo[0] + hi[0]) / 2, hi[0]) for y in (lo[1], (lo[1] + hi[1]) / 2, hi[1])]
             # Other props carry it too (a box on a table, tyres in a pile, a car's glass inside its body).
-            carriers = [e["bounds"] for e in props if e is not entry and not _plant(e)
-                        and e["bounds"][0][2] <= lo[2] + 8 and e["bounds"][1][2] >= lo[2] - 8]
+            carry = ((solid_lo[:, 2] <= lo[2] + 8) & (solid_hi[:, 2] >= lo[2] - 8) &
+                     (solid_lo[:, 0] <= hi[0]) & (solid_hi[:, 0] >= lo[0]) &
+                     (solid_lo[:, 1] <= hi[1]) & (solid_hi[:, 1] >= lo[1]))
+            if id(entry) in solid_row:
+                carry[solid_row[id(entry)]] = False
+            carriers = [(a, b) for a, b in zip(solid_lo[carry].tolist(), solid_hi[carry].tolist())]
             soil = [terrain.sample(data, x, y)["z"] for x, y in pts]
             ground = [max([g] + [z for z in tops.vhits(x, y) if z <= lo[2] + 8]
                           + [min(b[1][2], lo[2]) for b in carriers
@@ -554,15 +589,16 @@ def playable_bounds(m):
         and not all('tools' in str(mat).lower() for mat in n['meshData'].get('materials',[]))])
 
 
-def _visible_meshes(m):
-    """Render geometry includes non-solid sign plates, but excludes tool faces."""
+def _visible_meshes(m, keep=None):
+    """Render geometry includes non-solid sign plates, but excludes tool faces. keep(box): only those meshes."""
     out = []
     scenery = scenery_ids(m)
     for n,b in checks._all_meshes(m):
         mats = [str(x).lower() for x in n['meshData'].get('materials',[])]
         if n.get('nodeID') in scenery or all('tools' in x or any(h in x for h in _HELPER_MATERIALS) for x in mats):
             continue
-        out.append((n,b,list(checks._triangles(n))))
+        if keep is None or keep(b):
+            out.append((n,b,checks.tri_list(n)))
     return out
 
 
@@ -689,12 +725,60 @@ def _project(points, u, v):
     return poly[::-1] if _area(poly) < 0 else poly
 
 
-def _buried(point, visible, skip):
+class _InsideTest:
+    """checks._inside_mesh for many points against the same meshes: the triangles of a mesh are turned into
+    arrays once and one point is tested against all of them at once. The arithmetic is written in the order of
+    checks._ray, so the answer is the same bit for bit (11.11: 31 million Python ray tests on a big town map)."""
+    DIRECTION = (1, .173, .097)
+
+    def __init__(self):
+        self._meshes: dict[int, tuple | None] = {}
+
+    def _arrays(self, tris):
+        key = id(tris)
+        if key not in self._meshes:
+            import numpy as np
+            if not tris:
+                self._meshes[key] = None
+            else:
+                t = np.asarray(tris, dtype=np.float64).reshape(-1, 3, 3)
+                a = t[:, 0]
+                e1, e2 = t[:, 1] - a, t[:, 2] - a
+                dx, dy, dz = self.DIRECTION
+                h = np.stack([dy * e2[:, 2] - dz * e2[:, 1], dz * e2[:, 0] - dx * e2[:, 2],
+                              dx * e2[:, 1] - dy * e2[:, 0]], axis=1)
+                det = e1[:, 0] * h[:, 0] + e1[:, 1] * h[:, 1] + e1[:, 2] * h[:, 2]
+                keep = np.abs(det) >= 1e-9
+                self._meshes[key] = (a[keep], e1[keep], e2[keep], h[keep], det[keep], tris)   # tris: keeps id() alive
+        return self._meshes[key]
+
+    def inside(self, point, tris) -> bool:
+        data = self._arrays(tris)
+        if data is None:
+            return False
+        import numpy as np
+        a, e1, e2, h, det = data[:5]
+        dx, dy, dz = self.DIRECTION
+        s = np.asarray(point, dtype=np.float64) - a
+        u = (s[:, 0] * h[:, 0] + s[:, 1] * h[:, 1] + s[:, 2] * h[:, 2]) / det
+        ok = (u >= -1e-7) & (u <= 1 + 1e-7)
+        if not ok.any():
+            return False
+        s, e1, e2, det, u = s[ok], e1[ok], e2[ok], det[ok], u[ok]
+        q = np.stack([s[:, 1] * e1[:, 2] - s[:, 2] * e1[:, 1], s[:, 2] * e1[:, 0] - s[:, 0] * e1[:, 2],
+                      s[:, 0] * e1[:, 1] - s[:, 1] * e1[:, 0]], axis=1)
+        v = (dx * q[:, 0] + dy * q[:, 1] + dz * q[:, 2]) / det
+        ok = (v >= -1e-7) & (u + v <= 1 + 1e-7)
+        t = (e2[ok, 0] * q[ok, 0] + e2[ok, 1] * q[ok, 1] + e2[ok, 2] * q[ok, 2]) / det[ok]
+        return len({round(x, 5) for x in t[t > 1e-5].tolist()}) % 2 == 1
+
+
+def _buried(point, visible, skip, test: _InsideTest | None = None):
     """Is a point inside a closed mesh other than the ``skip`` nodes?"""
     for node, bounds, tris in visible:
         if node.get('nodeID') in skip or not bounds or not checks._inside(point, bounds):
             continue
-        if checks._inside_mesh(point, tris):
+        if test.inside(point, tris) if test is not None else checks._inside_mesh(point, tris):
             return True
     return False
 
@@ -766,6 +850,7 @@ def _zfight_checks(m, visible):
             for j in range(j0, j1 + 1):
                 grid.setdefault((i, j), []).append(k)
     plans = terrain.plans(m)
+    inside = _InsideTest()
     seen: set[tuple[int, int]] = set()
     worst: dict[tuple, tuple] = {}
     for ks in grid.values():
@@ -796,7 +881,7 @@ def _zfight_checks(m, visible):
                 if (ka, kb) in seen:
                     continue
                 seen.add((ka, kb))
-                found = _zfight_pair(faces, ka, kb, ks, normals, visible, plans)
+                found = _zfight_pair(faces, ka, kb, ks, normals, visible, plans, inside)
                 if found is None:
                     continue
                 pair = (min(faces[ka][0], faces[kb][0]), max(faces[ka][0], faces[kb][0]))
@@ -806,7 +891,7 @@ def _zfight_checks(m, visible):
     return [f[2] for f in found]
 
 
-def _zfight_pair(faces, ka, kb, cell, normals, visible, plans):
+def _zfight_pair(faces, ka, kb, cell, normals, visible, plans, inside=None):
     """(not exactly coplanar, overlap area, problem) for one candidate face pair, or None."""
     nid, mat, pts, n, d = faces[ka]
     nid2, mat2, pts2, n2, d2 = faces[kb]
@@ -836,7 +921,7 @@ def _zfight_pair(faces, ka, kb, cell, normals, visible, plans):
         if -0.05 <= ahead <= ZFIGHT_GAP + 0.3 and _inside2((su, sv), _project(pts3, u, v)):
             return None
     front = tuple(c[k] + n[k] * 0.5 for k in range(3))
-    if _buried(front, visible, {nid, nid2}) or _under_terrain(front, plans):
+    if _buried(front, visible, {nid, nid2}, inside) or _under_terrain(front, plans):
         return None                                   # inside a third body or under the ground: never seen
     effect = (f'{gap:.2f} units apart: they flicker' if gap > 1e-3
               else 'exactly coplanar: one hides the other or they flicker')
@@ -919,7 +1004,7 @@ def _mount_of(project, entry):
             pass
     try:
         from . import atlas
-        rec = atlas.notes_all().get(entry['model'].lower())
+        rec = atlas.notes_cached().get(entry['model'].lower())
         return rec.get('mount') if rec else None
     except Exception:
         return None
@@ -1056,7 +1141,7 @@ def _paved(node) -> bool:
     return any(_lip_ground(str(mat).lower()) for mat in node['meshData'].get('materials', []))
 
 
-def _lip_checks(m, meshes) -> list:
+def _lip_checks(m, meshes, zone=None) -> list:
     """Steps between walkable surfaces of different meshes (26.10, a town map: roads over a plaza and over each other
     stood 2-6 units apart; frames showed only thin dark lines). A lip is a top over 1..4 units over another where the
     lower one comes out from under its edge, or a seam where two meshes meet at different heights. Terrain,
@@ -1136,6 +1221,8 @@ def _lip_checks(m, meshes) -> list:
             dz = abs((za + ga * ex + ha * ey) - (zb - gb * ex - hb * ey))
             if LIP_MIN <= dz < LIP_SEAM_MAX:
                 bad.setdefault(c, (dz, a, b, za))
+    if zone:                          # a zone audit: the joint is judged by its cells in the zone
+        bad = {c: v for c, v in bad.items() if zone.reports((c[0] + .5) * LIP_CELL, (c[1] + .5) * LIP_CELL)}
     pairs: dict = {}
     for c, (dz, a, b, z) in bad.items():
         pairs.setdefault(tuple(sorted((a, b))), []).append(c)
@@ -1152,6 +1239,7 @@ def _lip_checks(m, meshes) -> list:
             "Make the joint flush: the joining surface takes the other one's height along the joint, or where they "
             "overlap it lies 1 unit under the other's top and blends back within a few metres (add_street and "
             "add_junction do this themselves)."))
+        out[-1].update({"ids": [a, b], "at": [float(v) for v in at]})
     return out
 
 
@@ -1213,7 +1301,7 @@ class _TriGrid:
         return [self.entries[i] for i in sorted(found)]
 
 
-def _phantom_checks(m, meshes):
+def _phantom_checks(m, meshes, render_only=None):
     """Visible floors and walls without collision in the playable rooms (seen, but walked and shot through)."""
     rooms = [b for _, b, meta in _layout_rooms(m)]
     if not rooms:
@@ -1221,14 +1309,15 @@ def _phantom_checks(m, meshes):
         rooms = [bounds] if bounds else []
     if not rooms:
         return []
-    render_only = _render_only_meshes(m)
+    if render_only is None:
+        render_only = _render_only_meshes(m)
     if not render_only:
         return []
     import numpy as np
     tris = [tri for _, _, ts in meshes for tri in ts]
     if not tris:
         return []
-    arr = np.array(tris, dtype=float)
+    arr = checks.tri_arrays([ts for _, _, ts in meshes])
     lows, highs = arr.min(axis=1), arr.max(axis=1)
     e1, e2 = arr[:, 1] - arr[:, 0], arr[:, 2] - arr[:, 0]
     up = (e1[:, 0] * e2[:, 1] - e1[:, 1] * e2[:, 0]) > 1e-6
@@ -1303,6 +1392,8 @@ def _phantom_checks(m, meshes):
                 f"render-only mesh {node.get('nodeID')} shows a wall at player height near {where} with no "
                 f"collision within {PHANTOM_BACKING:g} units behind it: players walk and shoot through it",
                 'Make the mesh solid (remove physicsType none) or put it on a real wall.'))
+        if (floors or walls) and where:
+            problems[-1]['at'] = list(where)
     return problems
 
 
@@ -1464,7 +1555,32 @@ def _box_tris(tris, box):
                                     min(p[2] for p in t) > box[1][2] or max(p[2] for p in t) < box[0][2])]
 
 
-def _has_support(entry, meshes, props, grid=None, tri_grid=None):
+class _Boxes:
+    """The world boxes of the solid meshes and of the props as two arrays, for tests of one prop against all."""
+
+    def __init__(self, meshes, props):
+        import numpy as np
+        bounds = [b for _, b, _ in meshes] + [p["bounds"] for p in props]
+        self.lo = np.array([b[0] for b in bounds], dtype=np.float64).reshape(-1, 3)
+        self.hi = np.array([b[1] for b in bounds], dtype=np.float64).reshape(-1, 3)
+        self.row = {id(p): len(meshes) + i for i, p in enumerate(props)}
+
+    def side_contact(self, entry) -> bool:
+        """Does another box overlap this prop's box on two axes with a gap of at most CONTACT_TOLERANCE on the
+        third (a wall lamp, a shelf bracket)? The same test as the loop in _has_support, for every box at once."""
+        import numpy as np
+        lo, hi = (np.asarray(x, dtype=np.float64) for x in entry["bounds"])
+        over = (lo < self.hi) & (hi > self.lo)
+        near = (np.abs(lo - self.hi) <= CONTACT_TOLERANCE) | (np.abs(hi - self.lo) <= CONTACT_TOLERANCE)
+        hit = ((over[:, 1] & over[:, 2] & near[:, 0]) | (over[:, 0] & over[:, 2] & near[:, 1]) |
+               (over[:, 0] & over[:, 1] & near[:, 2]))
+        own = self.row.get(id(entry))
+        if own is not None:
+            hit[own] = False
+        return bool(hit.any())
+
+
+def _has_support(entry, meshes, props, grid=None, tri_grid=None, boxes: _Boxes | None = None):
     lo, hi = entry["bounds"]
     grid = grid or _FloorGrid([t for _, _, ts in meshes for t in ts])
     # Five samples make a narrow crate on a broad floor reliable, while still
@@ -1485,6 +1601,8 @@ def _has_support(entry, meshes, props, grid=None, tri_grid=None):
                   else [tri for _, bound, tris in meshes if _overlap(bound, near) for tri in tris])
     if any(_tri_box(tri, near) for tri in _box_tris(candidates, near)):
         return True, "wall_or_ceiling"
+    if boxes is not None:
+        return (True, "wall_or_ceiling") if boxes.side_contact(entry) else (False, "")
     for other in [*meshes, *[(None, p["bounds"], []) for p in props if p is not entry]]:
         bound = other[1]
         # Side/ceiling contact: overlap on the two transverse axes and a
@@ -1634,12 +1752,14 @@ def _terrain_mesh_checks(m, meshes) -> list:
                 f"the ground pokes {depth:.1f} units through the top of mesh {nid} near {[round(x) for x in q]}",
                 "Lower the terrain under the mesh (add_terrain flatten or its heightmap) or raise the mesh; the ground "
                 "must stay under a road, plaza or slab"))
+            out[-1]["at"] = [round(x, 1) for x in q]
         # 25.10, a big town map: a shed roof by the uphill ground "hung" over the air its walls stand in.
         if len(air) >= 2 and not bar and not carried(nid, bound):
             gap, q = max(air)
             out.append(checks.problem("warning", "visual_floats_over_terrain", nid,
                 f"mesh {nid} hangs {gap:.1f} units above the ground near {[round(x) for x in q]} (air under it)",
                 "Lower the mesh or raise the ground to its underside; sink a slab's edge 2+ units into the ground"))
+            out[-1]["at"] = [round(x, 1) for x in q]
     return out
 
 
@@ -1649,10 +1769,39 @@ def _in_box(bounds, box, margin=64.0) -> bool:
             bounds[0][1] <= box[1][1] + margin and bounds[1][1] >= box[0][1] - margin)
 
 
+BOX_CONTEXT = 256.0       # a zone is audited with this much of its surroundings (walls behind, ground beside)
+BOX_REPORT = 64.0         # ... and findings up to this far outside it are reported
+
+
 def _audit(project, m, box=None) -> list[dict]:
+    """Every finding of a loaded map (box: of one zone; findings outside it are dropped)."""
+    with checks.scene_cache():
+        problems = _audit_scene(project, m, box)
+        if box is not None:
+            spans = _place(m, problems)
+            problems = [p for p in problems if _reported(p, spans, box)]
+        return problems
+
+
+def _reported(problem, spans, box) -> bool:
+    """Does a finding of a zone audit belong to the zone? By the place the check named; else by the node: a
+    mesh that reaches into the zone, an entity that stands in it."""
+    span = spans.get(id(problem))
+    if span is not None:
+        return _in_box(span, box, BOX_REPORT)
+    at = problem.get("at")
+    if isinstance(at, (list, tuple)) and len(at) >= 2:
+        return _in_box((at, at), box, BOX_REPORT)
+    return True
+
+
+def _audit_scene(project, m, box=None) -> list[dict]:
     problems: list[dict] = []
-    meshes = _solid_meshes(m)
-    triangles = [tri for _, _, ts in meshes for tri in ts]
+    from . import visual_scene
+    near = None if box is None else (lambda bounds: _in_box(bounds, box, BOX_CONTEXT))
+    zone = None if box is None else visual_scene.Zone(box, BOX_REPORT, BOX_CONTEXT)
+    meshes = _solid_meshes(m, near)
+    triangles = [] if box is not None else [tri for _, _, ts in meshes for tri in ts]
     props = _prop_entries(project, m)
     map_bounds = checks._map_bounds([(n, b) for n, b, _ in meshes])
     map_floor = map_bounds[0][2] if map_bounds else -4096
@@ -1672,31 +1821,31 @@ def _audit(project, m, box=None) -> list[dict]:
     # parked hundreds of units below the authored scene.
     props = [p for p in props if p["bounds"][1][2] >= map_floor - 256]
 
-    visible = _visible_meshes(m)
+    visible = _visible_meshes(m, near)
+    render_only = _render_only_meshes(m)
     if box is not None:
-        # One zone of a big map (18.10): only what touches it is audited, a margin keeps its neighbours.
-        meshes = [x for x in meshes if _in_box(x[1], box)]
-        visible = [x for x in visible if x[1] and _in_box(x[1], box)]
-        props = [p for p in props if _in_box(p["bounds"], box)]
+        # One zone of a big map (18.10): only what stands in it and around it is audited.
+        meshes = [x for x in meshes if x[2] is not None]
+        props = [p for p in props if near(p["bounds"])]
         triangles = [tri for _, _, ts in meshes for tri in ts]
+        render_only = [n for n in render_only if (b := checks._mesh_bounds(n)) and near(b)]
     problems.extend(_terrain_mesh_checks(m, meshes))
     problems.extend(_worldtext_checks(m, visible))
     problems.extend(_foundation_checks(m, visible, meshes))
     problems.extend(_zfight_checks(m, visible))
     problems.extend(_flat_model_checks(props, visible))
-    problems.extend(_phantom_checks(m, meshes))
-    problems.extend(_lip_checks(m, meshes))
+    problems.extend(_phantom_checks(m, meshes, render_only))
+    problems.extend(_lip_checks(m, meshes, zone))
     problems.extend(_wall_mount_checks(project, props, visible))
     problems.extend(_terrain_float_checks(m, props, meshes))
     # Ported from a big town map's own checks (journal 26.10-03.11): what hangs on, stands on and stops at something.
-    from . import visual_scene
     skip = scenery_ids(m)
     problems.extend(visual_scene.wall_checks(project, props, visible, _mount_of, _frame))
     problems.extend(visual_scene.cable_checks(m, props, visible))
     problems.extend(visual_scene.door_window_checks(visible))
-    problems.extend(visual_scene.paved_slab_checks(m, meshes, _paved, skip))
-    problems.extend(visual_scene.clip_checks(m, meshes, visible, props, skip | outside_play_area_ids(m)))
-    problems.extend(visual_scene.fence_checks(m, meshes, _render_only_meshes(m)))
+    problems.extend(visual_scene.paved_checks(m, meshes, _paved, skip, zone=zone))
+    problems.extend(visual_scene.clip_checks(m, meshes, visible, props, skip | outside_play_area_ids(m), zone))
+    problems.extend(visual_scene.fence_checks(m, meshes, render_only))
 
     # Large authored floors high above the scene need a visible support.  Use
     # the material name as a narrow intent signal so ceilings, sky, water and
@@ -1740,13 +1889,14 @@ def _audit(project, m, box=None) -> list[dict]:
     # Props must have a nearby floor, wall, ceiling or existing prop support.
     grid = _FloorGrid(triangles)
     tri_grid = _NearGrid(triangles)
+    boxes = _Boxes(meshes, props)
     for entry in props:
         model_lower = entry["model"].lower()
         if any(token in model_lower for token in _DECORATIVE_MODEL):
             continue
         if entry["bounds"][1][2] < map_floor - 256:
             continue  # switchable-light carriers parked far below the map
-        ok, support = _has_support(entry, meshes, props, grid, tri_grid)
+        ok, support = _has_support(entry, meshes, props, grid, tri_grid, boxes)
         if not ok and entry["bounds"][0][2] > map_floor + SUPPORT_GAP:
             problems.append(checks.problem("warning", "visual_floating_prop", entry["id"],
                 f"{entry['model']} at {_centre(entry['bounds'])} has no floor/wall support; bottom is {entry['bounds'][0][2]:.1f} units above the map floor",
@@ -1759,24 +1909,40 @@ def _audit(project, m, box=None) -> list[dict]:
     mesh_hi = np.array([b[1] for _, b, _ in meshes], dtype=float).reshape(-1, 3)
     prop_lo = np.array([e["bounds"][0] for e in props], dtype=float).reshape(-1, 3)
     prop_hi = np.array([e["bounds"][1] for e in props], dtype=float).reshape(-1, 3)
+    tri_boxes: dict[int, tuple] = {}
+
+    def near_tris(k: int, box):
+        """The triangles of mesh k whose own box touches `box`: what _box_tris gives, on arrays made once per mesh
+        (a prop on a big ground mesh walked its 8 000 triangles in Python)."""
+        tris = meshes[k][2]
+        if k not in tri_boxes:
+            arr = np.asarray(tris, dtype=np.float64).reshape(-1, 3, 3)
+            tri_boxes[k] = (arr.min(axis=1), arr.max(axis=1))
+        tlo, thi = tri_boxes[k]
+        keep = ~((tlo > np.asarray(box[1], dtype=np.float64)).any(axis=1) |
+                 (thi < np.asarray(box[0], dtype=np.float64)).any(axis=1))
+        return [tris[j] for j in np.nonzero(keep)[0].tolist()]
+
     for i, entry in enumerate(props):
         skip = any(token in entry["model"].lower() for token in ("boat", "lamp", "lantern", "gaspipes", "/pipe"))
         plo, phi = np.array(entry["bounds"][0]), np.array(entry["bounds"][1])
-        touching = [] if skip or not meshes else np.nonzero(np.all(plo < mesh_hi, axis=1) & np.all(phi > mesh_lo, axis=1))[0]
-        for node, bound, tris in (meshes[k] for k in touching):
+        touching = [] if skip or not meshes else np.nonzero(np.all(plo < mesh_hi, axis=1) & np.all(phi > mesh_lo, axis=1))[0].tolist()
+        for k in touching:
+            node, bound, tris = meshes[k]
             d = _depth(entry["bounds"], bound)
             if min(d) > INTERSECTION_DEPTH:
                 if _plant(entry):
                     core = _core_box(entry)
-                    why = _penetration(core, tris) if _overlap(core, bound) and min(_depth(core, bound)) > 0 else None
+                    why = (_penetration(core, near_tris(k, core))
+                           if _overlap(core, bound) and min(_depth(core, bound)) > 0 else None)
                 elif _turned(entry):
                     # The mesh in the model's own frame: a car turned 133 degrees no longer "cuts into" a planter
                     # a metre away because its world box is that much larger (18.10).
                     frame = _frame(entry)
                     why = _penetration(frame[2], [[_to_local(frame, p) for p in tri]
-                                                  for tri in _box_tris(tris, entry["bounds"])])
+                                                  for tri in near_tris(k, entry["bounds"])])
                 else:
-                    why = _penetration(entry["bounds"], tris)
+                    why = _penetration(entry["bounds"], near_tris(k, entry["bounds"]))
                 if why is None:
                     continue
                 problems.append(checks.problem("warning", "visual_prop_intersection", entry["id"],
@@ -1845,6 +2011,8 @@ def _audit(project, m, box=None) -> list[dict]:
         if not cls.startswith("light_") or cls in {"light_environment", "light_directional"}:
             continue
         point = _vec(ent.get("origin"))
+        if near is not None and not near((point, point)):
+            continue
         target = str(_props(ent).get("targetname", "")).lower()
         if cls in {"light_barn", "light_rect"} and "shaft" in target:
             continue  # add_light(kind=shaft) is intentionally out in the sky
@@ -1900,25 +2068,188 @@ def visual_check(project, name: str, limit: int = 200, box=None) -> dict:
         except (TypeError, ValueError):
             raise ValueError('box must be [[x0, y0], [x1, y1]] (a zone seen from above)') from None
         box = [[min(x0, x1), min(y0, y1)], [max(x0, x1), max(y0, y1)]]
-    from .terrain import expand_layers
-    m = expand_layers(project, project.load(name))
-    problems = _audit(project, m, box)
+    found = _findings(project, name, box)
+    problems = found["problems"]
     by_code: dict[str, int] = {}
     for p in problems:
         by_code[p["code"]] = by_code.get(p["code"], 0) + 1
     limit = max(0, int(limit))
-    shown = sorted(problems, key=lambda p: p["severity"] != "error")[:limit] if len(problems) > limit else problems
+    shown = _fair_share(problems, limit) if len(problems) > limit else problems
     out = {"map": name, "ok": not any(p["severity"] == "error" for p in problems),
            "problems": shown,
            "summary": {"errors": sum(p["severity"] == "error" for p in problems),
                        "warnings": sum(p["severity"] == "warning" for p in problems),
                        "by_code": by_code,
-                       "models_measured": len(getattr(project, "_visual_model_bounds", {}))}}
+                       "models_measured": found["models_measured"]}}
     if len(shown) < len(problems):
         out["summary"]["shown"] = len(shown)
+        zones = _zones(problems)
+        if zones and box is None:
+            out["summary"]["zones"] = zones
+            out["summary"]["hint"] = ("the list shows a share of every kind; zones are where most problems stand: "
+                                      "visual_check(name, box=<zone box>) lists one zone in full")
+    if found.get("cached"):
+        out["summary"]["cached"] = "the map has not changed since this check ran"
     return out
 
 
 def visual_check_loaded(project, m) -> list[dict]:
-    """Adapter used by checks.register_check (map is already loaded)."""
+    """Adapter used by checks.register_check (map is already loaded). check_map names the map it read from the
+    disk (m.checked_name): its findings are then shared with visual_check through the cache."""
+    name = getattr(m, "checked_name", None)
+    if name:
+        return _findings(project, name, None, m)["problems"]
     return _audit(project, m)
+
+
+# -- the findings of an unchanged map are kept -------------------------------------------------------------------------
+CHECK_CACHE = PROJECT_ROOT / ".local" / "cache" / "checks"
+CHECK_CACHE_LIMIT = 64 * 1024 * 1024      # bytes for all maps together; the files not used for the longest go first
+CHECK_VERSION = 1                         # bump when the stored findings change their form
+_CHECK_CODE = ("visual.py", "visual_scene.py", "checks.py", "terrain.py", "structure.py", "navcost.py")
+
+
+def _file_stamp(path: Path) -> list | None:
+    try:
+        st = path.stat()
+        return [st.st_mtime_ns, st.st_size]
+    except OSError:
+        return None
+
+
+def _check_key(project, name: str, box) -> dict:
+    """What the findings depend on besides the map's own models and layers: the map file, the zone, this code
+    (so an updated or edited check never answers from the past) and the notes about models."""
+    from . import __version__, atlas
+    here = Path(__file__).parent
+    return {"map": _file_stamp(project.s.map_path(name)), "box": box,
+            "code": [__version__, CHECK_VERSION] + [_file_stamp(here / f) for f in _CHECK_CODE],
+            "notes": [_file_stamp(atlas.CATALOG), _file_stamp(atlas.NOTES)]}
+
+
+def _check_file(project, name: str, box) -> Path:
+    zone = "" if box is None else "." + hashlib.sha1(json.dumps(box).encode()).hexdigest()[:10]
+    return CHECK_CACHE / project.s.addon / f"{name}{zone}.json"
+
+
+def _model_stamps(project, m) -> dict:
+    """{model: stamp of its compiled file in the addon} for every model the map places: an own model built again
+    (or built at last) changes what the checks measure although the map file is the same."""
+    out = {}
+    for ent in m.entities():
+        rel = str(_props(ent).get("model") or "").replace("\\", "/")
+        if rel.lower().endswith(".vmdl") and rel not in out:
+            out[rel] = _file_stamp(project.s.game_addon / (rel + "_c"))
+    return out
+
+
+def _findings(project, name: str, box=None, m=None) -> dict:
+    """{problems, models_measured, cached?}: every finding of the map (or of one zone), from the cache while the
+    map, its layer files, its own models, the model notes and this code are what they were when the check ran."""
+    from . import faceindex
+    key = _check_key(project, name, box)
+    cache = _check_file(project, name, box)
+    if key["map"] is not None and cache.is_file():
+        try:
+            data = json.loads(cache.read_text(encoding="utf-8"))
+            if (data.get("key") == key
+                    and all(_file_stamp(project.s.content_addon / rel) == st for rel, st in data["layers"].items())
+                    and all(_file_stamp(project.s.game_addon / (rel + "_c")) == st
+                            for rel, st in data["models"].items())):
+                os.utime(cache)
+                return {"problems": data["problems"], "models_measured": data.get("models_measured", 0),
+                        "cached": True}
+        except (OSError, ValueError, KeyError, TypeError, AttributeError):
+            pass
+    if m is None:
+        from .terrain import expand_layers
+        loaded = project.load(name)
+        layers = {rel: _file_stamp(project.s.content_addon / rel) for rel in faceindex._layers(project, loaded)}
+        m = expand_layers(project, loaded)
+    else:
+        # Layers are already expanded into m: their files are named by the prefab nodes that stay in it.
+        layers = {rel: _file_stamp(project.s.content_addon / rel) for rel in faceindex._layers(project, m)}
+    problems = _audit(project, m, box)
+    _place(m, problems)
+    measured = len(getattr(project, "_visual_model_bounds", {}))
+    if key["map"] is not None and _check_key(project, name, box) == key:
+        try:
+            cache.parent.mkdir(parents=True, exist_ok=True)
+            tmp = cache.with_name(cache.name + f".{os.getpid()}.tmp")
+            tmp.write_text(json.dumps({"key": key, "layers": layers, "models": _model_stamps(project, m),
+                                       "models_measured": measured, "problems": problems},
+                                      separators=(",", ":"), default=str), encoding="utf-8")
+            os.replace(tmp, cache)
+            files = sorted(CHECK_CACHE.rglob("*.json"), key=lambda p: p.stat().st_mtime)
+            total = sum(p.stat().st_size for p in files)
+            for p in files:
+                if total <= CHECK_CACHE_LIMIT:
+                    break
+                total -= p.stat().st_size
+                p.unlink()
+        except (OSError, TypeError, ValueError):
+            pass
+    return {"problems": problems, "models_measured": measured}
+
+
+def _place(m, problems: list[dict]) -> dict:
+    """Give every finding its place ("at": [x, y, z]) from the node it names, where the check did not. Returns
+    {id(problem): the node's world box} for the findings placed here (a zone audit keeps those whose node
+    reaches into the zone, wherever its middle is)."""
+    need = {p.get("id") for p in problems if "at" not in p and isinstance(p.get("id"), int)}
+    if not need:
+        return {}
+    where: dict[int, tuple] = {}
+    for node in m.iter_nodes():
+        nid = node.get("nodeID")
+        if nid not in need:
+            continue
+        bounds = checks._mesh_bounds(node) if node.type == "CMapMesh" else None
+        if bounds:
+            where[nid] = bounds
+        elif "origin" in node:
+            origin = _vec(node.get("origin"))
+            where[nid] = (origin, origin)
+    spans = {}
+    for p in problems:
+        if "at" not in p and p.get("id") in where:
+            lo, hi = where[p["id"]]
+            p["at"] = [round((lo[k] + hi[k]) / 2, 1) for k in range(3)]
+            spans[id(p)] = (lo, hi)
+    return spans
+
+
+ZONE_CELL = 1024.0        # the size of a zone of the summary, units
+
+
+def _fair_share(problems: list[dict], limit: int) -> list[dict]:
+    """`limit` findings with every kind present: errors first, then one of each kind in turn (a big map's 500
+    phantom floors used to fill the whole list and hide the other twelve kinds)."""
+    kinds: dict[str, list] = {}
+    for p in sorted(problems, key=lambda p: p["severity"] != "error"):
+        kinds.setdefault(p["code"], []).append(p)
+    out: list[dict] = []
+    queues = list(kinds.values())
+    depth = 0
+    while len(out) < limit and any(depth < len(q) for q in queues):
+        for q in queues:
+            if depth < len(q) and len(out) < limit:
+                out.append(q[depth])
+        depth += 1
+    return sorted(out, key=lambda p: p["severity"] != "error")
+
+
+def _zones(problems: list[dict], top: int = 6) -> list[dict]:
+    """Where the findings stand: the busiest ZONE_CELL squares as boxes for visual_check(box=...)."""
+    cells: dict[tuple, dict] = {}
+    for p in problems:
+        at = p.get("at")
+        if not isinstance(at, (list, tuple)) or len(at) < 2:
+            continue
+        cell = (math.floor(at[0] / ZONE_CELL), math.floor(at[1] / ZONE_CELL))
+        entry = cells.setdefault(cell, {"problems": 0, "errors": 0})
+        entry["problems"] += 1
+        entry["errors"] += p["severity"] == "error"
+    busiest = sorted(cells.items(), key=lambda kv: (-kv[1]["errors"], -kv[1]["problems"]))[:top]
+    return [{"box": [[i * ZONE_CELL, j * ZONE_CELL], [(i + 1) * ZONE_CELL, (j + 1) * ZONE_CELL]], **entry}
+            for (i, j), entry in busiest]

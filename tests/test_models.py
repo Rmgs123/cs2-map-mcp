@@ -183,6 +183,56 @@ print("JSON>" + json.dumps({"size": [round(hi[i] - lo[i]) for i in range(3)], "l
         self.assertEqual(r["well_top"], 12)                  # 0 -> 12 -> 24: steps a player walks up (max 18)
 
     @unittest.skipUnless(HAVE_BLENDER, "Blender is not installed")
+    def test_bus_body_low_cabin_fits_a_crouched_rider(self):
+        """12.11: the van of the passengers.crouch test (cabin 62 inside); a cabin that is too low is refused."""
+        from cs2map.models import run_blender
+        from cs2map.project import Project
+
+        script = '''
+import sys, json, importlib
+import bpy
+from pathlib import Path
+sys.path.insert(0, str(Path.cwd() / "src/cs2map/blender"))
+bpy.ops.wm.read_factory_settings(use_empty=True)
+mod = importlib.import_module("templates.bus_body")
+van = {"low": True, "length": 250, "width": 124, "height": 84, "floor": 18, "clearance": 12,
+       "window_bottom": 24, "window_top": 50, "doors": [{"x": 2, "width": 110, "side": "-y"}]}
+refused = []
+for bad in ({**van, "height": 80}, {**van, "low": False}, {**van, "height": 100}):
+    try:
+        mod.build(dict(bad))
+    except ValueError as e:
+        refused.append(str(e))
+bpy.ops.wm.read_factory_settings(use_empty=True)
+objects = mod.build(dict(van))
+bpy.context.view_layer.update()
+def box(obj):
+    pts = [obj.matrix_world @ v.co for v in obj.data.vertices]
+    return [min(p[i] for p in pts) for i in range(3)], [max(p[i] for p in pts) for i in range(3)]
+def hits(a, b):
+    return all(a[0][i] < b[1][i] - .01 and a[1][i] > b[0][i] + .01 for i in range(3))
+cols = [box(o) for o in bpy.context.scene.objects if o.name.endswith("_col")]
+# a crouched rider (32x32x54) with the feet 1 over the floor, and the same place for a standing player
+rider = ([34, -44, 19], [66, -12, 73])
+standing = ([34, -44, 19], [66, -12, 91])
+print("JSON>" + json.dumps({"refused": refused, "rider": any(hits(c, rider) for c in cols),
+      "standing": any(hits(c, standing) for c in cols),
+      "top": max(box(o)[1][2] for o in objects), "floor": max(c[1][2] for c in cols if c[1][2] < 30)}))
+'''
+        p = Project()
+        job = run_blender(p, script, timeout=90)
+        st = p.jobs.wait(job.id, 60)
+        self.assertEqual(st.state, "succeeded", st.log)
+        r = st.result
+        self.assertEqual(len(r["refused"]), 3, r["refused"])
+        self.assertIn("60..74", r["refused"][0])             # 58 inside
+        self.assertIn('"low": true', r["refused"][1])        # a low cabin must be asked for
+        self.assertIn("60..74", r["refused"][2])             # 78 inside: riders stand, not a low cabin
+        self.assertFalse(r["rider"], "the cabin is free for a crouched rider")
+        self.assertTrue(r["standing"], "the roof is over a standing player's head: it keeps the crouch")
+        self.assertEqual((r["top"], r["floor"]), (84, 18))
+
+    @unittest.skipUnless(HAVE_BLENDER, "Blender is not installed")
     def test_template_build_without_resourcecompiler(self):
         from cs2map.config import Settings
         from cs2map.models import model_build

@@ -36,7 +36,15 @@ src/cs2map/project.py       core operations: maps, batch editing, builds, assets
    │                run time), camera, frames with staleness checks, the CS2 lock, fast start, idle map
    ├─ vconsole.py   VConsole2 protocol (TCP 29000): commands and output; CS2 accepts one client, so the
    │                connection closes after 5 s idle and on leaving game.exclusive; TAPS see every line
-   │                with its millisecond stamp, the backlog CS2 replays on connect included
+   │                with its millisecond stamp, the backlog CS2 replays on connect included; every connection
+   │                tells the engine "console in front", so CS2 works behind other windows (specs/background.md)
+   ├─ activity.py, permits.py, panel.py   the journal of tool calls shared by all server processes, what the
+   │                user allowed (focus for a while, heavy builds, deferred tests) and the local status page
+   │                that shows and changes them (specs/panel.md)
+   ├─ pipeline.py, genrun.py   packages of a big map replayed by content hash, the generator manifest, the
+   │                proof "equal to a clean replay" (specs/pipeline.md)
+   ├─ region.py, faceindex.py, preview3d.py   one zone cut into its own map for a build; the cached face
+   │                index of a map; the offline preview drawn from it (numpy rasteriser)
    ├─ marks.py      player marks: the tester's key (cfg in the addon + bind, set by game_launch) prints a
    │                marker, getpos and status and writes a jpeg; the marks are read from the console history
    │                later (game_screenshot views="marks"), frames move to screenshots/marks/
@@ -57,6 +65,7 @@ src/cs2map/project.py       core operations: maps, batch editing, builds, assets
    ├─ visual_scene.py  wall parts, cables, doors over windows, paved slabs, bare clips, fences (numpy cell index)
    ├─ outdoor.py    water to the horizon, backdrops, supports, outdoor sky
    ├─ competitive.py add_comp_plan (defuse/hostage/wingman layouts), timings, bot rounds, spawn sightlines
+   ├─ figures.py    add_figures: stock T/CT agents as props for readability frames, their views, figures_in_map
    ├─ layout.py     add_layout: rooms by graph, shared walls, openings, levels, add_lift, relative coordinates
    ├─ dressing.py + data/themes/   theme palettes, dress_room, trims, pipes, cables
    ├─ physics.py    doors, buttons, lifts, rotation, physics props, breakables, zones, ladders
@@ -163,6 +172,9 @@ Faces wind counter-clockwise seen from outside. `Face.colors` (RGBA per corner) 
 - **Models** ([models](specs/models.md)): Blender script or template → render FBX + collision FBX per `_col` object → ModelDoc → compile; Blender materials named `materials/...vmat` remap to stock ones.
 - **Materials and UV** ([materials](specs/materials.md)): reference → crop/homography → delight → seamless → normal/roughness/AO → `.vmat`.
 - **Quality** ([quality](specs/quality.md), [visual](specs/visual.md)): `check_map`, presets, cubemaps, views, play tests, fog, shafts; `visual_check`.
+- **Background work** ([background](specs/background.md)): CS2 renders, loads and takes console input behind the user's windows; settings `game_focus`, `build_priority`.
+- **Panel** ([panel](specs/panel.md)): a local status page for the person at the PC (jobs, frames, activity journal, load of CPU/memory/GPU) with switches for what the AI may do without asking; `heavy_builds`, deferred tests, stopping a job; `activity.py`, `permits.py`, `panel.py`.
+- **Fast loop** ([pipeline](specs/pipeline.md)): `map_edit(packages=...)` replays only the changed packages and stale generators in one job; `map_build(region=...)` builds one zone; `game_screenshot(window="offline")` draws the saved map without CS2; `visual_check` keeps its findings and takes a `box`.
 - **Scripts and stories** ([scripting](specs/scripting.md)), **sound** ([sound](specs/sound.md)), **physics** ([physics](specs/physics.md)), **effects** ([fx](specs/fx.md)), **light** ([light](specs/light.md)).
 - **Layout and buildings** ([layout](specs/layout.md), [buildings](specs/buildings.md), [quarter](specs/quarter.md), [wear](specs/wear.md), [streetlife](specs/streetlife.md), [dressing](specs/dressing.md), [kits](specs/kits.md), [atlas](specs/atlas.md), [structure](specs/structure.md)).
 - **Outdoor** ([outdoor](specs/outdoor.md), [terrain](specs/terrain.md)), **competitive** ([competitive](specs/competitive.md)), **modes** ([modes](specs/modes.md)).

@@ -22,6 +22,19 @@ Every tick (dt capped at 0.05): health, seat, wheels, motion, child parts, HUD.
 
 E needs the eye ray on the body within `reach` and feet beside the driver's door. The shared `Seat` hides the player and weapons and shows a stand-in; the car adapter puts the half-size stand-in in the cabin and parents the hidden pawn to the body, restoring the old parent on exit (an unparented pawn in the cabin flipped the car and died from crush in the first live run). Exit checks both doors, the roof and both ends with a supported 32×32×72 hull, then the last free spot and the entry point; when nothing is free, exit waits and the HUD shows `Exit blocked`. The chase camera reads the mouse; R switches to the driver camera. Parent, alpha, HUD and camera are restored on death, round restart, disconnect and destruction.
 
+## Riders in a low cabin (`passengers.crouch`)
+
+The bus mechanics (spots, the one-tick hold, parking, damage rules) with a crouched hull (54). Rules measured in CS2 on a 250×124 van with a 62-unit cabin (`bus_body` with `low`), kept by `vehicles._passengers`:
+
+- Boarding needs `IsDucked()` (Ctrl+E); E while standing logs `board_refused` and shows `hint.crouch`. The roof keeps the crouch: a rider standing for 0.3 s (a roof higher than the recipe says) is put out (`leave` `stood_up`).
+- Feet 1 unit over the floor. A pistol at 300 units: 1 over — 0.10° parked, 1.2° at 300 u/s (the 1.4-tick lag); 2 over — 0.11° parked but 4–6° moving (in the air on every tick's move); 3 over — 2.3° parked.
+- Cabin 60–74 inside: at 58 with feet 2 over the floor a 4.2° pitch on a bump at 500 u/s left the hull no room and the rider was put out; spots 45.3+ apart.
+- Riders always leave outside a door; the driver leaves at `exits` (no `aisle`).
+- `Seat` takes an `aimed(p, ray)` test: a view that crosses the cabin box and hits nothing of the body (an open doorway) counts as aiming at it.
+- Route test: `route_stuck` with `reason: "circling"` when the body does not come 16 units closer to the point for 8 s.
+
+Not tested: a driver and riders played by different people at once; several riders (one tester).
+
 ## Limits
 
 One driver; network play is not tested. Wheels have no collision (the body's own collision starts 24 units above the ground). The stand-in does not play a seated animation. Another body shape needs its own `wheels`/`seat`; a different drive model needs its own JS adapter.

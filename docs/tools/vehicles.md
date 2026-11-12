@@ -50,7 +50,7 @@ Put `origin` on the ground (+10 is fine: it settles on its wheels). The first re
 | `exits` | the stock car's five points: body-frame points tried in order when the driver leaves |
 | `size` | `[236,116]`: body length and width (run-over hits, crash probe, passengers) |
 | `scale` | 1: a bigger or smaller body — every body-frame length (wheels, seat, door, exits, size, passengers, stand-in place, cameras, suspension travel) times it, once; pair it with a scaled copy of the body `model_build(name="van_xl", file="models/mcp/van/van.vmdl", scale=1.2)` |
-| `passengers` | none: a hollow body players ride in, `{floor, roof, doors:[{at, radius, spots}], hint:{board, ride, drive}}` (below) |
+| `passengers` | none: a hollow body players ride in, `{floor, roof, doors:[{at, radius, spots}], hint:{board, ride, drive}, crouch}` (below) |
 
 ## Own bodies: a bus
 
@@ -73,13 +73,28 @@ A long hollow body (verified with a 590-unit bus on a test field and on a town m
 
 `models/mcp/bus/bus.vmdl` is your own hollow body, 590×140, +x forward, the floor at 24: `model_build(name="bus", template="bus_body")` makes exactly this one (doors at x 225 and −218 on −Y, open windows; `params` for another size, doors or colours), or a script or file of your own; give it its own `wheel_model` too. The recipe must fit the model: `add_controllable` refuses a `size`, `seat`, door or passenger spot outside the body model's bounds — this recipe on the stock car (204×84) put the riders in the air beside a small car and their shots went 10° wide. Breakable windows are `func_breakable` boxes parented to the body (`parentname` `v9_<name>_body`), authored at the body's spawn pose; E on them counts as E on the body.
 
+## Own bodies: a low cabin (a car, a van)
+
+`"passengers":{"crouch":true, ...}` is for a cabin lower than a standing player, 60–74 units inside (`roof − floor`): riders are crouched players. Verified in CS2 on a 250×124 van, cabin 62 (`model_build(template="bus_body", params={"low":true,"height":84,"floor":18,"clearance":12,...})`): boarding, a 4° bump at 500 u/s, turns, leaving at speed, a round restart.
+
+```json
+"size":[250,124],"door":{"at":[52,74,0],"radius":40},"exits":[[52,104,60],[52,-104,60]],
+"passengers":{"crouch":true,"floor":18,"roof":80,"doors":[{"at":[0,-74,0],"radius":64,"spots":[[50,-28,19],[-45,-28,19]]}]}
+```
+
+- **Boarding is Ctrl+E** at a door: the engine never crouches a player for a script, and a standing player under a low roof is stuck. E while standing shows `hint.crouch` (`board_refused` in the log). Inside, the roof keeps the crouch without Ctrl. `script_test`: `{"use":true,"with":"duck"}`.
+- **Spots are feet 1 unit over the floor** (`floor + 1`; the op refuses others): CS2 finds the ground only close under the feet. A pistol at 300 units: 1 over — 0.10° parked, 1.2° at 300 u/s (the 1.4-tick lag, no scatter); 2 over — 4–6° while moving; 3 over — 2.3° parked.
+- **Room.** Player hulls are world-axis boxes: keep a circle of r 22.6 + speed/64 around every spot free of the body's collision and spots 45.3+ apart (closer riders overlap at some headings and stall the car). Under 60 inside a 4° bump puts the rider out (`leave` `no_room`). The op refuses both.
+- Riders get off outside a door (E, also at speed), never onto the cabin floor; the driver leaves at `exits`. E through an open doorway counts as E on the body. The floor is part of the body's collision (as `bus_body` builds it), 12+ units over the road.
+- Not tested: a driver and riders played by different people at once.
+
 ## In game
 
 E at the driver's door. **W** gas, **S** brake then reverse, **A/D** steer (less and slower at speed), **SPACE** handbrake (also holds on slopes), **SHIFT** crawl (slow, strong: steep climbs and obstacles), mouse looks around, **R** driver camera (in the cabin), **E** exit by a free door (else the other door, the roof, an end, or the nearest free spot around). HUD: km/h, HP, `CRAWL`, `AIR`. Without gas it rolls with the slope. Bullets and explosions damage the car; at 0 HP it explodes and the wreck burns on its wheels until respawn. A car on its roof or side for 2.5 s is put back on its wheels. Players hit at speed are hurt (never the driver).
 
 ## Test it
 
-A route without a driver (cheat): `v9_control_<name>_route x1,y1,x2,y2,...[,speed]` drives through the points with proportional steering and logs `route_point`, `route_tick` (each second), `route_done`, or `route_stuck` with the place where it stopped; `..._route off` ends it. Keep the points farther apart than the turning radius (a 288-unit wheelbase turns in ~15 m at walking pace) — it finds narrow passages and scraping humps along a road.
+A route without a driver (cheat): `v9_control_<name>_route x1,y1,x2,y2,...[,speed]` drives through the points with proportional steering and logs `route_point`, `route_tick` (each second), `route_done`, or `route_stuck` with the place where it stopped (`reason: "circling"`: a point inside the turning circle); `..._route off` ends it. Keep the points farther apart than the turning radius (a 288-unit wheelbase turns in ~15 m at walking pace) — it finds narrow passages and scraping humps along a road.
 
 ```json
 [{"walk":[256,330,8]},{"aim":[256,256,40]},{"use":true},{"expect":"V_CAR jeep enter","within":3},
@@ -98,13 +113,11 @@ One driver; network play is not tested. Wheels have no collision (the suspension
 
 `prop_physics_override` with convex hulls (no tyres), `PhysicsBodyMarkup` mass and `prop_data` damage scales; non-solid `prop_dynamic` wheels parented to it; HUD, damage filter and stand-in like the drone. In the script, every tick: cast rays down along the body from each wheel (centre, ±0.55 radius) and take the highest required wheel centre; fit a plane to the wheels' lifts (an unsupported wheel asks for −18 at lower weight); set `Teleport({angles, velocity, angularVelocity:0})` toward it, adding `800*dt*support` to z (the engine applies gravity after the script); add the slope's gravity along the ground yourself and limit the tyre force to `0.85 × g × cos(slope)`. Move wheels with `Move` only when their pose changes.
 
-### Riders in a low cabin (a car, not a bus)
+### Occupants of a small car (no room for free riders)
 
-`passengers` needs standing room (a cabin over 72 units). For a small car there is no option yet; these rules were measured in CS2 for a 4-seat SUV:
+`passengers.crouch` needs a floor in the body's collision and room around every rider. Measured in CS2 for a 4-seat SUV without them:
 
-- **Riders cannot stand in it.** The engine never crouches a player for a script: a standing player put into a lower cabin is stuck (crush damage every tick, a light car rolls over). Board with a crouch (Ctrl+E: `script_test` step `{"use":true,"with":"duck"}`); under a roof lower than a standing hull the engine keeps the crouch by itself, also at 80 km/h.
-- **Player hulls are world-axis boxes.** In a body turned by θ a 32×32 hull spans 16·(|cos θ|+|sin θ|): at 45° keep a circle of r = 22.6 around each seat free of body collision, plus the one-tick lead (speed/64, 13.7 units at 875 u/s) and ~3 units above heads and below feet. Two riders closer than 45.3 units overlap at some headings (side by side 32.6 apart: 11°–79°) and stall the car, even with `mp_solid_teammates 0`: in a small car only diagonal seats are safe for two free riders.
-- **Their floor is not the body.** A plate in the body's collision put the car down on it. Use a player-only clip `func_brush` (`toolsplayerclip`, `Solidity` 2) parented to the body; a parented `func_brush` dies with the body at a round restart and is not re-created: unparent it in `OnBeginRoundRestart` and parent it again in the new round. Hold riders one tick ahead (spot + body velocity·dt, velocity 0).
+- **A floor that is not the body** (a plate 5 units over the road put the car down on it): a player-only clip `func_brush` (`toolsplayerclip`, `Solidity` 2) parented to the body. It dies with the body at a round restart and is not re-created: unparent it in `OnBeginRoundRestart`, parent it again in the new round.
 - **Visible occupants who do not shoot** (what worked): keep each occupant the real player, crouched, parented to the body, `MoveType` NONE: their own hitboxes sit in the windows, so shots through a window hurt them. Give the feet a non-parented player clip teleported with the body each tick (foot IK skips the parent). Keep the view within ±50° of the heading (the body turns to the view). Empty every gun while seated (`SetClipAmmo(0)`, `SetReserveAmmo(0)`, give it back on exit) and remove grenades thrown from a seat (`OnGrenadeThrow`).
 - **Eye angles of a parented pawn:** `GetEyeAngles` is world space, `SetEyeAngles` is relative to the parent. Set relative yaws (forward = 0) and unparent before restoring world angles; test every vehicle parked at a non-zero heading (at yaw 0 both agree).
 - **Breakable windows on a moving body:** take the panes out of the model, build each as a `func_brush` from the glass shell at the car's spawn pose, parent them (and unparent at a round restart as above); break by script (`OnBulletImpact` hits, then `Disable`, a glass particle and `Breakable.Glass`), `Enable` on restart and respawn. A scripted pane can come back; a `func_breakable` cannot.

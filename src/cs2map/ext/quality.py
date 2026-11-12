@@ -74,4 +74,7 @@ def register(mcp, project):
     project.register_op('set_map_type', maptypes.set_type_op)
     project.register_op('add_light', lighting.add_light)
     project.register_op('light_rooms', lighting.light_rooms)
+    from .. import checks, figures
+    project.register_op('add_figures', figures.add_figures)
+    checks.register_check('figures', figures.check_figures)
 

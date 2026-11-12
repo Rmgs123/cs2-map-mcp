@@ -5,6 +5,7 @@
 | Spawns, buyzones, bombsites/hostages, mid, nav seeds | `add_comp_plan` |
 | Route times T/CT to the sites | `playtest(kind="timings")` |
 | Bots play rounds | `playtest(kind="competitive")` |
+| Is a player seen against the wall behind them? | `add_figures` (below) |
 | Bots on a big or terrain map (bot data can take hours) | section `nav`: `set_play_area`, `map_build(name, "nav")` |
 
 `map_edit` operation `add_comp_plan` composes `layout.add_layout` with 10–16 spawns per team (default 10, pitch 64u), buyzones, objectives, mid and room nav seeds, map parameters, a light probe and a render-only lightmap volume.
@@ -31,7 +32,16 @@ The runner locks CS2, removes bots, restarts the round, selects `slot3`, positio
 
 Verified in CS2 on `c_defuse` (layout, physical timings, bot rounds).
 
+## Readability frames
 
+A player must stand out from what is behind them (a dark CT in a dark doorway, a T against brown crates is a map fault). Bots do not stand where asked, so `add_figures` puts stock T and CT agents as non-solid props at the places players hold and returns the views "the nearest opponent sees this figure":
+
+```json
+{"name":"c_demo","operations":[{"op":"add_figures","figures":[
+ {"team":"ct","origin":[1900,0,0],"yaw":180},{"team":"t","origin":[-400,0,0]}]}]}
+```
+
+`origin` is where the feet stand, `yaw` where the figure faces; `model` takes another stock agent (`asset_search(kind="model", query="agents")`); up to 64 figures; `name` (default `readability`) is the set — the same name replaces it, another name adds one. Build with light (`full`: a `fast` build has none, and readability is about light) and pass the returned `views` to `game_screenshot`, with your own closer views where the figure is a few pixels. Then recolour or light the background, not the figure. `check_map` warns `figures_in_map` until the set is deleted (`{"op":"delete","ids":[<id>]}`): players must not meet props that look like players.
 
 
 Accepted c_defuse: full build exit0/nav435, all six routes completed, physical CT advantage A3.19s/B3.96s. Short clock test (bots10, seconds60, round_seconds30): both teams walking, one completed round, sampled named death locations, console errors []. c_hostage and c_wingman shells also compiled full and their game frames were opened. See the report for logs, frames and remaining gameplay/balance limits.

@@ -83,7 +83,9 @@ Room detection samples floors, ceilings, and four wall rays, separates rooms tha
 
 The automatic captures were opened and reviewed for `mcp_accept`, `mcp_showcase`, and `l_atmos`. Interior/spawn/objective frames were useful; one `mcp_showcase` exterior was bright. This remains an authoring heuristic: open every PNG and inspect it for the actual map.
 
-If CS2 has no visible Workshop Tools window, capture tools fail with a diagnostic. Do not use `maps *`; restore the tools window and retry.
+Frames are taken while CS2 stays behind the user's windows; a minimized game window stays minimized (the engine writes the frame itself). The user can keep working at the PC: settings `game_focus` (`never`, `input_only` by default, `always`). The game's sound is not touched: tell a user who hears it to mute Counter-Strike 2 in the Windows volume mixer. Do not use `maps *`.
+
+**What the user allowed.** `status` returns `permissions`: `game_focus`, `heavy_builds`, `build_priority`, the address of the user's panel (a local page with these switches, what the tools do now, frames and the load of the PC), heavy build requests and `deferred_tests`. With `heavy_builds: "ask"` a light bake of a big map (`map_build` `full`/`final`/`release`, `lighting_build`) answers `{refused, estimate: {minutes, memory_gb}}` instead of starting: tell the user the cost, ask them to allow it in the panel, call again after their yes, and keep working with `fast` builds (`"fullbright": true` frames) meanwhile. A "not now" means: go on without the bake and say what stays unbaked. A `script_test` answered with `deferred` waits for the user to run it from the panel; its result then appears in `status`.
 
 ## Iterate in batches
 
@@ -98,7 +100,7 @@ On a big map one rebuild costs minutes, so do not rebuild per fix:
 {"map":"my_town","views":[{"name":"gate","pos":[640,-320,0],"ang":[10,90,0],"fullbright":true}]}
 ```
 
-If a frame is rejected with "frame did not change", the error says whether the CS2 window lost the front or someone uses the PC: CS2 does not render behind another window.
+If a frame is rejected with "frame did not change", CS2 did not render a new frame in the background: retry; when it repeats, another console client (VConsole2) may hold the connection, or set `game_focus` to `always`.
 
 ## Player marks (the tester's key)
 

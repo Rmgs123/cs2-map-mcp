@@ -460,6 +460,9 @@ def add_story(project, m, op, refs):
 def map_edit_wrapper(project, original):
     """Area-local preflight adapter while core extra_ops have no transaction context."""
     def edit(name, operations, dry_run=False, force=False):
+        from .project import PACKAGE_CALL
+        if PACKAGE_CALL.get() is not None:      # packages (pipeline.apply): one pass, no preview run
+            return original(name, operations, dry_run, force)
         has_story = isinstance(operations, list) and any(isinstance(op, dict) and op.get('op') == 'add_story'
                                                        for op in operations)
         if not has_story:

@@ -91,15 +91,40 @@ def player_state(s: Settings, install: bool = True) -> dict:
     """
     token = uuid.uuid4().hex[:12]
     prefix = f'C_MCP_STATE {token} '
-    lines = query(s, f'c_mcp_quality_probe {token}', (prefix, 'Unknown command'), timeout=2.0)
+    part = f'C_MCP_STATEP {token} '
+
+    def complete(found: list[str]) -> bool:
+        # The header and the per-player lines may come in separate packets (09.11: with CS2 behind another window
+        # a map with bots answered "cut off" twice in seven tests): wait for as many lines as the header counts.
+        for line in found:
+            if 'Unknown command' in line:
+                return True
+            if line.startswith(prefix):
+                try:
+                    head = json.loads(line[len(prefix):])
+                except ValueError:
+                    return True
+                return 'players' in head or sum(x.startswith(part) for x in found) >= head.get('count', 0)
+        return False
+
+    ensure_alive(s)
+    _, lines = vconsole.run_when([f'c_mcp_quality_probe {token}'], complete, timeout=2.0)
     for line in lines:
         if line.startswith(prefix):
             state = json.loads(line[len(prefix):])
             if 'players' not in state:          # current runtime: one C_MCP_STATEP line per player
-                part = f'C_MCP_STATEP {token} '
-                state['players'] = [json.loads(x[len(part):]) for x in lines if x.startswith(part)]
+                # Two diagnostics entities may answer (the map's own and a runtime one spawned while the map was
+                # still starting): the same players twice. One line per slot is kept.
+                by_slot = {}
+                for x in lines:
+                    if x.startswith(part):
+                        p = json.loads(x[len(part):])
+                        by_slot[p.get('slot', len(by_slot))] = p
+                state['players'] = list(by_slot.values())
                 if len(state['players']) != state.get('count', len(state['players'])):
-                    raise GameError('player diagnostics were cut off; retry')
+                    heads = sum(x.startswith(prefix) for x in lines)
+                    raise GameError(f'player diagnostics were cut off ({len(state["players"])} of '
+                                    f'{state.get("count")} player lines, {heads} answer(s)); retry')
             return state
     if install:
         # No answer: the map has no diagnostics entity (CS2 does not always print
@@ -180,7 +205,9 @@ def frame_check(path: str | Path, captured_at: float | None = None,
 @contextmanager
 def exclusive(owner: str | None = None, wait: float = 600):
     """Cross-process lock around using the single CS2 instance (several agents may share it).
-    The lock file holds pid/owner/time; it is stale if the pid is dead or it is older than 15 min."""
+    The lock file holds pid/owner/time; it is stale if the pid is dead or it is older than 15 min.
+    The console connection is kept from the block's first command to its end: a CS2 behind other windows stays
+    awake (vconsole.AWAKE) through the waits of a play test, a map load or a row of frames."""
     with _PROCESS_LOCK:
         if getattr(_LOCK_LOCAL, 'depth', 0):
             _LOCK_LOCAL.depth += 1
@@ -192,7 +219,8 @@ def exclusive(owner: str | None = None, wait: float = 600):
         with _exclusive_file(owner, wait):
             _LOCK_LOCAL.depth = 1
             try:
-                yield
+                with vconsole.hold(connect=False):
+                    yield
             finally:
                 _LOCK_LOCAL.depth = 0
                 vconsole.release()    # the next lock holder may be another process
@@ -281,6 +309,19 @@ def session(s: Settings) -> dict | None:
     return None
 
 
+def _give_focus_back(s: Settings, front: int, pid: int) -> None:
+    """A starting CS2 opens its windows in front of what the user is doing: hand the focus back to the window that
+    had it (unless settings game_focus is "always", or the user has moved to another window meanwhile)."""
+    if not front or focus_policy(s) == 'always':
+        return
+    try:
+        now = system.foreground()
+        if now != front and any(w.hwnd == now for w in system.windows(('cs2.exe',)) if w.pid == pid):
+            system.focus(front)
+    except Exception:
+        pass
+
+
 def launch(s: Settings, map_name: str | None = None, width: int = 1600, height: int = 900,
            hammer_map: str | None = None, wait_seconds: float = 150) -> dict:
     """Start CS2 Workshop Tools with our addon (or reuse a running one).
@@ -297,6 +338,7 @@ def launch(s: Settings, map_name: str | None = None, width: int = 1600, height: 
                 '+sv_steamauth_enforce', '0']
         if hammer_map:
             argv += ['-tool', 'hammer', '-asset', f'maps/{hammer_map}.vmap']
+        front = system.foreground()
         proc = subprocess.Popen(argv, cwd=str(s.game_bin), creationflags=subprocess.DETACHED_PROCESS,
                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
         _remember(proc.pid)
@@ -304,10 +346,12 @@ def launch(s: Settings, map_name: str | None = None, width: int = 1600, height: 
         while time.monotonic() < deadline and not vconsole.available():
             if proc.poll() is not None:
                 raise GameError(f'CS2 exited during startup (code {proc.returncode})')
+            _give_focus_back(s, front, proc.pid)
             time.sleep(2)
         if not vconsole.available():
             return {'state': 'started, console not reachable yet', 'pid': proc.pid}
         time.sleep(5)   # let the tools finish initialising before the first command
+        _give_focus_back(s, front, proc.pid)
         state = 'started'
     else:
         state = 'already running'
@@ -728,16 +772,71 @@ def hammer_open(s: Settings, name: str) -> list[str]:
     return command(s, f'open_asset maps/{name}.vmap', wait=3)
 
 
-def _window(title_prefix: str) -> system.Window:
+def _window(title_prefix: str, restore: bool = True) -> system.Window:
+    """A CS2 window by its title. A minimized one is restored (that also brings it to the front) unless
+    restore=False: the game view is then photographed by the engine itself."""
     wins = [w for w in system.windows(('cs2.exe',)) if w.title.startswith(title_prefix)]
     if not wins:
         raise GameError(f'no CS2 window titled "{title_prefix}..."')
     w = wins[0]
-    if w.minimized:
+    if w.minimized and restore:
         ctypes.windll.user32.ShowWindow(w.hwnd, SW_RESTORE)
         time.sleep(0.8)
         w = [x for x in system.windows(('cs2.exe',)) if x.hwnd == w.hwnd][0]
     return w
+
+
+def focus_policy(s: Settings) -> str:
+    """settings "game_focus": never | input_only | always (config.GAME_FOCUS). "never" becomes "input_only" while
+    the user's "allow the focus for 15 min" from the panel lasts (permits.focus_until)."""
+    policy = getattr(s, 'game_focus', 'input_only')
+    if policy == 'never':
+        from . import permits
+        if permits.focus_until():
+            return 'input_only'
+    return policy
+
+
+def _game_window(s: Settings) -> system.Window:
+    return _window('Counter-Strike 2', restore=focus_policy(s) == 'always')
+
+
+ENGINE_SHOT = 'mcp_frame'
+
+
+def _engine_frame(s: Settings, path: Path, timeout: float = 5.0) -> dict:
+    """The game view photographed by the engine (`jpeg_screenshot`), saved as `path`. It needs no window on screen:
+    it works with the CS2 window minimized, covered or outside the screen. The engine writes
+    <game addon>/screenshots/<name>_NNNN.jpg a frame later; the file is converted and removed."""
+    from PIL import Image
+    folder = s.game_addon / 'screenshots'
+    before = set(folder.glob(f'{ENGINE_SHOT}_*.jpg')) if folder.is_dir() else set()
+    command(s, f'jpeg_screenshot {ENGINE_SHOT} 95', wait=0.2)
+    limit = time.monotonic() + timeout
+    while time.monotonic() < limit:
+        new = sorted((set(folder.glob(f'{ENGINE_SHOT}_*.jpg')) if folder.is_dir() else set()) - before)
+        if new:
+            src = new[-1]
+            for _ in range(10):                      # the file appears before the engine has finished writing it
+                try:
+                    with Image.open(src) as im:
+                        img = im.convert('RGB')
+                    break
+                except OSError:
+                    time.sleep(0.1)
+            else:
+                raise GameError(f'CS2 wrote an unreadable screenshot {src.name}')
+            path.parent.mkdir(parents=True, exist_ok=True)
+            img.save(path)
+            for old in new:
+                try:
+                    old.unlink()
+                except OSError:
+                    pass
+            return {'path': str(path), 'size': list(img.size), 'blank': all(lo == hi for lo, hi in img.getextrema()),
+                    'method': 'engine screenshot'}
+        time.sleep(0.1)
+    raise GameError('CS2 wrote no screenshot (jpeg_screenshot): is a map loaded?')
 
 
 def _capture(s: Settings, w: system.Window, name: str, captured_at: float | None = None,
@@ -747,8 +846,16 @@ def _capture(s: Settings, w: system.Window, name: str, captured_at: float | None
     folder = folder or s.screenshots
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f'{name}-{stamp}.png'
-    info = system.capture(w.hwnd, path)
-    if info['blank']:
+    game_view = w.title.startswith('Counter-Strike 2')
+    info = {'blank': True} if w.minimized else system.capture(w.hwnd, path)
+    if info['blank'] and game_view:
+        # A minimized window has no picture to copy and some drivers give PrintWindow a blank one.
+        try:
+            info = _engine_frame(s, path)
+        except GameError:
+            if w.minimized:
+                raise
+    if info['blank'] and not w.minimized:
         info = system.capture_screen_region(w.rect, path)
         info['method'] = 'screen region (the window must be visible and not covered)'
     info['frame_check'] = frame_check(path, captured_at, previous_signature)
@@ -764,32 +871,74 @@ def views(s: Settings, map_name: str | None, shots: list[dict], hide_hud: bool =
     `deadline` (time.monotonic()) bounds loading and shots."""
     if not shots:
         raise GameError('give at least one view: {"name": "...", "pos": [x,y,z], "ang": [pitch,yaw,0]}')
-    with exclusive():
-        # CS2 does not finish loading nor render reliably in the background: focus the game window
-        # for the duration of the shots (the previously focused window gets focus back afterwards).
-        previous = system.foreground()
-        system.focus(_window('Counter-Strike 2').hwnd)
-        try:
-            return _views_locked(s, map_name, shots, hide_hud, settle, deadline)
-        finally:
-            if previous:
-                system.focus(previous)
+    with exclusive(), awake(s):
+        return _views_locked(s, map_name, shots, hide_hud, settle, deadline)
 
 
 _CONSOLE_NOISE = re.compile(r'Unable to determine cubemap texture|^Annotation:|CQ: Server set re-sync')
 
 
 @contextmanager
-def focused():
-    """Keep the game window in front for real-input actions. In the background the client
-    ignores a server setang for its own user commands: bullets keep flying the old way."""
+def _front(what: str = 'frames and tests'):
+    """The game window in front for the block; the window that was in front gets the focus back. Every such
+    moment goes to the journal (the panel counts how often and for how long CS2 came to the front)."""
     previous = system.foreground()
-    system.focus(_window('Counter-Strike 2').hwnd)
+    window = _window('Counter-Strike 2', restore=False)
+    hwnd = window.hwnd
+    started = time.monotonic()
+    system.focus(hwnd)                       # restores a minimized window
+    if window.minimized:
+        time.sleep(0.8)
     try:
-        yield
+        yield hwnd
     finally:
-        if previous:
+        if window.minimized:                 # the user had put it away: put it away again
+            ctypes.windll.user32.ShowWindow(hwnd, 6)        # SW_MINIMIZE
+        if previous and previous != hwnd:
             system.focus(previous)
+        try:
+            from . import activity
+            activity.note('focus', seconds=round(time.monotonic() - started, 2), what=what)
+        except Exception:                    # the journal never fails a game call
+            pass
+
+
+@contextmanager
+def awake(s: Settings):
+    """CS2 renders, loads and runs its client for the block without taking the focus: the console connection is
+    held and tells the engine "the console is in front" (vconsole.AWAKE). The user keeps working in their own
+    window; their keyboard and mouse do not reach the game. settings game_focus "always" brings the game window to
+    the front instead, as before 1.4."""
+    if focus_policy(s) == 'always':
+        with _front():
+            yield
+    else:
+        with vconsole.hold():
+            yield
+
+
+@contextmanager
+def input_focus(s: Settings, what: str):
+    """The game window in front for one step that needs real mouse input (`what` names it in the refusal), then
+    the focus goes back. Yields the window handle once it really is in front."""
+    if focus_policy(s) == 'never':
+        raise GameError(f'{what} needs the CS2 window in front (real mouse input) and settings game_focus is '
+                        '"never": ask the user to allow the focus in the panel (or game_focus "input_only"), or '
+                        'test this step by hand')
+    with _front(what) as hwnd:
+        for _ in range(20):
+            if system.foreground() == hwnd:
+                break
+            time.sleep(0.05)
+        else:                                # never send input into another program's window
+            raise GameError(f'{what}: the CS2 window did not come to the front (another window holds the focus)')
+        time.sleep(0.25)                     # the game drops the first mouse events right after it gets the focus
+        yield hwnd
+
+
+def focused(s: Settings | None = None):
+    """Old name of awake(): nothing but real mouse input needs the window in front any more."""
+    return awake(s) if s is not None else _front()
 
 
 def _console_digest(lines: list[str], grep: str | None = None) -> list[str]:
@@ -940,7 +1089,7 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
                 printed = None
                 time.sleep(float(v.get('wait', 0.3)))
             actual = _getpos_values(getpos(s)) or (0, 0, 0, 0, 0)
-            shot = _capture(s, _window('Counter-Strike 2'), str(v.get('name') or f'view{i + 1}'), time.time())
+            shot = _capture(s, _game_window(s), str(v.get('name') or f'view{i + 1}'), time.time())
             if not shot['frame_check']['ok']:
                 rejected.append({'name': shot['name'], 'reasons': ', '.join(shot['frame_check']['reasons']),
                                  'path': shot['path']})
@@ -963,7 +1112,7 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
         command(s, f'setang {float(angle[0])} {float(angle[1])+17} {float(angle[2])}', wait=0.25)
         time.sleep(max(0.2, settle / 2))
         # The challenge frame only proves freshness; keep it out of screenshots/.
-        challenge = _capture(s, _window('Counter-Strike 2'), f'{v.get("name") or "view"}_freshness',
+        challenge = _capture(s, _game_window(s), f'{v.get("name") or "view"}_freshness',
                              folder=FRAMES)
         # views[].pos is the player origin (feet); getpos reports the eye, 64 units higher.
         keep = bool(v.get('keep'))
@@ -1004,7 +1153,7 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
         attempts = 3
         for attempt in range(8):
             captured_at = time.time()
-            shot = _capture(s, _window('Counter-Strike 2'), str(v.get('name') or f'view{i + 1}'), captured_at)
+            shot = _capture(s, _game_window(s), str(v.get('name') or f'view{i + 1}'), captured_at)
             check = shot['frame_check']
             if check.get('signature') in stale:
                 check['reasons'].append('frame did not change after the camera move')
@@ -1019,7 +1168,7 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
             # The other views still run (10.10: one black frame threw away a whole batch); the answer lists it.
             reasons = ', '.join(check['reasons']) or 'unknown frame error'
             if 'frame did not change after the camera move' in check['reasons']:
-                reasons += _not_rendering_hint()
+                reasons += _not_rendering_hint(s)
             rejected.append({'name': shot['name'], 'reasons': reasons, 'path': shot['path']})
             continue
         shot['player_check'] = {'ok': True, 'team': player['team'], 'alive': player['alive'],
@@ -1039,9 +1188,13 @@ def _views_run(s: Settings, map_name: str | None, shots: list[dict], hide_hud: b
     return result
 
 
-def _not_rendering_hint() -> str:
+def _not_rendering_hint(s: Settings | None = None) -> str:
     """Why CS2 may have shown an old frame (31.10: the user worked at the PC; a stale frame with the round timer
     at 0:00 was read as a round problem twice): the game window lost the front, or someone uses the PC."""
+    if s is not None and focus_policy(s) != 'always':
+        # Frames are taken behind the user's windows; who is in front does not matter here.
+        return ('; CS2 did not render a new frame in the background: retry; if it repeats, another console client '
+                'may have taken the connection, or set game_focus "always" in config/settings.json')
     out = []
     try:
         if system.foreground() != _window('Counter-Strike 2').hwnd:

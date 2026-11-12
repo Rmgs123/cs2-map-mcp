@@ -81,6 +81,9 @@ def map_edit_wrapper(p, original):
     """Preflight the full batch before writing scripts, including dry runs."""
     asset_ops = {"add_mode","add_movement_course","add_arena"}
     def edit(name,operations,dry_run=False,force=False):
+        from .project import PACKAGE_CALL
+        if PACKAGE_CALL.get() is not None:      # packages (pipeline.apply): one pass, no preview run
+            return original(name, operations, dry_run, force)
         if not isinstance(operations,list) or not any(isinstance(x,dict) and x.get("op") in asset_ops for x in operations):
             return original(name,operations,dry_run,force)
         with p._lock:

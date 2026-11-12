@@ -16,15 +16,12 @@ RELEASE = '-forward\n-back\n-left\n-right\n-jump\n-duck\n-use\n-attack\n-sprint'
 
 @contextmanager
 def focus_game(settings):
+    """CS2 awake for a test (game.awake): console input and setang work behind the user's windows; the window
+    comes to the front only with settings game_focus "always"."""
     if game.session(settings) is None:
         raise RuntimeError('no Workshop Tools session for this addon')
-    previous=system.foreground()
-    system.focus(game._window('Counter-Strike 2').hwnd)
-    try:
+    with game.awake(settings):
         yield
-    finally:
-        if previous:
-            system.focus(previous)
 
 
 PROBE_CODE = r'''import { Instance, CSPlayerPawn, CSInputs } from "cs_script/point_script";
