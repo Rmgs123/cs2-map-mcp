@@ -13,20 +13,31 @@
 
 > **Version 1.0.** Every feature below was checked in the real game: built through MCP calls, compiled by Valve's tools, loaded in CS2 and looked at. Base commands cover almost everything a mapper does by hand; the quick generators of houses and streets have one look so far (Inferno-like), other looks come from your own styles.
 
-**Contents:** [From photos to a map](#version-11-from-photos-to-a-map) · [Gallery](#gallery) · [How it works](#how-it-works) · [Install](#install) · [Prompts to start](#prompts-to-start) · [Your maps in CS2 and Hammer](#your-maps-in-cs2-and-hammer) · [Publish to the Workshop](#publish-your-map-to-the-steam-workshop) · [When something goes wrong](#when-something-goes-wrong) · [Feedback](#feedback) · [What it can do](#what-it-can-do) · [Tools](#tools)
+**Contents:** [A whole town from photos](#a-whole-town-from-photos) · [Gallery](#gallery) · [How it works](#how-it-works) · [Install](#install) · [Prompts to start](#prompts-to-start) · [Your maps in CS2 and Hammer](#your-maps-in-cs2-and-hammer) · [Publish to the Workshop](#publish-your-map-to-the-steam-workshop) · [When something goes wrong](#when-something-goes-wrong) · [Feedback](#feedback) · [What it can do](#what-it-can-do) · [Tools](#tools)
 
-## Version 1.1: from photos to a map
+## A whole town from photos
 
-*Left: phone photos of real streets. Right: the same spots in CS2, built by an AI agent through MCP tool calls from photos like these, a map outline and elevation data — terrain, lanes, buildings, fences, stairs and trees. Unedited in-game frames with baked light, cropped to the photo's format.*
+An AI agent built this town map only through MCP tool calls, from phone photos of real streets, a map outline and elevation data: terrain, roads and kerbs, panel and brick houses with flats inside, garages, fences, trees, a drivable bus and car, drones. About 24 500 map nodes in 41 packages made by 38 generators; a change in one of them is seen in the game in about a minute.
 
-These are **one-shot examples**: each spot was built once from its photos and not reworked or polished afterwards. More passes (materials, details, wear) bring it closer.
+<p align="center">
+  <img src="docs/images/town_from_above.jpg" width="100%" alt="The town from above: houses, garage rows and roads on a hillside, the city on the horizon">
+  <br><sub>The town from above: houses, garage rows and roads on terrain from elevation data</sub>
+</p>
 
-| | |
-| --- | --- |
-| ![A dirt lane along a sheet-metal fence: photo and the map](docs/images/photo_vs_map_1.jpg) | ![An overhanging floor over a passage: photo and the map](docs/images/photo_vs_map_2.jpg) |
-| A dirt lane with ruts along a sheet-metal fence and kerb stones | An overhanging floor with an arched band of windows over a passage |
-| ![The passage under the canopy: photo and the map](docs/images/photo_vs_map_3.jpg) | ![Stairs up from under the canopy: photo and the map](docs/images/photo_vs_map_4.jpg) |
-| The passage under the canopy: soffit, columns, a brick balustrade | Stairs up from under the canopy: blue handrail, a wire fence at the top |
+<table>
+  <tr>
+    <td width="33%"><img src="docs/images/town_street.jpg" alt="A street along a brick house with young trees and a fence"></td>
+    <td width="33%"><img src="docs/images/town_yard.jpg" alt="A gravel yard under old trees with baked shadows"></td>
+    <td width="33%"><img src="docs/images/town_bus.jpg" alt="A drivable bus at a shopping centre"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>A street along a brick house: kerbs, a fence, young trees</sub></td>
+    <td align="center"><sub>A yard under old trees with baked shadows</sub></td>
+    <td align="center"><sub>A drivable bus (enter with E) at the shopping centre</sub></td>
+  </tr>
+</table>
+
+<p align="center"><sub><i>Unedited in-game frames with baked light.</i></sub></p>
 
 ## Gallery
 
