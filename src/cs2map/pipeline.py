@@ -22,8 +22,16 @@ from pathlib import Path
 
 import psutil
 
-from . import __version__
 from .config import PROJECT_ROOT
+
+# The version of what operations write into a map. Package digests, generator keys and tool steps are keyed on it
+# instead of the tools' version, so a release that does not change map_edit's output does not replay every package
+# of every map (12.11: 1.3.0 -> 1.4.0 re-ran 38 generators and 41 packages of a big map, 645 s instead of ~40 s).
+# Bump it when the same operations (or a tool step's arguments) write other nodes or files; the guard test
+# tests/test_pipeline.py OpsSchema fails when a sample of operations starts to write other nodes. Its first value
+# is the release that defined the current output, so maps made with 1.4.0 stay current.
+OPS_SCHEMA = '1.4.0'
+_PACKAGE_DIR = Path(__file__).resolve().parent     # generators that import cs2map are stale when its code changes
 
 LOCKS = PROJECT_ROOT / '.local' / 'locks'
 RESULT_MARK = 'PIPELINE_RESULT '
@@ -88,7 +96,7 @@ def read_package(path: Path, needs: list[str] | None = None) -> Package:
     if declared is not None and not (isinstance(declared, list) and all(isinstance(x, str) for x in declared)):
         raise PipelineError(f'package {path.name}: "needs" must be a list of package names')
     body = json.dumps(ops, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
-    digest = hashlib.sha1(f'{__version__}\n{json.dumps(declared)}\n{body}'.encode('utf-8')).hexdigest()[:16]
+    digest = hashlib.sha1(f'{OPS_SCHEMA}\n{json.dumps(declared)}\n{body}'.encode('utf-8')).hexdigest()[:16]
     return Package(tag, digest, declared, ops, str(path))
 
 
@@ -556,7 +564,10 @@ def run_generator(folder: Path, step: dict, say) -> dict:
         try:
             rel = path.resolve().relative_to(folder.resolve()).as_posix()
         except ValueError:
-            continue
+            try:                                       # the tools' own code, when a generator imports cs2map
+                rel = 'cs2map:' + path.resolve().relative_to(_PACKAGE_DIR).as_posix()
+            except ValueError:
+                continue
         if rel.startswith('.pipeline/') or '__pycache__' in rel:
             continue
         # A file the script looked for and did not find counts too (None): when a later step writes it, this
@@ -568,7 +579,7 @@ def run_generator(folder: Path, step: dict, say) -> dict:
 def _generator_key(folder: Path, step: dict) -> str:
     script = folder / step['run']
     declared = [f'{p.relative_to(folder).as_posix()}={_file_hash(p)}' for p in _glob(folder, step.get('inputs') or [])]
-    return _sha(__version__, _file_hash(script), json.dumps(step.get('args') or []), *declared)
+    return _sha(OPS_SCHEMA, _file_hash(script), json.dumps(step.get('args') or []), *declared)
 
 
 def _stale(folder: Path, step: dict, record: dict | None) -> str | None:
@@ -578,7 +589,8 @@ def _stale(folder: Path, step: dict, record: dict | None) -> str | None:
     if record.get('key') != _generator_key(folder, step):
         return 'its script, arguments or inputs changed'
     for rel, digest in (record.get('deps') or {}).items():
-        if _file_hash(folder / rel) != digest:
+        where = _PACKAGE_DIR / rel[7:] if rel.startswith('cs2map:') else folder / rel
+        if _file_hash(where) != digest:
             return f'{rel} changed'
     outputs = _glob(folder, step.get('packages') or [])
     if step.get('packages') and (not outputs or not all(p.is_file() for p in outputs)):
@@ -640,7 +652,7 @@ def run(project, name: str, manifest: Path, dry_run: bool = False, force: bool =
                 from . import surface
                 args_file = project_path(step['args'], folder) if isinstance(step.get('args'), str) else None
                 args = json.loads(args_file.read_text(encoding='utf-8-sig')) if args_file else (step.get('args') or {})
-                digest = _sha(__version__, step['tool'], json.dumps(args, sort_keys=True))
+                digest = _sha(OPS_SCHEMA, step['tool'], json.dumps(args, sort_keys=True))
                 if (state.get(key) or {}).get('key') != digest:
                     say(f'== step {i + 1}/{len(steps)}: {label}')
                     fn = surface.PUBLIC.get(step['tool'])

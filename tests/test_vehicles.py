@@ -125,6 +125,14 @@ class Schema(unittest.TestCase):
             with self.subTest(change=change), self.assertRaises(ValueError) as ctx:
                 control.validate(self.van(**change))
             self.assertIn(word, str(ctx.exception))
+        def standing(z):
+            return {'name': 'bus', 'kind': 'car', 'size': [590, 140], 'passengers': {
+                'floor': 24, 'roof': 140, 'doors': [{'at': [220, -78, 14], 'spots': [[165, -24, z]]}]}}
+        for z in (25, 26):                                           # 1 over (measured on a town map), 2 over (docs)
+            control.validate(standing(z))
+        for z in (24, 23, 27):                 # 13.11: on the floor every rider stalled the bus where the road dips
+            with self.subTest(z=z), self.assertRaisesRegex(ValueError, 'z must be 25'):
+                control.validate(standing(z))
         with self.assertRaises(ValueError) as ctx:                   # a standing cabin that is too low names the way out
             control.validate({'name': 'bus', 'kind': 'car', 'size': [590, 140], 'passengers': {
                 'floor': 24, 'roof': 90, 'doors': [{'at': [220, -78, 14], 'spots': [[165, -24, 26]]}]}})

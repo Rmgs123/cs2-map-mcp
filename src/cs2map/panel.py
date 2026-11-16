@@ -686,14 +686,23 @@ def make_handler(panel: Panel):
         def do_POST(self):                     # noqa: N802
             port = self.server.server_address[1]
             origin = self.headers.get('Origin')
+            # Read the body before any answer: closing a socket with unread data makes Windows send a reset, and
+            # the client then loses the refusal (a test saw ConnectionResetError instead of 403 one run in three).
+            try:
+                size = int(self.headers.get('Content-Length') or 0)
+            except ValueError:
+                size = 0
+            raw = self.rfile.read(max(0, min(size, 65536))) if size > 0 else b''
+            if size > 65536:
+                self.close_connection = True
+                return self._json({'error': 'request too large'}, 413)
             if (not self._local() or self.headers.get('X-Panel-Token') != panel.token
                     or (origin and origin not in (f'http://127.0.0.1:{port}', f'http://localhost:{port}'))):
                 return self._json({'error': 'reload the page'}, 403)
             if urlparse(self.path).path != '/api/action':
                 return self._json({'error': 'not found'}, 404)
             try:
-                size = int(self.headers.get('Content-Length') or 0)
-                body = json.loads(self.rfile.read(min(size, 65536)) or b'{}')
+                body = json.loads(raw or b'{}')
                 result = panel.act(body if isinstance(body, dict) else {})
             except Exception as exc:               # noqa: BLE001
                 result = {'error': f'{type(exc).__name__}: {exc}'[:300]}

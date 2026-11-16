@@ -103,6 +103,46 @@ class SoundWave(unittest.TestCase):
                 sound.sound_event(project,'other','oneshot',sound='anything')
         self.assertEqual(events.read_bytes(),before)
 
+    # CTRL block of a 0.5 s mono beep compiled by CS2 after its 11.2026 update: m_nChannels is written as
+    # KV3 type 27 (UINT32_ONE, a constant without pool data), which the reader used to refuse.
+    CTRL_UINT32_ONE = (
+        'BTNWS3wWEnTpBphGr/LmPrWQN+cBAAAAAAAAQNIAAAABAAAAAAAAAA8AAAACAAEAUwEAADABAAAAAAAAAAAAAAAAAAAAAAAA2AAAAMoAAAB7'
+        'AAAAZgAAAAAAAAAAAAAAFgAAAAEAAAAPAAAAAgAAAAEAAAABAAAA8UVfY2xhc3MAQ1ZvaWNlQ29udGFpbmVyRGVmYXVsdABtX2JSZWdpc3Rl'
+        'cmVkVk1peABtX25SZXNvdXJjZU5hbWUAbV92U291bmQAbV9TZW50ZW5jZXMlADBhdGUIAMBGb3JtYXQAUENNMTYQAHFDaGFubmVsJACQTG9v'
+        'cFN0YXJ0DQCgU2FtcGxlQ291bg8AoWZsRHVyYXRpb24cAMR0cmVhbWluZ1NpemU6ABFFdQDwCXBFbnZlbG9wZUFuYWx5emVyAAAAEAAAAGIF'
+        'AAAACQABAPMGAQAAAAIAAAADAAAA/////wQAAAAFHADTBgAAAESsAAAHAAAACDQAEwooANMLAAAAIlYAAAwAAAANKABkDgAAAA8AAQDwBuA/'
+        'CQYOBgkICwYbCwwFDA8BAN3u/w==')
+
+    def test_new_kv3_uint32_constants(self):
+        import base64
+        ctrl = base64.b64decode(self.CTRL_UINT32_ONE)
+        # minimal resource: header (size, header version, version, block offset, 1 block), one CTRL entry
+        data = struct.pack('<IHHII', 28 + len(ctrl), 12, 5, 8, 1) + b'CTRL' + struct.pack('<II', 8, len(ctrl)) + ctrl
+        tree = sound.decode_events(data, 'CTRL')
+        self.assertEqual(tree['_class'], 'CVoiceContainerDefault')
+        info = tree['m_vSound']
+        self.assertEqual((info['m_nChannels'], info['m_nRate'], info['m_nLoopStart'], info['m_nSampleCount']),
+                         (1, 44100, -1, 22050))
+
+    def test_compiled_sound_is_kept_when_only_reading_its_metadata_fails(self):
+        content = self.folder / 'content'; game = self.folder / 'game'
+        compiled = game / 'sounds/mcp/kept.vsnd_c'; compiled.parent.mkdir(parents=True); compiled.write_bytes(b'x')
+        project = SimpleNamespace(s=SimpleNamespace(content_addon=content, game_addon=game, backups=self.folder / 'b'))
+        samples = np.zeros((441, 1))
+        with patch.object(sound, '_compile', return_value={'ok': True, 'compiled': str(compiled)}), \
+             patch.object(sound, 'decode_events', side_effect=sound.SoundError('unsupported KV3 sound type 99')):
+            result = sound._write_audio(project, 'kept', samples, 44100, True)
+        self.assertTrue((content / 'sounds/mcp/kept.wav').is_file())
+        self.assertIn('type 99', result['warning'])
+        self.assertEqual((result['loop_start'], result['loop_end']), (0, 440))
+        # a real mismatch of loop markers still undoes the write
+        with patch.object(sound, '_compile', return_value={'ok': True, 'compiled': str(compiled)}), \
+             patch.object(sound, 'PROJECT_ROOT', self.folder), \
+             patch.object(sound, 'decode_events', return_value={'m_vSound': {'m_nLoopStart': -1}}):
+            with self.assertRaisesRegex(sound.SoundError, 'loop markers'):
+                sound._write_audio(project, 'other', samples, 44100, True)
+        self.assertFalse((content / 'sounds/mcp/other.wav').exists())
+
     def test_conversion_uses_bundled_blender_and_reports_failure(self):
         source=self.write(b'ID3dummy','input.mp3'); calls=[]
         def run(s,jobs,script,args,**kw):

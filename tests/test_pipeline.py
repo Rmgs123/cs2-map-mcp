@@ -1,5 +1,6 @@
 """Packages applied by hash and the generator manifest (pipeline.py). Writes scratch maps in the addon."""
 import json
+import os
 import shutil
 import unittest
 from pathlib import Path
@@ -433,6 +434,72 @@ class Manifest(unittest.TestCase):
         for bad in ({}, {'steps': []}, {'steps': [{'nothing': 1}]}, {'steps': [{'run': 'a.py', 'surprise': 1}]}):
             with self.assertRaises(PipelineError):
                 read_manifest(write('bad.json', bad))
+
+
+SCHEMA_FILE = Path(__file__).with_name('ops_schema.json')
+
+
+@unittest.skipUnless(HAVE_CS2, 'CS2 install not found')
+class OpsSchema(unittest.TestCase):
+    """Packages are keyed on pipeline.OPS_SCHEMA, not on the tools' version: a release that changes what operations
+    write must bump it, or old maps keep stale nodes. This replays a sample of operations (rooms, terrain, house
+    fronts, meshes, entities) and compares each one's nodes with tests/ops_schema.json.
+    After an intended change: bump OPS_SCHEMA, then run with CS2MAP_OPS_SNAPSHOT=write to record the new output."""
+
+    SAMPLE = [
+        {'op': 'add_layout', 'name': 'docs', 'wall': 16, 'rooms': [
+            {'id': 'yard', 'origin': [0, 0, 0], 'size': [1024, 1024, 384], 'ceiling': False},
+            {'id': 'gallery', 'from': 'yard', 'side': '+x', 'size': [512, 1024, 256]},
+            {'id': 'street', 'from': 'yard', 'side': '+y', 'size': [1024, 384, 512], 'ceiling': False}],
+         'openings': [{'between': ['yard', 'gallery'], 'width': 192, 'height': 160},
+                      {'between': ['yard', 'street'], 'width': 256, 'height': 224}]},
+        {'op': 'add_entity', 'classname': 'info_player_terrorist', 'origin': {'room': 'yard', 'at': [0.2, 0.5], 'z': 8}},
+        {'op': 'add_terrain', 'name': 'land', 'bounds': [[-2048, -2048], [2048, 2048]], 'base_z': -400, 'cell': 128,
+         'ops': [{'op': 'hill', 'center': [-1200, -1200], 'radius': 600, 'height': 100}]},
+        {'op': 'add_facade', 'name': 'main_south', 'on': {'room': 'street', 'side': '-y', 'from': 0, 'to': 1},
+         'floors': [2, 3], 'floor_height': 144, 'house_width': 320, 'style': 'building_inferno', 'seed': 3},
+        {'op': 'add_mesh', 'shape': {'shape': 'cylinder', 'center': [300, -300], 'radius': 40, 'z0': 0, 'z1': 96,
+                                     'sides': 12}, 'material': 'materials/dev/dev_measuregeneric01.vmat'},
+        {'op': 'add_mesh', 'shape': {'shape': 'terrain', 'mins': [3000, 0, -32], 'maxs': [4024, 1024, 0],
+                                     'cells': [8, 8], 'noise': {'amplitude': 12, 'seed': 3}},
+         'material': 'materials/dev/dev_measuregeneric01.vmat'},
+    ]
+
+    def digests(self):
+        from cs2map import pipeline, server
+        from cs2map.project import DRY_RUN, PACKAGE_CALL
+        from cs2map.vmap import VMap
+        p = server.project
+        fresh = VMap.from_template(p.s.cs2_path, 'empty')
+        state, owner, refs = {'order': [], 'packages': {}}, {}, {}
+        tags = [f'op{i}' for i in range(len(self.SAMPLE))]
+        token, call = DRY_RUN.set(True), PACKAGE_CALL.set({'order': tags})
+        try:
+            for tag, op in zip(tags, self.SAMPLE):
+                batch = p._replace_batch(fresh, {'op': 'replace_batch', 'tag': tag}, owner, state)
+                p._keep_ref(fresh, op, p._apply(fresh, op, refs))
+                p._tag_batch(fresh, tag, batch['before'], owner)
+        finally:
+            DRY_RUN.reset(token)
+            PACKAGE_CALL.reset(call)
+        return pipeline.canonical(fresh)
+
+    def test_operations_write_what_the_schema_recorded(self):
+        from cs2map import fgd, pipeline, server
+        game = fgd.signature(str(server.project.s.cs2_path))
+        now = self.digests()
+        if os.environ.get('CS2MAP_OPS_SNAPSHOT') == 'write':
+            SCHEMA_FILE.write_text(json.dumps({'schema': pipeline.OPS_SCHEMA, 'game': game, 'digests': now},
+                                              indent=1, sort_keys=True) + '\n', encoding='utf-8')
+        saved = json.loads(SCHEMA_FILE.read_text(encoding='utf-8'))
+        if saved['game'] != game:
+            self.skipTest('the game\'s entity definitions changed since the snapshot (packages replay for that '
+                          'anyway); record it again with CS2MAP_OPS_SNAPSHOT=write')
+        self.assertEqual(saved['schema'], pipeline.OPS_SCHEMA,
+                         'OPS_SCHEMA was bumped: record its output with CS2MAP_OPS_SNAPSHOT=write')
+        changed = sorted(t for t in set(now) | set(saved['digests']) if now.get(t) != saved['digests'].get(t))
+        self.assertFalse(changed, f'operations {changed} of OpsSchema.SAMPLE now write other nodes: bump '
+                                  'pipeline.OPS_SCHEMA (maps replay their packages once) and record it again')
 
 
 if __name__ == '__main__':

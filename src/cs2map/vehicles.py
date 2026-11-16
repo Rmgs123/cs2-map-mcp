@@ -161,6 +161,16 @@ def _passengers(ride):
     elif room < STAND + 2 * HEADROOM:
         raise ValueError(f'passengers: the cabin is {room} high inside (roof - floor), standing riders need '
                          f'{STAND + 2 * HEADROOM}: for a low cabin (a car) add "crouch": true')
+    else:
+        # 13.11, a 14.6 m bus on a town map: spots exactly on the floor top - any rider stalled the bus where the road
+        # dips (251 -> 1 u/s within a second); 1 over the floor - every spot finished the route, a shot from the moving
+        # bus 0.44 deg wide at 311 u. Higher than 2 over, a rider is in the air every tick (CS2 finds the ground only
+        # close under the feet).
+        for s in (s for d in out for s in d['spots']):
+            if not floor + .5 <= s[2] <= floor + 2.5:
+                raise ValueError(f'passengers: spot {s} (feet): z must be {floor + 1} (1 over the floor): on the '
+                                 'floor a rider stalls the body where the road dips, higher than 2 over a rider of '
+                                 'the moving body is in the air')
     return {'floor': floor, 'roof': roof, 'doors': out, 'hint': {**texts, **hint}, **({'crouch': True} if crouch else {})}
 
 

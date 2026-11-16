@@ -120,7 +120,8 @@ def decode_events(data: bytes, block: str = 'DATA') -> dict:
             nonlocal op
             if depth > 100:
                 raise SoundError('KV3 sound events exceed nesting limit')
-            constants = {1: None, 13: True, 14: False, 15: 0, 16: 1, 17: 0., 18: 1.}
+            # 26/27 = UINT32_ZERO/UINT32_ONE: written since a CS2 update of 11.2026 (m_nChannels = 1 of a mono vsnd)
+            constants = {1: None, 13: True, 14: False, 15: 0, 16: 1, 17: 0., 18: 1., 26: 0, 27: 1}
             if tag in constants:
                 return constants[tag]
             scalar = {2: 'B', 3: 'q', 4: 'Q', 5: 'd', 11: 'i', 12: 'I',
@@ -478,22 +479,34 @@ def _write_audio(project, name, samples, rate, loop):
     with _asset_lock():
         backup = _backup(project, path); path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(wav_bytes(samples, rate, loop))
-        try:
-            compiled = _compile(project, path)
-            metadata = decode_events(Path(compiled['compiled']).read_bytes(), 'CTRL')['m_vSound']
-            if loop != (metadata['m_nLoopStart'] >= 0):
-                raise SoundError('compiled WAV loop markers do not match the request')
-        except Exception:
+
+        def undo():
             if backup:
                 shutil.copy2(backup, path); _compile(project, path)
             else:
                 destination = ensure_inside(PROJECT_ROOT / '_to_delete' / 'G_sound' / str(time.time_ns()) / path.name, PROJECT_ROOT)
                 destination.parent.mkdir(parents=True, exist_ok=True); shutil.move(str(path), str(destination))
-            raise
+
+        try:
+            compiled = _compile(project, path)
+        except Exception:
+            undo(); raise
+        warning = None
+        try:
+            metadata = decode_events(Path(compiled['compiled']).read_bytes(), 'CTRL')['m_vSound']
+        except (SoundError, KeyError, TypeError) as exc:
+            # The sound compiled; only our reading of its metadata failed (a new CS2 build may write a KV3 form
+            # this reader does not know). Keep the sound and say so instead of taking a good asset away.
+            metadata = None
+            warning = f'compiled, but its metadata could not be read back ({exc}); loop markers not verified'
+        if metadata is not None and loop != (metadata['m_nLoopStart'] >= 0):
+            undo(); raise SoundError('compiled WAV loop markers do not match the request')
+        if metadata is None:
+            metadata = {'m_nRate': None, 'm_nLoopStart': 0 if loop else -1, 'm_nLoopEnd': len(samples) - 1 if loop else 0}
     return {**compiled, 'vsnd': f'sounds/mcp/{name}.vsnd', 'seconds': round(len(samples) / rate, 6),
             'channels': samples.shape[1], 'rate': rate, 'compiled_rate': metadata['m_nRate'],
             'loop': loop, 'loop_start': metadata['m_nLoopStart'], 'loop_end': metadata['m_nLoopEnd'], **metrics(samples),
-            **({'backup': backup} if backup else {})}
+            **({'backup': backup} if backup else {}), **({'warning': warning} if warning else {})}
 
 
 def sound_import(project, name: str, file: str, loop: bool = False):
