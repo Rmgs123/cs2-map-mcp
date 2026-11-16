@@ -335,6 +335,8 @@ def release_gate(s, name: str) -> str | None:
 
 # -- the same map from a clean slate ------------------------------------------------------------------------------
 _VOLATILE = {'nodeID', 'referenceID', 'cs2map_packages', 'randomSeed'}   # randomSeed: a fresh random number per run
+# Keyvalues that hold another node's nodeID (a wheel set into its body, glass in its frame, a button's model).
+_NODE_REFS = {'cs2map_inset', 'cs2map_button_visual'}
 _FLOAT_TYPES = {'float', 'vector2', 'vector3', 'vector4', 'qangle', 'quaternion', 'matrix'}
 
 
@@ -345,6 +347,13 @@ def canonical(m, only_packages: bool = True) -> dict:
     import numpy as np
     from .dmx import Element
     from .project import Project
+
+    by_id: dict[str, Element] = {}
+
+    def node(ref) -> Element | None:
+        if not by_id:
+            by_id.update((str(n.get('nodeID')), n) for n in m.iter_nodes())
+        return by_id.get(str(ref))
 
     def digest(e, seen) -> bytes:
         if id(e) in seen:
@@ -357,7 +366,12 @@ def canonical(m, only_packages: bool = True) -> dict:
             a = e.attrs[key]
             v = a.value
             h.update(f'|{key}:{a.type}='.encode('utf-8', errors='replace'))
-            if a.base == 'element':
+            if key in _NODE_REFS:
+                # 16.11: ids differ between a map updated package by package and its clean replay (a replayed bus
+                # gets new ones), so the node the id names is compared, not the number.
+                target = node(v)
+                h.update(digest(target, seen) if target is not None else b'missing')
+            elif a.base == 'element':
                 items = v if a.is_array else [v]
                 subs = [digest(x, seen) if isinstance(x, Element) else repr(x).encode() for x in items]
                 if key == 'children':

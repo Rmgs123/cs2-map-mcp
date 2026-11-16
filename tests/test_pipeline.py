@@ -231,6 +231,27 @@ class Apply(unittest.TestCase):
         self.assertEqual(self.meshes(), 1, 'nothing was saved')
         self.assertNotIn('bad', self.p.packages_state(self.p.load(MAP))['packages'])
 
+    def test_a_node_id_in_a_keyvalue_is_compared_by_the_node_it_names(self):
+        """16.11: a wheel names its body by nodeID (cs2map_inset); a package replayed alone gets other ids than in
+        a clean replay, and the dry run must not call that a difference."""
+        from cs2map import pipeline
+        from cs2map.project import Project
+        from cs2map.vmap import VMap
+
+        def build(before: int, host: str = 'body'):
+            m = VMap.from_template(self.p.s.cs2_path, 'empty')
+            for _ in range(before):                       # nodes of other packages made first: higher ids
+                m.attach(m.new_entity('info_target', {}, (0, 0, 0)))
+            made = {}
+            for name in ('body', 'other', 'wheel'):
+                made[name] = m.attach(m.new_entity('info_target', {'targetname': f'pipe_{name}'}, (0, 0, 0)))
+                made[name].set(Project.BATCH_KEY, 'string', 'v')
+            made['wheel'].set('cs2map_inset', 'string', str(made[host]['nodeID']))
+            return pipeline.canonical(m)['v']
+
+        self.assertEqual(build(0), build(7), 'the same nodes with other ids')
+        self.assertNotEqual(build(0), build(0, host='other'), 'the wheel names another node')
+
     def test_dry_run_writes_nothing(self):
         out = self.apply(self.files(a=[box(0)]), dry_run=True)
         self.assertTrue(out['dry_run'])
