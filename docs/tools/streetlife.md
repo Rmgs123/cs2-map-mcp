@@ -20,7 +20,7 @@ The response reports the group id, counts by role, attempts and skip reasons (`p
 
 The set follows what de_inferno itself uses (read from the shipped map): cafe terraces of up to two `terrace_set_01` tables per plaza shop, two matching chairs facing each table (wood, rattan or cushioned), a vintage parasol; terracotta pots `planter_kit_01` with small `spindle_bush` trees at doors and on squares. A pot whose tree does not fit is not placed (`empty_pot` in skips). Shared layout openings are kept clear on both sides. Warm 2800 K lights accompany the wall lamp and lamp post. `style_info(kind="street_set", name="inferno")` returns compact role counts and the set path (about 50 selected models).
 
-Read `atlas`, `kits` and `quarter` before authoring. Reproduce the checked quarter with `.local/scratch/S/{create,edit,dress}.json`, build with `full`, then inspect `.local/scratch/S/views.json`, run `visual_check` and walk `.local/scratch/S/route.json`. The placement pass does not replace a physical game route test.
+Read `atlas`, `kits` and `quarter` before authoring. After dressing, build with `full`, look at the quarter from several views, run `visual_check` and walk a route through it. The placement pass does not replace a physical game route test.
 
 ## By hand
 

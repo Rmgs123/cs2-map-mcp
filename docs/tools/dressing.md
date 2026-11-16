@@ -35,7 +35,7 @@ be at least 96 x 96 x 112 units. Optional `density` is 0..1 (default .5),
 128 world-space `[mins,maxs]` boxes; reserve buttons, ladders, story objects,
 and any route or installation that needs more room.
 
-With K's `add_layout` metadata present, `room:"hall"` selects a named room.
+With `add_layout` metadata present, `room:"hall"` selects a named room.
 Optional `layout:"wh"` disambiguates room names in different plans.
 Moved layout groups are supported; rotated/scaled plans are refused.
 Explicit bounds work independently of the layout extension.

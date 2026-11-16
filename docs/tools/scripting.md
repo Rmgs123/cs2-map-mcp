@@ -8,7 +8,7 @@
 | A whole chapter without code | `add_story` (section `story`) |
 | Own mechanic with the tested pieces (HUD, E to control, cameras, HP, the shot engine) | `// @requires ...` in `script_write` (below) |
 
-`script_write(name, code)` first checks the JavaScript syntax with Node.js (an ES module, as CS2 loads it). A syntax error is refused with the line, the source line and the message before writing addon assets. Diagnostic `.mjs` sources are retained under the project's `.local/scratch/<agent>/`, without using or deleting system temp files. Then it writes `maps/scripts/mcp/<name>.js` (the previous source is backed up), compiles it with `resourcecompiler` and returns `{name, ok, cs_script, source, syntax_checked, compile_state, log}` plus `errors` on failure. `ok` is true only for a succeeded job, no compiler failures and an existing `.vjs_c`. Names contain letters, digits and underscores only. The syntax check does not know the CS2 API: a misspelled method still fails only at runtime, so check the console after loading the map (below).
+`script_write(name, code)` first checks the JavaScript syntax with Node.js (an ES module, as CS2 loads it). A syntax error is refused with the line, the source line and the message before writing addon assets. Diagnostic `.mjs` sources are retained under the project's `.local/scratch/`, without using or deleting system temp files. Then it writes `maps/scripts/mcp/<name>.js` (the previous source is backed up), compiles it with `resourcecompiler` and returns `{name, ok, cs_script, source, syntax_checked, compile_state, log}` plus `errors` on failure. `ok` is true only for a succeeded job, no compiler failures and an existing `.vjs_c`. Names contain letters, digits and underscores only. The syntax check does not know the CS2 API: a misspelled method still fails only at runtime, so check the console after loading the map (below).
 
 `script_api(query="", limit=20)` searches the installed Valve declaration file `point_script.d.ts` from the `cs_script_demo` addon and returns matching declarations with their nearest comments, preserving multiline signatures. An exact class/interface/enum name (e.g. `CustomHudLayout`, `CSPlayerPawn`, `CameraFollowConfig`, `Domain`) returns its **entire body with comments**, `complete:true`, without truncating it at `limit`. With an empty query it lists common `Instance.On*` events and core methods. The result includes the exact installed file path, so the answer is version-specific.
 
@@ -107,7 +107,7 @@ Then `map_edit`: a `prop_dynamic` named `tower_head` and `{"op":"add_script","na
 
 Each source below is a complete `script_write` payload. Attach it with `map_edit`/`add_script` after a successful compile.
 
-Recipes 1, 5 and 6 were verified in round 2 (`C_RECIPE round_start`, `C_RECIPE hello`, `C_RECIPE tick`). Round 3 verified recipes 2–4 on `s_probe`: actual button → RunScriptInput → door Open → OnFullyOpen (`S_RECIPE door_opened`), MP5 given after a real round restart (`S_RECIPE weapon_name weapon_mp5sd`), and actual C4 planting (`S_RECIPE bomb_planted`). The door recipe needs a button output connected to the script entity's `RunScriptInput` with parameter `OpenDoor` and a door with `spawnflags:0`, `movedir:"-90 0 0"` for upward movement.
+Verified in the game: recipes 1, 5 and 6 by console lines (`C_RECIPE round_start`, `C_RECIPE hello`, `C_RECIPE tick`); 2–4 with real input: actual button → RunScriptInput → door Open → OnFullyOpen (`S_RECIPE door_opened`), MP5 given after a real round restart (`S_RECIPE weapon_name weapon_mp5sd`), and actual C4 planting (`S_RECIPE bomb_planted`). The door recipe needs a button output connected to the script entity's `RunScriptInput` with parameter `OpenDoor` and a door with `spawnflags:0`, `movedir:"-90 0 0"` for upward movement.
 
 Check a script at runtime: build the map, load it with `game_screenshot`, then `game_command("mp_restartgame 1", wait=6)` returns everything printed during six seconds, including your `Instance.Msg` lines and JavaScript errors. Fire inputs with `game_command("ent_fire <name> <input>", wait=3)` and chat commands with `say !text`.
 
@@ -157,7 +157,7 @@ Instance.SetThink(() => { Instance.Msg("C_RECIPE tick"); Instance.SetNextThink(I
 Instance.SetNextThink(Instance.GetGameTime() + 1.0);
 ```
 
-## Story scripting recipes (verified round 3)
+## Story scripting recipes (verified in the game)
 
 The entity/resource names below are prerequisites: create the named entities with `map_edit`, or use an `add_story` HUD/effects. These snippets demonstrate the APIs exercised by `s_probe`, `s_story`, and `s_extended`; they do not create HUD XML or template contents on their own.
 

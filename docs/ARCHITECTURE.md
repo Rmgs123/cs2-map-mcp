@@ -88,7 +88,6 @@ src/cs2map/project.py       core operations: maps, batch editing, builds, assets
    ├─ release.py, releaserun.py, chain.py   map_build(name, "release"): one map and the files it uses in its own
    │                addon (compile all, nav probe, final build without VIS/bots when they would take hours, PUBLISH.md
    │                with the upload size); game tools take map="<addon>/<map>" (Project.released)
-   └─ experimental/ not part of MCP (unsupported player-model draft)
 src/cs2map/ext/*.py         register(mcp, project): tools, map_edit operations, shapes, preprocessors
 docs/tools/*.md             guide sections (read_guide(section)); docs/TOOLS.md is the core
 docs/specs/*.md             technical specs per area (pipeline, formats, decisions, pitfalls)

@@ -28,6 +28,10 @@
 !/tools/backups.py
 !/tools/panel.py
 
+# Shelved player-model draft: kept on this computer, not part of MCP
+/src/cs2map/experimental/
+/tests/test_experimental_*.py
+
 # Local settings and paths of this computer
 /config/settings.json
 /config/codex-mcp.toml

@@ -22,4 +22,4 @@ Box checks are conservative: a free spot may be rejected. Model boxes cover rend
 
 ## Tests
 
-`tests/test_dressing.py`; in game the round 4 maps (`f2_port`, `k_warehouse`).
+`tests/test_dressing.py`; in game a dressed map built with `full`.

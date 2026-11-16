@@ -77,10 +77,7 @@ the normal competitive entities before checking/building a playable map.
 ]
 ```
 
-Full replayable scenario: `.local/scratch/K/k_edit.json`; it reuses the
-already installed `ms_exit/ms_note/ms_glass/ms_river` artwork/materials and
-`mcp.ms_hum/ms_rain/ms_signal` events from `mcp_story`. Its `until.zone` values
-are room boxes, for example:
+In a story map, `until.zone` values can be room boxes, for example:
 
 ```json
 {"id":"hall","objective":"Reach the mezzanine",

@@ -55,9 +55,9 @@ Rain and snow can be authored over an absolute world-space box:
  "maxs":[512,512,512],"name":"yard_rain","start":true}
 ```
 
-Both `mins` and `maxs` are required together, must be strictly ordered, and are accepted only for `rain` or `snow`; `origin` is then optional. The default `backend:"native"` preserves `func_precipitation` and `{start:"Enable",stop:"Disable"}`. **Native precipitation is not visible in the checked CS2 frames**, including the integrator's map; do not treat compiler success as rain acceptance.
+Both `mins` and `maxs` are required together, must be strictly ordered, and are accepted only for `rain` or `snow`; `origin` is then optional. The default `backend:"native"` preserves `func_precipitation` and `{start:"Enable",stop:"Disable"}`. **Native precipitation is not visible in the checked CS2 frames**, including a dedicated test map; do not treat compiler success as rain acceptance.
 
-Round 4 adds explicit point weather. Run `assets_prepare(kind="weather")` once: it compiles `particles/mcp/m_rain.vpcf` and `m_snow.vpcf` using installed Valve renderer/initializer fields and textures, without downloading assets. Then:
+Point weather: run `assets_prepare(kind="weather")` once: it compiles `particles/mcp/m_rain.vpcf` and `m_snow.vpcf` using installed Valve renderer/initializer fields and textures, without downloading assets. Then:
 
 ```json
 {"op":"add_fx","effect":"rain","backend":"particle",
@@ -83,7 +83,7 @@ Uses an `env_fade` screen flash (blue-white, opacity 180), driven by `logic_time
 
 Fire turns on and off with Start/Stop (verified in the game). The companion baked/dynamic light may remain visible briefly after a stop, so use a separate focused light test when validating illumination state.
 
-Fog is authored by `lighting_preset` (quality.md). Use `mode:"gradient"` for the game-accepted haze; `volumetric` remains experimental after O’s paired int_shafts-copy tests. Rain/snow/lightning behavior is unchanged.
+Fog is authored by `lighting_preset` (quality.md). Use `mode:"gradient"` for the game-accepted haze; `volumetric` remains experimental: paired in-game tests showed no visible scattering. Rain/snow/lightning behavior is unchanged.
 
 ## By hand
 
