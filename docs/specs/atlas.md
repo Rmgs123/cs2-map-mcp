@@ -10,6 +10,10 @@ CS2 ships about 13 000 models (about 7 600 props). A model can choose among them
 4. **Frame check**: an empty, clipped or untextured tile gets `status: "broken"`; only then is `game=true` allowed (a batch of shots in CS2 under the shared game lock). Light, foliage and glass are judged by a player in the game anyway.
 5. **Notes** follow a strict schema: `{model, category, tags (3..6), style, front, mount, note (≤ 80 chars), by, date, source, crc, rev}`; `category` and `mount` come from fixed lists, `front` is `+x|-x|+y|-y|none`, `by` is the AI model that wrote it, `crc` the model file version (a changed Valve model makes the note stale). A `front` is accepted only after a `detail` preview.
 
+## Facts of every model (`propfacts.py`)
+
+`src/cs2map/data/props/facts.jsonl` (in git, about 2.8 MB) holds one sorted line per stock model (12 139 on 16.11.2026, 9 637 with physics): CRC, render bounds, triangle count, physics bounds, the physics footprint per height band (`foot` 0–72, `roof` 72–160, `top` over 160 above the origin) and companion models (same folder, name + `_door…`, `_glass`, `_details`…). Only numbers, no images. The integrator builds it with `python tools/prop_catalog.py facts` (Source2Viewer-CLI geometry exports in batches of 120, which also write `<model>_physics.glb`; about 4 minutes for the whole game) and again after a game update: models whose CRC is unchanged are kept. Search lines show a short summary (origin placement, missing or wide collision, parts); `measure` takes sizes from it instead of exporting; `add_model` `anchor` places by the footprint. Checked: the 50 sizes measured earlier by the atlas agree within 0.05 units.
+
 ## Where notes live (no merge conflicts)
 
 - **Personal**: `.local/props/notes.jsonl`, append-only, one line per note, written atomically under a file lock by `prop_note`. The last note of a model wins.

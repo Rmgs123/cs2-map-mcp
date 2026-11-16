@@ -76,6 +76,8 @@ Local layer my/: notes from earlier chats on this computer (read_guide(section="
 lessons, recipes and own styles with my_notes. When a tool fails without your fault, a guide is wrong
 or a feature is missing, write one entry with my_notes(kind="feedback"): the user sends it to the author.
 Publishing: map_build(name, "release") puts one map in its own addon for the Steam Workshop.
+Whole jobs: MCP prompts new_map, map_from_photos, fix_from_marks, beauty_pass, test_mechanics, optimize, release;
+guide sections recipes (pipelines that worked, what is not done yet) and pitfalls (what real maps taught).
 When a person tests the map in CS2, offer them the marks key: "press F8 at each problem, then Y + text +
 Enter (several lines are fine)"; read game_screenshot(views="marks") before fixing what they found."""
 
@@ -94,6 +96,10 @@ def guide_prompt() -> str:
     return core_guide()
 
 
+from . import prompts as _prompts  # noqa: E402
+_prompts.register(mcp)                # master prompts: new map, map from photos, fix marks, beauty, tests, release
+
+
 # Core functions behind the public tools (published by surface.py, which owns names and descriptions).
 RAW.update({
     'status': project.status,
@@ -103,6 +109,8 @@ RAW.update({
     'map_info': lambda name, classname=None, kind=None, ids=None, full=False, offset=0, limit=200:
         project.map_info(name, classname, kind, None, ids, full, offset, limit),
     'map_edit': project.map_edit,
+    'map_cost': lambda name: __import__('cs2map.perfcheck', fromlist=['cost']).cost(project, name),
+    'drive_check': lambda map, route, vehicle: __import__('cs2map.drivecheck', fromlist=['check']).check(project, map, route, vehicle),
     'map_apply': project.map_apply,
     'map_backups': project.map_backups,
     'map_restore': project.map_restore,

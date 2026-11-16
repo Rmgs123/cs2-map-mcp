@@ -10,6 +10,7 @@ Everything a model needs to build a CS2 map with this MCP server (resource `cs2m
 | Publish a map to the Steam Workshop | `map_build(name, "release")`, then `game_screenshot(map="<map>/<map>")` | `publish` |
 | Remember lessons, own styles, recipes; the user's files | `my_notes`, `read_guide(section="my")`, `asset_search(kind="mine")` | `styles` |
 | New map, edit, build | `map_create` → `map_edit` (batches) → `check_map` → `map_build` → `job_status` | this core |
+| Whole pipelines that worked, a big map from photos; what real maps taught, what is not done yet | — | `recipes`, `pitfalls` |
 | Look at the result | `game_screenshot` (views, `"auto"`, `"rooms"`) | this core |
 | Big maps: seconds per change | packages, region builds, offline frames, zone checks | `pipeline` |
 | Rooms and floors of a level | `set_map_type` | `type` (table above) |
@@ -19,6 +20,7 @@ Everything a model needs to build a CS2 map with this MCP server (resource `cs2m
 | Streets in the Inferno look, fast | `add_paving`, `add_facade`, `add_wear`, `dress_street`, `add_backdrop` | `buildings`, `wear`, `streetlife`, `outdoor` |
 | Any other look (own style) | primitives + own materials/models, saved as a style in `my/` | `styles` |
 | A huge map's town, cheap | `add_district` | `buildings` |
+| Blocks of flats (panel, brick), garage rows, yards | `add_block_house`, `add_garage_row`, `add_yard` | `blocks` |
 | Hills, dirt roads, rocks, trees | `add_terrain` (`paint` tracks), `scatter`, `add_street`, `add_junction` | `terrain` |
 | Fences, gates, handrails, steep banks, bare trees, poles with wires | `add_fence`, `add_railing`, `add_bank`, `add_tree`, `add_utility_line` | `terrain` |
 | Any shape; bevel, inset, bend, twist, noise a mesh | shapes `mesh`/`extrude`/`revolve`, `cut_mesh`, `edit_mesh`, `texture_faces`, `paint_blend` | `geometry` |
@@ -90,11 +92,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 
 ## Pipelines that worked
 
-- **Inferno-like streets** (`p7_quartiere`): `add_layout`/`add_comp_plan` (with `levels`) → `add_paving` → `add_facade` on every visible wall side → `add_wear` → `dress_street` → `lighting_preset "inferno"` → `add_backdrop style:"italy"` → `visual_check`, `check_map`, `map_build full` → frames next to `game_screenshot(map="de_inferno")`; name three differences and fix them.
-- **Competitive** (`c_defuse`, `f3_port`): `add_comp_plan` → cover, `dress_room`, light → outdoor (`add_water_body`, `add_backdrop`, sky) → `playtest(kind="timings", live=true)` (CT reaches sites 3–8 s earlier) and `playtest(kind="competitive")`.
-- **Story** (`mcp_story`, `f2_port`): `add_layout` → interactive parts (`physics`) → atmosphere (`light`, `fx`, `sound`) → `dress_room`, signs → **one** `add_story` last → `script_test(steps="auto")` and `route_test(map)` (a real walk through every stage).
-- **Mechanics** (`p8_mechanics`, `p9_playground`): every section: a tested example, `script_test` steps, "By hand" recipes.
-- **Anything else**: primitives (`geometry`), any entity + `connect`, any logic (`scripting`), own models, materials and sounds. A missing primitive: `my_notes` feedback with the workaround.
+Whole pipelines that were built and checked in CS2 (streets, competitive, story, mechanics, big maps), and what is not done yet: section `recipes`.
 
 ## Units, axes, facing
 
@@ -123,7 +121,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 | `connect` | `from`, `output`, `target`, `input`, `param`, `delay`, `times` |
 | `set_material`, `set_uv` | `id`, `material`, `replace`; `id`, `faces`, `mode`, `scale`, `rotate`, `offset` |
 | `group`, `ungroup` | `ids` (direct children of one parent), `name`: move/duplicate/delete the group as one; `id` to dissolve |
-| `add_model` | stock or own prop: `model`, `origin`, `angles`, `scale`, `dynamic`, `skin`, `tint` (`models`) |
+| `add_model` | stock or own prop: `model`, `origin`, `angles`, `scale`, `dynamic`, `skin`, `tint`, `anchor`, `collision` (`atlas`) |
 | `add_script` | a compiled `script_write` script, `origin` (`scripting`) |
 | `lighting_preset`, `add_light`, `light_rooms`, `add_fx` | `light`, `quality`, `fx` |
 | `add_sound`, `add_soundscape`, `add_ambience` | `sound` |
@@ -136,6 +134,7 @@ Types never limit what you build; change one with the operation `set_map_type`. 
 | `add_comp_plan`, `add_figures` | `competitive` |
 | `add_story` | `story` |
 | `add_paving`, `add_facade`, `add_building`, `add_district`, `add_kit_part` (quick fill, Inferno look) | `buildings`, `kits` |
+| `add_block_house`, `add_garage_row`, `add_yard` | `blocks` |
 | `add_wear`, `dress_street`, `dress_room`, `add_trim`, `add_pipes`, `add_cables` | `wear`, `streetlife`, `dressing` |
 | `add_terrain`, `scatter`, `add_street`, `add_junction`, `add_fence`, `add_railing`, `add_bank`, `add_tree`, `add_utility_line` | `terrain` |
 | `add_water_body`, `add_backdrop`, `add_supports` | `outdoor` |

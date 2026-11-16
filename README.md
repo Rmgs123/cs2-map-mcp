@@ -1,6 +1,6 @@
 # CS2 Map MCP — AI that builds Counter-Strike 2 maps
 
-[![Version](https://img.shields.io/badge/version-1.4.1-2ea44f)](https://github.com/Rmgs123/cs2-map-mcp/releases)
+[![Version](https://img.shields.io/badge/version-1.5.0-2ea44f)](https://github.com/Rmgs123/cs2-map-mcp/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078d6)
 ![Python 3.14](https://img.shields.io/badge/python-3.14-3776ab)
@@ -102,7 +102,19 @@ Another CS2 path, addon name, Blender path or disk limits: copy `config/settings
 
 **Use the most capable model you have access to** (a current state-of-the-art model such as Claude Opus or the top GPT/Codex model). Map work means long plans, 3D reasoning and judging screenshots: stronger models make far fewer mistakes, and smaller ones need much more checking.
 
-Talk to your AI as you would to a level designer. A few prompts that work well:
+**Ready-made workflows.** The server ships master prompts for whole jobs. In Claude Code, type `/` and pick `mcp__cs2map__…`; in Claude Desktop, use the prompts menu:
+
+| Prompt | What it does |
+| --- | --- |
+| `new_map` (idea) | plans, builds and checks a new map step by step in the game |
+| `map_from_photos` (map, photos) | turns photos of a real place into a map, generator by generator, compared photo by photo |
+| `fix_from_marks` (map) | fixes what testers marked in CS2 with the F8 key, with before and after frames |
+| `beauty_pass` (map, reference) | makes a map look finished, three differences at a time |
+| `test_mechanics` (map) | tests every mechanic with real input and fixes what fails |
+| `optimize` (map) | finds what nobody sees and removes it, proven frame by frame |
+| `release` (map) | prepares a finished map for the Steam Workshop |
+
+Or talk to your AI as you would to a level designer. A few prompts that work well:
 
 ```text
 Call status and tell me what is missing for CS2 map work.

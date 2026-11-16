@@ -108,17 +108,17 @@ def register(mcp, project) -> list[str]:
     # ---- start ---------------------------------------------------------------------------------------------
     @mcp.tool()
     def status() -> dict:
-        """Check the environment: CS2 (running, Workshop Tools mode), the addon and its newest maps, Blender,
+        """Environment: CS2 (running, Workshop Tools mode), the addon and its newest maps, Blender,
         Node.js, jobs, the latest crash dump, what the user allows. Call first.
         Returns {cs2, addon, blender, node, jobs_running, recent_jobs, permissions, ...}."""
         return R['status']()
 
     @mcp.tool()
     def read_guide(section: str | None = None) -> str:
-        """The guide. No section: the core (workflow, every map_edit operation, shapes, entity recipes, sizes),
+        """The guide. No section: the core (workflow, map_edit operations, shapes, entity recipes, sizes),
         the index of sections and of your local notes. section="vehicles"|"weapons"|"terrain"|...: one feature
         area; "my": your notes from earlier chats; "my:<name>": one note or recipe; "all": everything.
-        Read the core before the first map_edit and a section before using its operations."""
+        Read the core before the first map_edit, a section before its operations."""
         return R['read_guide'](section)
 
     @mcp.tool()
@@ -148,14 +148,17 @@ def register(mcp, project) -> list[str]:
         return R['map_list']()
 
     @mcp.tool()
-    def map_info(name: str, about: Literal['nodes', 'layout', 'geometry', 'terrain', 'street'] = 'nodes',
+    def map_info(name: str, about: Literal['nodes', 'layout', 'geometry', 'terrain', 'street', 'cost'] = 'nodes',
                  key: str | int | None = None, points: list[list[float]] | None = None,
                  classname: str | None = None, kind: Literal['entity', 'mesh', 'group'] | None = None,
                  ids: list[int] | None = None, full: bool = False, offset: int = 0, limit: int = 200) -> dict:
-        """Read a map. about: nodes (default: id, type, origin, classname/targetname, bounds; filter by classname,
+        """Read a map. about: nodes (default: id, type, origin, names, bounds; filter by classname,
         kind, ids; full=true adds keyvalues and I/O) | layout (rooms: interiors, floor_z, openings; key=layout name)
         | geometry (one mesh: faces, closure, bounds; key=node id or @ref) | terrain (plans; key=terrain name;
-        points=[[x,y],...] samples ground z, normal, slope) | street (centreline, slope, lots; key=street)."""
+        points=[[x,y],...] samples ground z, normal, slope) | street (centreline, slope, lots; key=street) | cost
+        (triangles by model, mesh, zone; what nobody sees from the play area; guide performance)."""
+        if about == 'cost':
+            return R['map_cost'](name)
         if about == 'layout':
             return R['layout_info'](name, key)
         if about == 'geometry':
@@ -219,7 +222,7 @@ def register(mcp, project) -> list[str]:
 
     @mcp.tool()
     def check_map(name: str) -> dict:
-        """Static audit of a map: spawns, gameplay volumes, navigation seeds, entities and their I/O, missing
+        """Static audit: spawns, gameplay volumes, navigation seeds, entities and their I/O, missing
         assets, lights, mechanics (controllables, weapons, mini-games). Returns {ok, problems: [{severity, code,
         id, message, fix}]}."""
         return R['check_map'](name)
@@ -239,7 +242,7 @@ def register(mcp, project) -> list[str]:
         """Find stock CS2 and addon assets; all words must match. kind: material | model (files) | prop (stock
         props with measured size and notes; then prop_preview) | texture | sound (events and raw .vsnd) |
         particle (.vpcf and aliases like fire_small) | decal | wear (facade wear overlays) | smartprop | any |
-        mine (the user's files in my/inbox: photos, models, sounds, with the tool that turns each into an asset).
+        mine (the user's files in my/inbox: with the tool that turns each into an asset).
         Example: asset_search(query="concrete floor"). Returns {results}."""
         if kind == 'mine':
             return R['my_inbox'](query, limit or 50)
@@ -322,7 +325,7 @@ def register(mcp, project) -> list[str]:
                      style: Literal['plate', 'stencil', 'neon', 'paper'] = 'plate', color: Any = None,
                      glow: float = 3.0, font: str = 'arialbd.ttf') -> dict:
         """Overlay material for add_decal / add_sign. image: local PNG with alpha (background="#ffffff" keys out a
-        colour; size [w,h] in units). text: a sign rendered with a Windows font (Latin/Cyrillic), style plate |
+        colour; size [w,h] in units). text: a sign in a Windows font, style plate |
         stencil | neon | paper, color, background, glow. Returns {material}."""
         if (image is None) == (text is None):
             raise ValueError('give exactly one of image (artwork) or text (a sign)')
@@ -373,15 +376,15 @@ def register(mcp, project) -> list[str]:
     @mcp.tool()
     def prop_note(model: str, category: str, tags: list[str], style: str, front: str, mount: str, by: str,
                   note: str = '') -> dict:
-        """Record what you saw on a prop preview (shown by asset_search kind="prop" to every model later).
-        category (furniture, lighting, street, vegetation, vehicle, ...), tags 3..6 words, style (inferno, italy,
+        """Record what you saw on a prop preview (asset_search kind="prop" shows it later).
+        category (furniture, street, vegetation, ...), tags 3..6 words, style (inferno, italy,
         generic...), front +x|-x|+y|-y|none, mount floor|wall|ceiling|any, by = your model name, note <= 80 chars."""
         return R['prop_note'](model, category, tags, style, front, mount, by, note)
 
     @mcp.tool()
     def actor_build(name: str = 'walker', script: str | None = None, walk_speed: float = 62.0) -> dict:
         """Animated character prop (skeleton, idle/walk/turn clips) with Blender: default stylised walker or a
-        script with one rig and named actions; walk_speed in units/s. Use it with map_edit add_actor.
+        script with one rig and named actions; walk_speed in units/s. For add_actor.
         Returns {model, clips}."""
         return R['actor_build'](name, script, walk_speed)
 
@@ -409,7 +412,7 @@ def register(mcp, project) -> list[str]:
                  mount: str | None = None, tags: list[str] | None = None, gallery: bool = False,
                  kit: str | None = None, keys: list[str] | None = None, offset: int = 0, limit: int = 12) -> dict:
         """Measured stock building parts (kits). key="kit/part": one part (bounds, front, mount, collision).
-        Otherwise a filtered list (category, style, mount, tags). gallery=true: a photographed contact sheet of a
+        Otherwise a filtered list (category, style, mount, tags). gallery=true: a contact sheet of a
         kit, category or keys (offset/limit up to 12)."""
         if key:
             return R['kit_info'](key)
@@ -421,7 +424,7 @@ def register(mcp, project) -> list[str]:
     def style_info(kind: Literal['building', 'theme', 'street_set', 'sky', 'mine'] = 'building',
                    name: str | None = None) -> dict:
         """Ready-made looks. building: parts, openings and materials of building_inferno/building_mirage (name =
-        style); theme: interior palettes for dress_room (warehouse, office, dust, harbor, ...); street_set: street
+        style); theme: interior palettes for dress_room (warehouse, office, ...); street_set: street
         dressing roles (inferno); sky: verified skyboxes; mine: own styles saved in my/styles. No name: the list."""
         if kind == 'mine':
             return R['my_styles'](name)
@@ -444,7 +447,7 @@ def register(mcp, project) -> list[str]:
                           plan: dict[str, Any] | None = None) -> dict:
         """A photo and a game frame side by side; pairs [[photo, frame], ...]: one row each. plan {map, box
         [[x0,y0],[x1,y1]], marks [[label,x,y,yaw]], image}: the map from above (offline) with camera marks, a unit
-        grid and an aerial picture under it. Open the PNG, name differences, refine. Returns {png}."""
+        grid and an aerial picture under it. Open the PNG. Returns {png}."""
         return R['reference_compare'](reference, shot, pairs, plan)
 
     @mcp.tool()
@@ -543,7 +546,7 @@ def register(mcp, project) -> list[str]:
     @mcp.tool()
     def game_command(command: str, wait: float = 1.5, focus: bool = False) -> dict:
         """Console commands to the running CS2 (one per line); returns the printed output. Useful: sv_cheats 1,
-        getpos, bot_add_ct, ent_fire <name> <input>, snd_showstart 1. focus=true keeps the background CS2 awake for
+        getpos, ent_fire <name> <input>, snd_showstart 1. focus=true keeps the background CS2 awake for
         the whole wait. Returns {output}."""
         return R['game_command'](command, wait, focus)
 
@@ -597,11 +600,14 @@ def register(mcp, project) -> list[str]:
     @mcp.tool()
     @on_release
     def route_test(map: str, route: list[Any] | Literal['auto'] = 'auto', timeout: float = 90,
-                   start: str | list[float] = 'spawn', terrain: str | None = None) -> dict:
-        """Walk a route physically with real input (no teleports while walking). route: steps go [x,y,z] (jump/duck
+                   start: str | list[float] = 'spawn', terrain: str | None = None, vehicle: Any = None) -> dict:
+        """Walk a route with real input (no teleports). route: steps go [x,y,z] (jump/duck
         as needed), use 'name', wait s, ride {to_z}, climb_down, break 'name', push {name,to} | "auto" (the map's
         add_story). terrain=<name>: route is [[x,y],...] waypoints on that terrain. start: spawn | current | [x,y,z].
-        Returns {reached, stuck, seconds per stage, shots, log}."""
+        vehicle=<controllable> | {length,width}: drive [[x,y],...] offline (steps, grades, nose/tail, walls,
+        props, tight turns). Returns {reached, stuck, seconds per stage, shots, log}."""
+        if vehicle is not None:
+            return R['drive_check'](map, route, vehicle)
         if terrain is not None:
             if not isinstance(route, list):
                 raise ValueError('terrain routes are a list of [x,y] waypoints')

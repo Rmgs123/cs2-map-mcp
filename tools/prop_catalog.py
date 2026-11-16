@@ -2,6 +2,8 @@
 
     python tools/prop_catalog.py status     personal notes vs the shared catalog
     python tools/prop_catalog.py promote    validated personal notes -> catalog (sorted, one line per model)
+    python tools/prop_catalog.py facts [N]  measure stock models missing from data/props/facts.jsonl (sizes,
+                                            physics bands, triangles; N = at most N models); resumable
 
 Agents write personal notes with the MCP tool prop_note (.local/props/notes.jsonl, not in git).
 After promote, review `git diff` of the catalog and commit it.
@@ -62,6 +64,12 @@ def promote() -> dict:
 
 if __name__ == '__main__':
     action = sys.argv[1] if len(sys.argv) > 1 else 'status'
+    if action == 'facts':
+        from cs2map import propfacts
+        from cs2map.project import Project
+        limit = int(sys.argv[2]) if len(sys.argv) > 2 else None
+        print(json.dumps(propfacts.build(Project(), limit=limit, say=lambda s: print(s, flush=True)), indent=1))
+        sys.exit(0)
     if action not in ('status', 'promote'):
         sys.exit(__doc__)
     print(json.dumps(status() if action == 'status' else promote(), ensure_ascii=False, indent=1))

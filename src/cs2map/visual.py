@@ -41,6 +41,7 @@ _DECORATIVE_MODEL = (
     "/decal", "decal/", "lightshaft", "/light", "_glow", "/fx/",
     "particle", "water", "boat", "boat01", "gaspipes", "/pipe",
     "mcp_m/m9_ring/",            # race rings hang in the air on purpose (a drone flies through them)
+    "/clothes_",                 # washing lines hang between posts or walls (16.11: a yard's line "floated")
 )
 _LAMP_MODEL = ("lamp", "light", "lantern", "fixture", "fluorescent")
 _PLANT_MODEL = ("tree", "bush", "hedge", "shrub", "plant", "foliage", "vegetation", "palm", "pine", "fern", "ivy")
@@ -467,6 +468,8 @@ def _terrain_float_checks(m, props, meshes=()) -> list:
         # Static props only: physics bodies settle, and parented parts (wheels, rotors) move with their body.
         if entry.get("class") != "prop_static" or entry.get("props", {}).get("parentname"):
             continue
+        if any(token in entry["model"].lower() for token in _DECORATIVE_MODEL):
+            continue                                          # hung on purpose: lines, rings, glows
         (lo, hi) = entry["bounds"]
         if any(t in entry["model"].lower() for t in _PLANT_MODEL):
             # A crown or a hedge's leaves overhang the ground they grow from (22.10: a 13 m maple "hung 136 units",
@@ -1130,6 +1133,20 @@ LIP_SEAM_MAX = 2.0              # side by side: 2+ units is a low kerb (a sidewa
 LIP_MIN_SIDE = 48.0             # meshes narrower than this, or under ~120 x 120 units, are objects
 
 
+def _wide(points) -> bool:
+    """A face at least LIP_MIN_SIDE / 2 across in plan, both ways (narrower: a post top, a cap, a tread)."""
+    xs, ys = [q[0] for q in points], [q[1] for q in points]
+    if min(max(xs) - min(xs), max(ys) - min(ys)) >= LIP_MIN_SIDE / 2:
+        return True
+    # a strip turned in plan: its width across its longest edge
+    best = max(((points[i], points[(i + 1) % len(points)]) for i in range(len(points))),
+               key=lambda e: math.hypot(e[1][0] - e[0][0], e[1][1] - e[0][1]))
+    (ax, ay), (bx, by) = best[0][:2], best[1][:2]
+    ln = math.hypot(bx - ax, by - ay) or 1.0
+    width = max(abs((q[0] - ax) * (by - ay) - (q[1] - ay) * (bx - ax)) / ln for q in points)
+    return width >= LIP_MIN_SIDE / 2
+
+
 def _lip_ground(material: str) -> bool:
     return any(h in material for h in LIP_GROUND) and not any(x in material for x in ("roof", "tools", "shingle"))
 
@@ -1151,7 +1168,7 @@ def _lip_checks(m, meshes, zone=None) -> list:
     skip = scenery_ids(m) | outside_play_area_ids(m)
     for group in m.iter_nodes():
         # terrain (roads stand 2 units over it by design) and buildings (their floor is a threshold over the street)
-        if terrain.PLAN_KEY in group or (group.type == "CMapGroup" and str(group.name).startswith(("building:",
+        if terrain.PLAN_KEY in group or (group.type == "CMapGroup" and str(group.name).startswith((*checks.BUILDING_GROUPS,
                                                                                                     "facade"))):
             skip |= {n.get("nodeID") for n in m.iter_nodes(group)}
     cells: dict = {}          # (i, j) -> {node id: (z, dz/dx, dz/dy)} of its highest top there
@@ -1163,7 +1180,9 @@ def _lip_checks(m, meshes, zone=None) -> list:
         if min(sx, sy) < LIP_MIN_SIDE or sx * sy < LIP_MIN_SIDE * LIP_MIN_SIDE * 6:
             continue                          # wall tops, curbs, trims and tiles: objects, not ground to cross
         # only ground people cross, face by face: roofs and block tops meet walls and parapets by design
-        ground = [pts[0:1] + pts[k:k + 2] for pts, mat in _faces(node) if _lip_ground(mat)
+        # ... and face by face: a top narrower than half that is a post or a wall cap even in a mesh whose box is big
+        # (16.11: a fence round a play area: its posts' tops "stepped" 2 units over its panels)
+        ground = [pts[0:1] + pts[k:k + 2] for pts, mat in _faces(node) if _lip_ground(mat) and _wide(pts)
                   for k in range(1, len(pts) - 1)]
         if not ground:
             continue
@@ -1773,10 +1792,10 @@ BOX_CONTEXT = 256.0       # a zone is audited with this much of its surroundings
 BOX_REPORT = 64.0         # ... and findings up to this far outside it are reported
 
 
-def _audit(project, m, box=None) -> list[dict]:
+def _audit(project, m, box=None, name=None) -> list[dict]:
     """Every finding of a loaded map (box: of one zone; findings outside it are dropped)."""
     with checks.scene_cache():
-        problems = _audit_scene(project, m, box)
+        problems = _audit_scene(project, m, box, name)
         if box is not None:
             spans = _place(m, problems)
             problems = [p for p in problems if _reported(p, spans, box)]
@@ -1795,7 +1814,7 @@ def _reported(problem, spans, box) -> bool:
     return True
 
 
-def _audit_scene(project, m, box=None) -> list[dict]:
+def _audit_scene(project, m, box=None, name=None) -> list[dict]:
     problems: list[dict] = []
     from . import visual_scene
     near = None if box is None else (lambda bounds: _in_box(bounds, box, BOX_CONTEXT))
@@ -1844,7 +1863,26 @@ def _audit_scene(project, m, box=None) -> list[dict]:
     problems.extend(visual_scene.cable_checks(m, props, visible))
     problems.extend(visual_scene.door_window_checks(visible))
     problems.extend(visual_scene.paved_checks(m, meshes, _paved, skip, zone=zone))
-    problems.extend(visual_scene.clip_checks(m, meshes, visible, props, skip | outside_play_area_ids(m), zone))
+    # Where players can stand (a flood fill from the spawns, whole-map audits of a saved map only): invisible walls
+    # count only where a player walks up to them, and a player outside the play area is an escape.
+    reached = None
+    if box is None and name:
+        from . import reach
+        try:
+            flood = reach.flood(project, name, m)
+        except (ValueError, KeyError, IndexError, MemoryError):
+            flood = None
+        if flood is not None and flood['seeds']:
+            reached = reach.lookup(flood)
+            for e in reach.escapes(flood, m):
+                problems.append(checks.problem('error', 'visual_escape', None,
+                    f"players can get out of the play area here: about {e['area_m2']} m2 of floor outside "
+                    "set_play_area's outline is reachable from the spawns",
+                    'Close the gap with a real barrier (a fence run on to the wall of the house next to it, a wall), '
+                    'a clip only behind it'))
+                problems[-1]['at'] = e['at']
+    problems.extend(visual_scene.clip_checks(m, meshes, visible, props, skip | outside_play_area_ids(m), zone,
+                                             reached))
     problems.extend(visual_scene.fence_checks(m, meshes, render_only))
 
     # Large authored floors high above the scene need a visible support.  Use
@@ -2106,7 +2144,8 @@ def visual_check_loaded(project, m) -> list[dict]:
 CHECK_CACHE = PROJECT_ROOT / ".local" / "cache" / "checks"
 CHECK_CACHE_LIMIT = 64 * 1024 * 1024      # bytes for all maps together; the files not used for the longest go first
 CHECK_VERSION = 1                         # bump when the stored findings change their form
-_CHECK_CODE = ("visual.py", "visual_scene.py", "checks.py", "terrain.py", "structure.py", "navcost.py")
+_CHECK_CODE = ("visual.py", "visual_scene.py", "checks.py", "terrain.py", "structure.py", "navcost.py", "reach.py",
+               "propfacts.py", "drivecheck.py")
 
 
 def _file_stamp(path: Path) -> list | None:
@@ -2169,7 +2208,7 @@ def _findings(project, name: str, box=None, m=None) -> dict:
     else:
         # Layers are already expanded into m: their files are named by the prefab nodes that stay in it.
         layers = {rel: _file_stamp(project.s.content_addon / rel) for rel in faceindex._layers(project, m)}
-    problems = _audit(project, m, box)
+    problems = _audit(project, m, box, name)
     _place(m, problems)
     measured = len(getattr(project, "_visual_model_bounds", {}))
     if key["map"] is not None and _check_key(project, name, box) == key:

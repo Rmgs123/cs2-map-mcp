@@ -11,6 +11,12 @@ def register(mcp, project):
     project.register_op('add_paving', paving.add_paving)
     from .. import districts
     project.register_op('add_district', districts.add_district)
+    from .. import blocks
+    project.register_op('add_block_house', blocks.add_block_house)
+    from .. import garages
+    project.register_op('add_garage_row', garages.add_garage_row)
+    from .. import yards
+    project.register_op('add_yard', yards.add_yard)
 
     @mcp.tool()
     def building_styles(style: str | None = None) -> dict:

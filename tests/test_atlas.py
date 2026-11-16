@@ -178,3 +178,80 @@ class AtlasReal(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class PropFacts(unittest.TestCase):
+    """The shipped facts of every stock model (src/cs2map/data/props/facts.jsonl)."""
+
+    def test_the_file_is_sorted_unique_and_small(self):
+        from cs2map import propfacts
+        lines = propfacts.FACTS.read_text(encoding='utf-8').splitlines()
+        models = [json.loads(line)['model'] for line in lines]
+        self.assertEqual(models, sorted(set(models)))
+        self.assertGreater(len(models), 10000)
+        self.assertLess(propfacts.FACTS.stat().st_size, 4_500_000)      # the push hook refuses files over 5 MB
+        for line in lines[:500]:
+            rec = json.loads(line)
+            self.assertRegex(rec['crc'], r'^[0-9a-f]{8}$')
+            if 'lo' in rec:
+                self.assertTrue(all(a <= b for a, b in zip(rec['lo'], rec['hi'])))
+
+    def test_what_a_town_map_had_to_find_out_by_hand(self):
+        from cs2map import propfacts
+        tree = propfacts.summary('models/cs_italy/foliage/tree/generic_tree_large_1.vmdl')
+        self.assertIn('vehicles hit it', tree)                 # 31.10: the crown stopped a bus clear of the trunk
+        self.assertIn('parts: italy_fridge_door', propfacts.summary('models/cs_italy/italy_fridge/italy_fridge.vmdl'))
+        self.assertIn('origin 50% up', propfacts.summary('models/props_c17/furniturestove001a.vmdl'))
+        self.assertEqual(propfacts.get('models/props_c17/furniturestove001a.vmdl', 'ffffffff'), None)  # other file
+
+    def test_measure_reads_triangles_and_bands(self):
+        from cs2map import propfacts
+        # a glb with one triangle standing 0..100 high (glTF y up, metres): Source z = glTF y
+        pos = struct.pack('<9f', 0, 0, 0, 1, 0, 0, 0, 100 * 0.0254, 0)
+        doc = {'asset': {'version': '2.0'}, 'scenes': [{'nodes': [0]}], 'nodes': [{'mesh': 0}],
+               'meshes': [{'primitives': [{'attributes': {'POSITION': 0}}]}],
+               'accessors': [{'bufferView': 0, 'componentType': 5126, 'count': 3, 'type': 'VEC3'}],
+               'bufferViews': [{'buffer': 0, 'byteLength': len(pos)}], 'buffers': [{'byteLength': len(pos)}]}
+        js = json.dumps(doc).encode()
+        js += b' ' * (-len(js) % 4)
+        raw = b'glTF' + struct.pack('<II', 2, 28 + len(js) + len(pos)) + struct.pack('<I4s', len(js), b'JSON') + js \
+            + struct.pack('<I4s', len(pos), b'BIN\x00') + pos
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'one.glb'
+            path.write_bytes(raw)
+            facts = propfacts.measure(path, path)
+        self.assertEqual(facts['tris'], 1)
+        self.assertEqual((facts['lo'][2], facts['hi'][2]), (0.0, 100.0))
+        self.assertEqual(sorted(facts['phys']['bands']), ['foot', 'roof'])
+
+    def test_companions_by_name(self):
+        from cs2map import propfacts
+        kin = propfacts.companions(['m/a/car.vmdl', 'm/a/car_glass.vmdl', 'm/a/car_details.vmdl', 'm/a/carpet.vmdl',
+                                    'm/b/car_glass.vmdl'])
+        self.assertEqual(kin, {'m/a/car.vmdl': ['m/a/car_details.vmdl', 'm/a/car_glass.vmdl']})
+
+
+class Anchor(unittest.TestCase):
+    def test_bottom_and_center_follow_the_turn_and_scale(self):
+        from cs2map.ext import models
+        fridge = {'lo': [-25.6, -30.4, 0.0], 'hi': [0.0, 0.5, 88.1]}
+        with patch('cs2map.propfacts.get', return_value=fridge):
+            self.assertEqual(models._anchored(None, 'x.vmdl', [100, 100, 0], [0, 0, 0], 1, 'bottom'), [112.8, 114.95, 0])
+            self.assertEqual(models._anchored(None, 'x.vmdl', [100, 100, 0], [0, 90, 0], 1, 'bottom'), [85.05, 112.8, 0])
+            self.assertEqual(models._anchored(None, 'x.vmdl', [0, 0, 0], [0, 0, 0], 2, 'center'), [25.6, 29.9, -88.1])
+
+
+class TrunkCore(unittest.TestCase):
+    def test_core_in_the_physics_foot_turned_and_scaled(self):
+        from cs2map.ext import models
+        tree = {'lo': [-170, -197, -1], 'hi': [168, 185, 487],
+                'phys': {'lo': [-79, -54, -1], 'hi': [40, 39, 272], 'bands': {'foot': [-18, -20, 18, 20]}}}
+        with patch('cs2map.propfacts.get', return_value=tree):
+            op = models._trunk_core('t.vmdl', [100, 200, 0], [0, 90, 0], 0.5)
+        self.assertEqual(op['material'], 'materials/tools/toolsnodraw.vmat')   # stops players, cars and bullets
+        self.assertEqual(op['shape']['radius'], 9.0)
+        self.assertEqual(op['shape']['center'], [100.0, 200.0])
+        self.assertEqual((op['shape']['z0'], op['shape']['z1']), (-8.0, 96.0))   # 192 cap x 0.5
+        with patch('cs2map.propfacts.get', return_value={'lo': [0, 0, 0], 'hi': [1, 1, 1]}):
+            with self.assertRaises(Exception):
+                models._trunk_core('nophys.vmdl', [0, 0, 0], [0, 0, 0], 1)

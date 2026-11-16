@@ -29,6 +29,20 @@ INFERNO = {
     'window': 'materials/glass/window_opaque_1.vmat',
     'door': 'materials/dev/reflectivity_10.vmat',
 }
+# style "blocks": a housing estate of free-standing blocks of flats (backdrops of big maps; add_block_house builds the
+# near ones). Stock materials, as add_block_house uses them.
+BLOCKS = {
+    'walls': ['materials/shared_base/concrete/concrete_panel_001.vmat',
+              'materials/shared_base/brick/brick_soviet_white_01a.vmat',
+              'materials/shared_base/plaster/plaster_soviet_01a.vmat',
+              'materials/de_cache/brick/ch2_brick_01_base.vmat'],
+    'roof': 'materials/concrete/hr_c/hr_concrete_wall_001.vmat',
+    'street': 'materials/de_cache/asphalt/ch2_asphalt_001.vmat',
+    'sidewalk': 'materials/shared_base/floor/pavement_soviet_tiles_01a.vmat',
+    'trim': 'materials/concrete/hr_c/hr_concrete_wall_005.vmat',
+    'window': 'materials/glass/window_opaque_1b.vmat',
+    'door': 'materials/metal/metaldoor034a.vmat',
+}
 MAX_HOUSES = 900
 WINDOW = (40.0, 60.0)          # width, height
 WINDOW_STEP = 96.0             # one window per this much wall
@@ -52,7 +66,7 @@ def _pair(v, label, lo, hi):
 
 
 def _materials(project, op):
-    mats = dict(INFERNO)
+    mats = dict(BLOCKS if op.get('style') == 'blocks' else INFERNO)
     own = op.get('materials') or {}
     if not isinstance(own, dict) or set(own) - set(mats):
         raise OpError(f'district.materials keys: {", ".join(sorted(mats))}')
@@ -82,8 +96,10 @@ def add_district(project, m, op, refs):
         raise OpError('district.name: 1..48 chars a-z0-9_')
     if any(n.name == 'district:' + name for n in m.iter_nodes()):
         raise OpError(f'district {name} already exists')
-    if op.get('style') not in (None, 'inferno'):
-        raise OpError('district.style: "inferno" or "my:<own style>" (own styles map their materials)')
+    if op.get('style') not in (None, 'inferno', 'blocks'):
+        raise OpError('district.style: "inferno", "blocks" (free-standing blocks of flats) or "my:<own style>" '
+                      '(own styles map their materials)')
+    estate = op.get('style') == 'blocks'
     area = op.get('area')
     if not isinstance(area, dict) or set(area) != {'mins', 'maxs'}:
         raise OpError('district.area is {"mins":[x,y], "maxs":[x,y]}')
@@ -98,8 +114,8 @@ def add_district(project, m, op, refs):
     bw, bd = (_num(v, 'block', 256, 4096) for v in block)
     street = _num(op.get('street', 192), 'street', 64, 1024)
     walk = _num(op.get('sidewalk', 32), 'sidewalk', 0, 256)
-    f_lo, f_hi = (int(v) for v in _pair(op.get('floors', [2, 4]), 'floors', 1, 12))
-    fh = _num(op.get('floor_height', 128), 'floor_height', 96, 256)
+    f_lo, f_hi = (int(v) for v in _pair(op.get('floors', [5, 9] if estate else [2, 4]), 'floors', 1, 16 if estate else 12))
+    fh = _num(op.get('floor_height', 112 if estate else 128), 'floor_height', 96, 256)
     hw = _num(op.get('house_width', 256), 'house_width', 128, 1024)
     roofs = op.get('roofs', ['gable', 'gable', 'flat'])
     if not isinstance(roofs, list) or not roofs or set(roofs) - {'gable', 'flat'}:
@@ -140,6 +156,12 @@ def add_district(project, m, op, refs):
                 add(mesh.box((bx0, by0, z - 1), (bx1, by1, top), mats['sidewalk']), solid)
             hx0, hx1, hy0, hy1 = bx0 + walk, bx1 - walk, by0 + walk, by1 - walk
             if hx1 - hx0 < 128 or hy1 - hy0 < 128:
+                continue
+            if estate:
+                houses += _estate(add, mats, rng, (hx0, hy0, top), (hx1, hy1), f_lo, f_hi, fh, windows, doors, solid,
+                                  flat_opts)
+                if houses > MAX_HOUSES:
+                    raise OpError(f'district has more than {MAX_HOUSES} houses: larger blocks or several districts')
                 continue
             mid = (hy0 + hy1) / 2
             for facing, (ry0, ry1) in ((-1, (hy0, mid)), (1, (mid, hy1))):
@@ -223,5 +245,80 @@ def _house(add, mats, rng, lo, hi, facing, end, floors, fh, roof, windows, doors
         u = x0 + (x1 - x0) * (c + 0.5) / count
         a, b = (face_y - 1, face_y + 3) if out > 0 else (face_y - 3, face_y + 1)
         pieces.extend(mesh.box((u - 26, a, z0), (u + 26, b, z0 + 96), mats['door']))
+    if pieces.faces:
+        add(pieces, flat_opts)
+
+
+def _estate(add, mats, rng, lo, hi, f_lo, f_hi, fh, windows, doors, solid, flat_opts):
+    """Style "blocks": free-standing slab blocks in a city block, along its long side, with yards between them.
+    Light for a backdrop: a body, a flat roof rim, flush dark window boxes and entrance doors; returns the count."""
+    x0, y0, z0 = lo
+    x1, y1 = hi
+    across = (x1 - x0) < (y1 - y0)                      # slabs run along the longer side
+    L0, L1, D0, D1 = (y0, y1, x0, x1) if across else (x0, x1, y0, y1)
+    depth = min(448.0, (D1 - D0) - 96)
+    if depth < 192:
+        return 0
+    rows = 2 if (D1 - D0) >= 2 * depth + 384 else 1
+    made = 0
+    for r in range(rows):
+        if rows == 1:
+            d0 = (D0 + D1) / 2 - depth / 2
+        else:
+            d0 = D0 + 48 if r == 0 else D1 - 48 - depth
+        length = (L1 - L0) - 96
+        sections = max(1, int(length // 1600) + (1 if length % 1600 > 800 else 0))
+        seg = (length - 160 * (sections - 1)) / sections   # gaps of 160 between sections
+        for k in range(sections):
+            l0 = L0 + 48 + k * (seg + 160)
+            if seg < 336:
+                continue
+            floors = rng.randint(f_lo, f_hi)
+            facing = -1 if r == 0 else 1                    # entrances towards the street side of each row
+            _slab_block(add, mats, rng, (l0, l0 + seg), (d0, d0 + depth), z0, floors, fh, across, facing, windows,
+                        doors, solid, flat_opts)
+            made += 1
+    return made
+
+
+def _slab_block(add, mats, rng, along, deep, z0, floors, fh, across, facing, windows, doors, solid, flat_opts):
+    """One block of flats: u runs along it, v across; across=True swaps them onto x/y."""
+    def P(u, v, z):
+        return (v, u, z) if across else (u, v, z)
+
+    def box(a, b, material):
+        (ua, va, za), (ub, vb, zb) = a, b
+        p, q = P(ua, va, za), P(ub, vb, zb)
+        return mesh.box(tuple(min(c) for c in zip(p, q)), tuple(max(c) for c in zip(p, q)), material)
+
+    (u0, u1), (v0, v1) = along, deep
+    h = floors * fh + 32                                # a plinth of 32 under the first floor
+    material, tint = mats['walls'][rng.randrange(len(mats['walls']))]
+    add(box((u0, v0, z0), (u1, v1, z0 + h), material), solid, tint)
+    add(box((u0 - 4, v0 - 4, z0 + h - 1), (u1 + 4, v1 + 4, z0 + h + 12), mats['trim']), solid)
+    pieces = mesh.Mesh()
+    step = 112.0
+    slots = max(1, int((u1 - u0) // step))
+    pad = ((u1 - u0) - slots * step) / 2
+    entrances = {int((i + 0.5) * slots / max(1, slots // 6)) for i in range(max(1, slots // 6))} if doors else set()
+    for k in range(slots):
+        c = u0 + pad + (k + 0.5) * step
+        for side, v in ((-1, v0), (1, v1)):
+            for fl in range(floors):
+                zb = z0 + 32 + fl * fh + 34
+                if k in entrances and side == facing:
+                    if fl == 0:
+                        continue
+                    zb -= fh / 2 - 10                   # the stair windows half a floor lower
+                    w, wh = 36.0, 44.0
+                else:
+                    w, wh = 56.0, 60.0
+                if not windows:
+                    continue
+                a, b = (v - 2, v + 1) if side < 0 else (v - 1, v + 2)   # 1 into the body, 2 out
+                pieces.extend(box((c - w / 2, a, zb), (c + w / 2, b, zb + wh), mats['window']))
+            if k in entrances and side == facing:
+                a, b = (v - 2, v + 1) if side < 0 else (v - 1, v + 2)
+                pieces.extend(box((c - 26, a, z0), (c + 26, b, z0 + 96), mats['door']))
     if pieces.faces:
         add(pieces, flat_opts)

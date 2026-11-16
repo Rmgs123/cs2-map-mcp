@@ -18,6 +18,9 @@ from typing import Any
 from .dmx import Element
 from .vmap import VMap
 
+# Groups that are buildings: their floors are thresholds over the street (no paving lip) and scatter keeps out of them.
+BUILDING_GROUPS = ('building:', 'block_house:', 'garage_row:')
+
 
 def hidden_helper(props: dict) -> bool:
     """A parked mechanics helper (disguise prop, glow marker): never drawn and never solid until a script uses it."""

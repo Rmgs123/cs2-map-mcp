@@ -572,7 +572,7 @@ def scatter(project,m,op,refs):
     # Building footprints are protected independently of the optional H metadata schema.
     from . import checks
     for n in m.iter_nodes():
-        if n.type=='CMapGroup' and n.name.startswith('building:'):
+        if n.type=='CMapGroup' and n.name.startswith(checks.BUILDING_GROUPS):
             boxes=[checks._mesh_bounds(c) for c in m.iter_nodes(n) if c.type=='CMapMesh']
             if boxes:
                 lo=[min(b[0][i] for b in boxes) for i in (0,1)];hi=[max(b[1][i] for b in boxes) for i in (0,1)]

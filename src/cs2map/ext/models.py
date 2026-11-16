@@ -58,6 +58,55 @@ def _similar_models(project, value: str) -> str:
     return f'; existing paths with this name: {", ".join(found)}' if found else ''
 
 
+def _anchored(p, rel, origin, angles, scale, anchor):
+    """The entity origin that puts the model's footprint middle ("bottom") or bounds middle ("center") at origin.
+    12.11, a kitchen: a fridge's origin is its back edge, a stove's its mid-height; placing by origin put the fridge
+    0.37 m into a doorway and the stove half under the floor."""
+    import numpy as np
+    from .. import propfacts, visual
+    from ..faceindex import _rotation
+    if (not isinstance(origin, (list, tuple)) or len(origin) != 3
+            or any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in origin)):
+        raise OpError('anchor needs origin as [x, y, z]')
+    rec = propfacts.get(rel)
+    if rec and rec.get('lo'):
+        lo, hi = rec['lo'], rec['hi']
+    else:
+        found = visual.model_bounds(p, rel)
+        if not found:
+            raise OpError(f'anchor: the size of {rel} is unknown (not a stock model with facts, no compiled file)')
+        lo, hi = list(found[0]), list(found[1])
+    point = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, lo[2] if anchor == 'bottom' else (lo[2] + hi[2]) / 2]
+    shift = _rotation(angles) @ (np.array(point) * scale)
+    return [round(float(o - s), 3) for o, s in zip(origin, shift)]
+
+
+def _trunk_core(rel, origin, angles, scale):
+    """An add_mesh op: an invisible solid cylinder where the model's physics touches the ground (its trunk).
+    Checked in CS2 16.11: toolsnodraw stops players, a car and bullets; toolsclip stops only players.
+    31.10, a town map: a stock tree's branches collided at bus-roof height; with the model not solid and a core in the
+    trunk a bus passes under the crown and players and bullets still stop at the trunk."""
+    import numpy as np
+    from .. import propfacts
+    from ..faceindex import _rotation
+    rec = propfacts.get(rel)
+    foot = ((rec or {}).get('phys') or {}).get('bands', {}).get('foot')
+    if not foot:
+        raise OpError(f'collision "trunk": {rel} has no collision near the ground in the stock facts '
+                      '(not a stock model, or nothing to keep)')
+    if (not isinstance(origin, (list, tuple)) or len(origin) != 3
+            or any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in origin)):
+        raise OpError('collision "trunk" needs origin as [x, y, z]')
+    centre = _rotation(angles) @ (np.array([(foot[0] + foot[2]) / 2, (foot[1] + foot[3]) / 2, 0.0]) * scale)
+    radius = max(2.0, min(foot[2] - foot[0], foot[3] - foot[1]) / 2 * scale)
+    top = min(rec['phys']['hi'][2], 192.0) * scale
+    return {'op': 'add_mesh', 'name': 'trunk core', 'material': 'materials/tools/toolsnodraw.vmat',
+            'shape': {'shape': 'cylinder', 'center': [round(float(origin[0] + centre[0]), 2),
+                                                      round(float(origin[1] + centre[1]), 2)],
+                      'radius': round(float(radius), 2), 'z0': round(float(origin[2]) - 8, 2),
+                      'z1': round(float(origin[2] + top), 2), 'sides': 8}}
+
+
 def register(mcp, project):
     @mcp.tool()
     def model_build(name: str, script: str | None = None, template: str | None = None,
@@ -127,16 +176,35 @@ def register(mcp, project):
             if groups is not None and skin not in groups:
                 raise OpError(f'{rel} has no material group {skin!r}; it has: {", ".join(groups) or "none (one look only)"}')
             kv['skin'] = skin
+        anchor = op.get('anchor', 'origin')
+        if anchor not in ('origin', 'bottom', 'center'):
+            raise OpError('anchor is "origin" (default: the model\'s own origin goes to origin), "bottom" (the middle '
+                          'of its footprint, lowest point) or "center" (the middle of its bounds)')
+        if anchor != 'origin':
+            origin = _anchored(p, rel, origin, angles, scale, anchor)
         defaults = p.catalog.defaults(classname)
         if dynamic:
             kv.setdefault('solid', 6)
             kv['modelscale'] = scale
+        collision = op.get('collision')
+        core = None
+        if collision is not None:
+            if collision != 'trunk':
+                raise OpError('collision is "trunk": the model collides only in its trunk (an invisible core)')
+            if dynamic:
+                raise OpError('collision "trunk" is for static props (the core does not move with a dynamic one)')
+            core = _trunk_core(rel, origin, angles, scale)
+            kv['solid'] = 0
         ent = vmap.new_entity(classname, kv, origin, angles, [scale, scale, scale], defaults=defaults)
         vmap.attach(ent)
         ref = op.get('ref')
         if ref:
             refs[ref] = ent['nodeID']
+        extra = {}
+        if core is not None:
+            made = p._apply(vmap, core, {})
+            extra['core'] = (made.get('ids') or [None])[0]
         return {'op': 'add_model', 'id': ent['nodeID'], 'model': rel, 'classname': classname,
-                **({'ref': ref} if ref else {}), **({'skin': kv['skin']} if skin else {})}
+                **({'ref': ref} if ref else {}), **({'skin': kv['skin']} if skin else {}), **extra}
 
     project.register_op('add_model', add_model)

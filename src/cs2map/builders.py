@@ -186,15 +186,63 @@ def _with_stops(stations, stops):
     return out
 
 
+def _to_wall(m, path, ground, end, reach=256.0):
+    """Move one end of a path onto the real face of the wall in front of it: a ray from the previous point along the
+    last span, at knee and chest height, finds the first wall face (from outside) within `reach` of the drawn end;
+    the end goes 1 unit into it. A fence drawn to a house outline stopped short of the wall or ran into it (11.2026,
+    a town map: outlines from a map service lie up to a metre off the real walls). Returns the moved distance or
+    None."""
+    from . import checks
+    a, b = (path[-2], path[-1]) if end else (path[1], path[0])
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    ln = math.hypot(dx, dy)
+    d = (dx / ln, dy / ln, 0.0)
+    lo = (min(a[0], b[0] + d[0] * reach) - 8, min(a[1], b[1] + d[1] * reach) - 8)
+    hi = (max(a[0], b[0] + d[0] * reach) + 8, max(a[1], b[1] + d[1] * reach) + 8)
+    z0 = ground(b[0], b[1], b[2] if len(b) == 3 else None)
+    best = None
+    for node in m.iter_nodes():
+        if node.type != 'CMapMesh' or node.get('physicsType') == 'none':
+            continue
+        bounds = checks._mesh_bounds(node)
+        if bounds is None or bounds[1][0] < lo[0] or bounds[0][0] > hi[0] or bounds[1][1] < lo[1] or bounds[0][1] > hi[1]:
+            continue
+        for tri in checks._triangles(node):
+            n = checks._cross(checks._sub(tri[1], tri[0]), checks._sub(tri[2], tri[0]))
+            ln_n = math.sqrt(checks._dot(n, n))
+            if ln_n < 1e-9 or abs(n[2]) > 0.3 * ln_n or checks._dot(n, d) >= 0:
+                continue                                    # walls only, seen from the fence's side
+            for h in (20.0, 48.0):
+                t = checks._ray((a[0], a[1], z0 + h), d, tri)
+                if t is not None and ln - reach <= t <= ln + reach and (best is None or t < best):
+                    best = t
+    if best is None:
+        return None
+    moved = best + 1 - ln
+    b[0], b[1] = a[0] + d[0] * (best + 1), a[1] + d[1] * (best + 1)
+    return round(moved, 1)
+
+
 def add_fence(project, m, op, refs):
     """Posts, rails and panels of one kind along a path, following the ground; gates are openings."""
     _fields(op, {'path', 'kind', 'height', 'post_spacing', 'material', 'post_material', 'thickness', 'sink', 'gates',
-                 'clip', 'cap', 'terrain', 'gap', 'gate_material'}, 'add_fence')
+                 'clip', 'cap', 'terrain', 'gap', 'gate_material', 'to_wall'}, 'add_fence')
     kind = op.get('kind', 'sheet')
     if kind not in FENCE_KINDS:
         raise OpError(f'kind must be one of {", ".join(FENCE_KINDS)}')
     panel_mat, post_mat, post_size, thick, height0, rails, solid = FENCE_KINDS[kind]
     path = _path(op.get('path'))
+    to_wall = op.get('to_wall', False)
+    if to_wall not in (False, True, 'start', 'end'):
+        raise OpError('add_fence.to_wall: true (both ends), "start" or "end": the end goes onto the wall in front of it')
+    snapped = {}
+    if to_wall:
+        for which, end in (('start', False), ('end', True)):
+            if to_wall in (True, which):
+                moved = _to_wall(m, path, _ground(m, op), end)
+                if moved is None:
+                    raise OpError(f'add_fence.to_wall: no solid wall within 256 units in front of the {which} of the path')
+                snapped[which] = moved
     height = _num(op.get('height'), 'height', 8, 512, height0)
     spacing = _num(op.get('post_spacing'), 'post_spacing', 24, 512, 96 if kind != 'panel' else 80)
     thick = _num(op.get('thickness'), 'thickness', 0.25, 64, thick)
@@ -213,8 +261,14 @@ def add_fence(project, m, op, refs):
     # Neighbouring spans meet at a post: in one mesh their touching ends would share edges, so even and odd
     # spans go to two meshes (posts cover the joint).
     posts = mesh.Mesh()
-    panels_eo, rails_eo, clips_eo = [mesh.Mesh(), mesh.Mesh()], [mesh.Mesh(), mesh.Mesh()], [mesh.Mesh(), mesh.Mesh()]
-    caps_eo, cages_eo = [mesh.Mesh(), mesh.Mesh()], [mesh.Mesh(), mesh.Mesh()]
+    # A closed fence (its last point on the first): the last span meets the first one too, so when both are even it
+    # goes to a third mesh, and the closing post is not built twice (16.11: a fence round a play area failed).
+    closed = len(path) > 3 and math.dist(path[0][:2], path[-1][:2]) < 1
+    panels_eo, rails_eo, clips_eo = [mesh.Mesh() for _ in range(3)], [mesh.Mesh() for _ in range(3)], [mesh.Mesh() for _ in range(3)]
+    caps_eo, cages_eo = [mesh.Mesh() for _ in range(3)], [mesh.Mesh() for _ in range(3)]
+
+    def par(i):
+        return 2 if closed and i == len(stations) - 2 and i % 2 == 0 else i % 2
     planks = kind == 'planks'
 
     def dip(i):
@@ -229,7 +283,7 @@ def add_fence(project, m, op, refs):
             continue
         za, zb = z[i], z[i + 1]
         low = sink + dips[i]
-        panels, rails_m, clips = panels_eo[i % 2], rails_eo[i % 2], clips_eo[i % 2]
+        panels, rails_m, clips = panels_eo[par(i)], rails_eo[par(i)], clips_eo[par(i)]
         if kind in MASONRY:
             panels.extend(slab(a, b, za - low, za + height, zb - low, zb + height, thick / 2, panel_mat))
             if kind == 'gabion':
@@ -238,12 +292,12 @@ def add_fence(project, m, op, refs):
                 ln = math.hypot(b[0] - a[0], b[1] - a[1])
                 ca = [a[k] - (b[k] - a[k]) / ln for k in (0, 1)] if i == 0 else a
                 cb = [b[k] + (b[k] - a[k]) / ln for k in (0, 1)] if i == len(stations) - 2 else b
-                cages_eo[i % 2].extend(slab(ca, cb, za - 1, za + height + 1, zb - 1, zb + height + 1, thick / 2 + 1,
+                cages_eo[par(i)].extend(slab(ca, cb, za - 1, za + height + 1, zb - 1, zb + height + 1, thick / 2 + 1,
                                             post_mat))
             elif op.get('cap', True):
                 # Its own mesh: a cap sitting on the wall in the same mesh would share the wall's top edges.
                 cap = _material(project, op['cap'], post_mat) if isinstance(op.get('cap'), str) else post_mat
-                caps_eo[i % 2].extend(slab(a, b, za + height, za + height + 3, zb + height, zb + height + 3,
+                caps_eo[par(i)].extend(slab(a, b, za + height, za + height + 3, zb + height, zb + height + 3,
                                            thick / 2 + 1, cap))
             continue
         bottom = 4 if kind in ('sheet', 'planks', 'chainlink') else 0
@@ -277,13 +331,15 @@ def add_fence(project, m, op, refs):
             touches = [open_at(stations[max(0, i - 1)][0], d), open_at(d, stations[min(len(stations) - 1, i + 1)][0])]
             if all(touches) and 0 < i < len(stations) - 1:
                 continue                      # inside a gate
+            if closed and i == len(stations) - 1:
+                continue                      # the first post stands there
             posts.extend(_post(p[0], p[1], z[i] - sink, z[i] + height + 2, post_size, post_mat))
     if not solid and not op.get('clip'):
         # A see-through panel has no collision: without a clip players walk through the wire.
         for i in range(len(stations) - 1):
             (d0, a), (d1, b) = stations[i], stations[i + 1]
             if not open_at(d0, d1):
-                clips_eo[i % 2].extend(slab(a, b, z[i] - dips[i], z[i] + height, z[i + 1] - dips[i], z[i + 1] + height,
+                clips_eo[par(i)].extend(slab(a, b, z[i] - dips[i], z[i] + height, z[i + 1] - dips[i], z[i + 1] + height,
                                             1, CLIP))
     leaves = mesh.Mesh()
     gate_mat = _material(project, op.get('gate_material'), panel_mat if solid and kind not in MASONRY
@@ -320,7 +376,7 @@ def add_fence(project, m, op, refs):
     if not ids:
         raise OpError('add_fence made nothing (every span is inside a gate)')
     out = {'op': 'add_fence', 'id': ids[0], 'ids': ids, 'kind': kind, 'length': round(total, 1),
-           'posts': len(stations) if post_size else 0, 'gates': len(gaps)}
+           'posts': len(stations) if post_size else 0, 'gates': len(gaps), **({'to_wall': snapped} if snapped else {})}
     if op.get('ref'):
         refs[op['ref']] = ids[0]
         out['ref'] = op['ref']

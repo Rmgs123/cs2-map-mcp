@@ -95,7 +95,7 @@ def reference_pairs(pairs):
     23-24.10: a local script made it for every block of 20 photos)."""
     if not isinstance(pairs, list) or not 1 <= len(pairs) <= 24:
         raise OpError('pairs: 1..24 [photo, frame] pairs of local images')
-    rows = []
+    rows, diffs = [], []
     for i, pair in enumerate(pairs, 1):
         if not isinstance(pair, (list, tuple)) or len(pair) != 2:
             raise OpError('each pair is [photo, frame]')
@@ -103,6 +103,8 @@ def reference_pairs(pairs):
         for value in pair:
             with Image.open(_input(value)) as im:
                 ims.append(im.convert('RGB'))
+        if ims[0].size == ims[1].size:                  # two frames of one view (before / after): how much changed
+            diffs.append({'pair': i, **frame_diff(ims[0], ims[1])})
         h = 360
         ims = [im.resize((round(im.width * h / im.height), h), Image.Resampling.LANCZOS) for im in ims]
         row = Image.new('RGB', (sum(im.width for im in ims) + 48, h + 8), '#202020')
@@ -120,7 +122,29 @@ def reference_pairs(pairs):
         y += row.height
     path = _output('pairs')
     out.save(path)
-    return {'ok': True, 'comparison': str(path), 'size': list(out.size), 'pairs': len(rows), 'needs_visual_review': True}
+    out_ = {'ok': True, 'comparison': str(path), 'size': list(out.size), 'pairs': len(rows), 'needs_visual_review': True}
+    if diffs:
+        out_['diffs'] = diffs
+    return out_
+
+
+def frame_diff(a, b) -> dict:
+    """How two frames of the same view differ: the share of pixels where a colour channel moved more than DIFF_STEP
+    (out of 255), the mean change, and the box of the changed pixels. Two frames of an unchanged view in CS2 differ
+    a little (foliage, particles, the HUD clock): judge by the share and the box, not by zero."""
+    import numpy as np
+    x = np.asarray(a, dtype=np.int16)
+    y = np.asarray(b, dtype=np.int16)
+    d = np.abs(x - y).max(axis=2)
+    changed = d > DIFF_STEP
+    out = {'changed': round(float(changed.mean()), 5), 'mean': round(float(d.mean()), 2)}
+    if changed.any():
+        rows, cols = np.where(changed)
+        out['box'] = [int(cols.min()), int(rows.min()), int(cols.max()), int(rows.max())]
+    return out
+
+
+DIFF_STEP = 24
 
 
 def reference_plan(project, spec):

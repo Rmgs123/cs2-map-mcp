@@ -94,7 +94,7 @@ E at the driver's door. **W** gas, **S** brake then reverse, **A/D** steer (less
 
 ## Test it
 
-A route without a driver (cheat): `v9_control_<name>_route x1,y1,x2,y2,...[,speed]` drives through the points with proportional steering and logs `route_point`, `route_tick` (each second), `route_done`, or `route_stuck` with the place where it stopped (`reason: "circling"`: a point inside the turning circle); `..._route off` ends it. Keep the points farther apart than the turning radius (a 288-unit wheelbase turns in ~15 m at walking pace) — it finds narrow passages and scraping humps along a road.
+A route without a driver (cheat): `v9_control_<name>_route x1,y1,x2,y2,...[,speed]` drives through the points with proportional steering and logs `route_point`, `route_tick` (each second), `route_done`, or `route_stuck` with the place where it stopped (`reason: "circling"`: a point inside the turning circle); `..._route off` ends it. Keep the points farther apart than the turning radius. First drive them offline: `route_test(map, route, vehicle="<name>")` (steps, grades, nose/tail, walls, props, tight turns; no game).
 
 ```json
 [{"walk":[256,330,8]},{"aim":[256,256,40]},{"use":true},{"expect":"V_CAR jeep enter","within":3},

@@ -78,6 +78,8 @@ src/cs2map/project.py       core operations: maps, batch editing, builds, assets
    ├─ wear.py, streetlife.py   facade wear decals, street dressing
    ├─ terrain.py, streets.py   terrain (heightmap, blending, bank cuts), scatter, add_street
    ├─ builders.py   fences, railings, earth banks, bare trees along paths over the terrain
+   ├─ blocks.py, garages.py, yards.py   housing estates: blocks of flats (one mitred wall ring), garage rows
+   │                (stepped solids), yard dressing on free ground (keep-clear zones of entrances and gates)
    ├─ modes.py      DM, Arms Race, Wingman, aim, surf/bhop/kz courses
    ├─ mechanics.py, fire.py + data/mechanics/   the shared mechanics core (JS fragments) and the shot engine
    ├─ control.py, vehicles.py, turrets.py   controllable objects: drone, car, turret
@@ -173,6 +175,10 @@ Faces wind counter-clockwise seen from outside. `Face.colors` (RGBA per corner) 
 - **Quality** ([quality](specs/quality.md), [visual](specs/visual.md)): `check_map`, presets, cubemaps, views, play tests, fog, shafts; `visual_check`.
 - **Background work** ([background](specs/background.md)): CS2 renders, loads and takes console input behind the user's windows; settings `game_focus`, `build_priority`.
 - **Panel** ([panel](specs/panel.md)): a local status page for the person at the PC (jobs, frames, activity journal, load of CPU/memory/GPU) with switches for what the AI may do without asking; `heavy_builds`, deferred tests, stopping a job; `activity.py`, `permits.py`, `panel.py`.
+- **Master prompts** (`prompts.py`, `data/prompts/*.md`): whole jobs (new map, map from photos, fix testers' marks, beauty pass, mechanics tests, optimize, release) served as MCP prompts; no tool-description budget; `tests/test_prompts.py` checks that every tool and guide section they name exists.
+- **Housing estates** (guide section `blocks`): `blocks.py` (`add_block_house`; `_ring` builds closed walls with mitred corners, `KEEP_CLEAR` marks ground before entrances), `garages.py` (`add_garage_row`; `_bar` builds a stepped solid), `yards.py` (`add_yard`; a raster of what stands on the ground), `districts.py` style `blocks`; groups are buildings for the checks (`checks.BUILDING_GROUPS`).
+- **Checks of drives and reach**: `drivecheck.py` (`route_test(vehicle=...)`, offline drive of a body along a route), `reach.py` (where players can stand: `visual_escape`, bare clips), `perfcheck.py` (`map_info(about="cost")`).
+- **Facts of every stock model** ([atlas](specs/atlas.md)): `propfacts.py`, `data/props/facts.jsonl` (sizes, physics bands, parts); search summaries, `add_model` `anchor`.
 - **Fast loop** ([pipeline](specs/pipeline.md)): `map_edit(packages=...)` replays only the changed packages and stale generators in one job; `map_build(region=...)` builds one zone; `game_screenshot(window="offline")` draws the saved map without CS2; `visual_check` keeps its findings and takes a `box`.
 - **Scripts and stories** ([scripting](specs/scripting.md)), **sound** ([sound](specs/sound.md)), **physics** ([physics](specs/physics.md)), **effects** ([fx](specs/fx.md)), **light** ([light](specs/light.md)).
 - **Layout and buildings** ([layout](specs/layout.md), [buildings](specs/buildings.md), [quarter](specs/quarter.md), [wear](specs/wear.md), [streetlife](specs/streetlife.md), [dressing](specs/dressing.md), [kits](specs/kits.md), [atlas](specs/atlas.md), [structure](specs/structure.md)).

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 
 import numpy as np
 
@@ -49,6 +50,11 @@ CLIP_REPORT = 64.0
 _WALL_TOKENS = ('wall_mounted', 'wallmount', 'wall_mount', 'ac_unit', 'air_conditioner', 'aircon')
 _NOT_UNIT = ('window', 'shutter', 'glass', 'blind', 'curtain', 'frame', 'grate', 'bars', 'awning')
 _GLASS = ('glass', 'window', 'pane')
+_PANEL = re.compile(r'pane(?=l)')     # 16.11: 'pane' also matched concrete_panel: a whole panel wall was a pane
+
+
+def _is_glass(mat: str) -> bool:
+    return 'glass' in mat or 'window' in mat or ('pane' in mat and _PANEL.sub('', mat).count('pane') > 0)
 _FENCE = ('fence', 'railing', 'rail_', 'grate', 'grille', 'chainlink', 'chain_link', 'wire', 'picket',
           'lattice', 'plank', 'palisade', 'netting')
 _CLIP = ('toolsplayerclip', 'toolsclip')
@@ -236,10 +242,10 @@ def _glass_panes(visible):
     panes = []
     for node, _, _ in visible:
         mats = [str(x).lower() for x in node['meshData'].get('materials', [])]
-        if not any(g in mat for mat in mats for g in _GLASS):
+        if not any(_is_glass(mat) for mat in mats):
             continue
         for points, mat in _faces(node):
-            if not any(g in mat for g in _GLASS):
+            if not _is_glass(mat):
                 continue
             n = _normal(points[:3])
             if abs(n[2]) > STEEP:
@@ -647,7 +653,7 @@ def _is_clip(node) -> bool:
     return bool(mats) and all(any(c in mat for c in _CLIP) for mat in mats)
 
 
-def clip_checks(m, meshes, visible, props, skip=frozenset(), zone: Zone | None = None) -> list:
+def clip_checks(m, meshes, visible, props, skip=frozenset(), zone: Zone | None = None, reached=None) -> list:
     """visual_bare_clip: a player clip with nothing visible within CLIP_NEAR where a player meets it."""
     clips = [(n, b, tris) for n, b, tris in meshes if _is_clip(n) and n.get('nodeID') not in skip]
     if not clips:
@@ -716,6 +722,8 @@ def clip_checks(m, meshes, visible, props, skip=frozenset(), zone: Zone | None =
                     g = ground(ox, oy, z_hi)
                     if g is None or z_lo > g + 48 or z_hi < g + 48:
                         continue                             # it does not stop a player standing there
+                    if reached is not None and not reached(ox, oy, g):
+                        continue                             # no player ever walks up to it from this side
                     box = ((x - CLIP_NEAR, y - CLIP_NEAR, g + 8), (x + CLIP_NEAR, y + CLIP_NEAR, g + 96))
                     idx = seen_tris.near(box[0][0], box[1][0], box[0][1], box[1][1])
                     idx = idx[(seen_tris.lo[idx, 2] <= box[1][2]) & (seen_tris.hi[idx, 2] >= box[0][2])]

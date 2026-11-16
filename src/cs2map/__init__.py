@@ -1,3 +1,3 @@
 """CS2 Map MCP: file-based authoring of Counter-Strike 2 maps (VMAP/DMX)."""
 
-__version__ = "1.4.1"
+__version__ = "1.5.0"

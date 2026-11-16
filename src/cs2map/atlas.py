@@ -218,8 +218,17 @@ def glb_bounds(path: Path):
 
 def measure(project, paths: list[str]) -> dict:
     """Fill lo/hi for models that have no size yet (geometry-only export, ~50 ms each)."""
+    from . import propfacts
     models = index(project)
-    todo = [p for p in paths if 'lo' not in models[p]]
+    todo = []
+    for p in paths:
+        if 'lo' in models[p]:
+            continue
+        known = propfacts.get(p, models[p]['crc'])          # shipped facts of this very file: no export needed
+        if known is not None:
+            models[p]['lo'], models[p]['hi'] = known.get('lo'), known.get('hi')
+        else:
+            todo.append(p)
     if not todo:
         return models
     with _scratch() as tmp:
@@ -337,7 +346,9 @@ def _size(info) -> str:
 
 
 def _line(path: str, info: dict, rec: dict | None) -> str:
-    head = f'{path} | {_size(info)}'
+    from . import propfacts
+    extra = propfacts.summary(path, info.get('crc'))
+    head = f'{path} | {_size(info)}' + (f' | {extra}' if extra else '')
     if not rec:
         return head + ' | not described'
     stale = ' (model changed since)' if rec.get('crc') != info['crc'] else ''
